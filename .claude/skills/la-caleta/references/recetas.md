@@ -4,6 +4,8 @@
 
 `COSTOS RECETAS LA CALETA.xlsx`: es la V7 con **el mismo formato** (una ficha por hoja, LISTA, RESUMEN COSTOS) más las 44 hojas de COSTOS PRODUCTOS (precios por proveedor) adentro, después de LISTA. Cadena: hoja del proveedor → LISTA → ficha → RESUMEN COSTOS. Ya no hay vínculos a archivos externos. Mat quiere que el formato siga igual que siempre: no cambiar la estructura de las fichas ni pasarlas a otro formato. Hoja "CAMBIOS 28-10" con lo que se arregló. Va en Drive, carpeta "3 Recetas y costos" (Mat lo sube y lo abre con Google Sheets).
 
+Precios cruzados el 28/10 con "Precios La Caleta" (pestaña Proveedores, al 22/10) y facturas de octubre: 78 precios cambiados (celdas amarillas con nota del precio anterior), lista completa y lo que quedó "a revisar" en la hoja "PRECIOS 28-10". Regla usada: se cambia solo la celda que se tipea (FINAL/actualización), y solo si la variación está entre −40% y +70%; si no, va a revisar (suele ser otra unidad: cajón vs kg). La lista que hay que mantener al día para recetas es la de proveedores: cuando se cargue una factura nueva en "Precios La Caleta", cargarla también en la hoja del proveedor de este archivo.
+
 Pendiente: sub-recetas que entran por precio de venta y el ciclo de TALLA PROMO (ver abajo) siguen sin tocar; plantearlo solo a Mat. "DD LECHE EUREKA FAMILIAR" falta en LISTA (Torta brownie nutella).
 
 ## Archivo anterior
