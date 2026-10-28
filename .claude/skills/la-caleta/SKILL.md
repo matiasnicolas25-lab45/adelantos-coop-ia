@@ -77,7 +77,7 @@ Detalle en `references/recetas.md`. Lo esencial:
 ## Ventas, informes y otros sistemas
 
 - Ventas: sistema **Resto Soft**. No hay conector; se exporta el informe a una carpeta de Drive y se lee de ahí.
-- Informes para el consejo: se mandan por WhatsApp a Matías, que los reenvía al grupo del consejo (un bot oficial no puede escribir en un grupo común).
+- Informes para el consejo: **solo cuando Mat los pide**; no los armes por iniciativa propia. Se mandan por WhatsApp a Matías, que los reenvía al grupo del consejo (un bot oficial no puede escribir en un grupo común).
 - Amplitude (plan gratuito, proyecto "default", vacío al 28/10/2026) se evalúa para rankings de ventas como eventos. Recetas y plata quedan en Sheets. Nunca pedir que peguen la API key en el chat.
 - Bot de WhatsApp para que los socios carguen sus consumos: API oficial de Meta con chip propio (no bots no oficiales: riesgo de bloqueo). Alternativa gratis: Telegram.
 

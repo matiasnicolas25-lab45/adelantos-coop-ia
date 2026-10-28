@@ -1,6 +1,12 @@
 # Recetas y costeo: detalle
 
-## Archivo vigente
+## Archivo vigente (desde el 28/10/2026)
+
+`COSTOS RECETAS LA CALETA.xlsx`: es la V7 con **el mismo formato** (una ficha por hoja, LISTA, RESUMEN COSTOS) más las 44 hojas de COSTOS PRODUCTOS (precios por proveedor) adentro, después de LISTA. Cadena: hoja del proveedor → LISTA → ficha → RESUMEN COSTOS. Ya no hay vínculos a archivos externos. Mat quiere que el formato siga igual que siempre: no cambiar la estructura de las fichas ni pasarlas a otro formato. Hoja "CAMBIOS 28-10" con lo que se arregló. Va en Drive, carpeta "3 Recetas y costos" (Mat lo sube y lo abre con Google Sheets).
+
+Pendiente: sub-recetas que entran por precio de venta y el ciclo de TALLA PROMO (ver abajo) siguen sin tocar; plantearlo solo a Mat. "DD LECHE EUREKA FAMILIAR" falta en LISTA (Torta brownie nutella).
+
+## Archivo anterior
 
 `COSTOS_RECETAS_2022_REVISION_PRELIMINAR_V7_CAMBIOS_CLAUDE.xlsx` (Matías lo sube al chat; no está en Drive con ese nombre). 626 hojas:
 
@@ -20,7 +26,10 @@ Una receta usada como ingrediente aparece en LISTA con una fórmula que apunta a
 - 95 celdas de la columna G apuntan por error a `'CHOCO ORANGE PIE'!A1` en vez de F×C; 10 tienen cantidad cargada y dan mal hoy (Creps de salmón, Pan dulce, Selva negra, Sorrentinos de zapallo, Marquise, Pan casero hamburguesa, Torta brownie nutella, Budín de limón relleno, Tarta arroz con leche, Choco orange pie).
 - "TIEMPO" es la mano de obra de la ficha y **se mantiene**: forma parte del costo que se usa para adelantos (decisión de Mat; ver SKILL.md).
 
-## Planilla única propuesta (Google Sheets)
+## Planilla única propuesta (Google Sheets) — DESCARTADA
+
+Mat pidió el 28/10 mantener el formato de siempre (ver "Archivo vigente"). Esto queda solo como antecedente.
+
 
 1. Proveedores: precio de compra y formato.
 2. Insumos: costo por unidad de uso y merma, calculado desde Proveedores.
