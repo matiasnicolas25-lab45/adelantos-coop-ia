@@ -68,9 +68,9 @@ Detalle en `references/recetas.md`. Lo esencial:
 
 - Archivo vigente de Laura: `COSTOS RECETAS 2022 ... V7` (Excel, ~626 hojas, una ficha por hoja, hoja `LISTA` con los insumos, hoja `RESUMEN COSTOS` con costo y costo para adelantos).
 - Hay recetas que usan otras recetas (hasta 4 niveles). **Una sub-receta entra siempre por su costo por porción (o por kg), nunca por su precio de venta ni por el costo de toda la tanda.**
-- Mano de obra: **para el precio de adelantos se usa el CD de la ficha con mano de obra** (regla del chat de adelantos). Para analizar márgenes de la carta, en cambio, la mano de obra se trata como costo fijo (retiros) y se mide aparte en horas de cocina. No mezclar los dos criterios en un mismo número.
+- **La mano de obra va en las recetas** (renglón "TIEMPO" de cada ficha) y forma parte del CD que se usa para el precio de adelantos. Es una decisión de Mat y por ahora no se cambia. **No la saques, no la separes y no propongas sacarla** al migrar fichas, armar la planilla única ni hacer análisis. Antecedente: un análisis anterior la trató como costo fijo y la dejó afuera del costo del plato; eso le trajo a Mat un problema muy serio con la cooperativa y casi le cuesta el proyecto.
+- **Cambios de criterio de costeo** (qué entra en el costo, recargos, cómo se prorratea): nunca los apliques ni los presentes como decididos. Si ves algo para mejorar, planteáselo a Mat en privado, como pregunta, y esperá su decisión.
 - En la lista de Platos para adelantos quedaron afuera las fichas que tienen el costo de la receta entera en vez de la porción, los promedios y las bebidas por medida con costos viejos.
-- Costo real de un plato = materia prima + **28,9% del precio de venta** (estructura de agosto 2026: retiros, servicios, taxi, mantenimiento). Recalcular si cambia la estructura.
 - Plan en curso: pasar todo a una sola Google Sheet (Proveedores → Insumos → Recetas → Costos → Revisar) donde un cambio de precio se propaga solo por todos los niveles.
 
 ## Ventas, informes y otros sistemas

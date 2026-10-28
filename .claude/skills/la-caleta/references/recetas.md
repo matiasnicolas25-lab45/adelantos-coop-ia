@@ -18,18 +18,21 @@ Una receta usada como ingrediente aparece en LISTA con una fórmula que apunta a
 - Usos con precio de venta que inflan costos: GRANOLA (en Yogurt + granola y Peras + almíbar), PROMEDIO PURE (en Promedio fritas-ens ejec → Menú ejecutivo), promedios de ensaladas chicas (en Medallón vegano, Promedio omelettes, Menú ejecutivo), BLINIS y TARTA AZUCARADA (en Evento Mitzy). Los "PROMEDIO … VENTA" que promedian precios de carta son intencionales.
 - **TALLA PROMO se usa a sí misma** (ciclo): rompe Talla Promo, Promedio Promos y Promo Marineritos.
 - 95 celdas de la columna G apuntan por error a `'CHOCO ORANGE PIE'!A1` en vez de F×C; 10 tienen cantidad cargada y dan mal hoy (Creps de salmón, Pan dulce, Selva negra, Sorrentinos de zapallo, Marquise, Pan casero hamburguesa, Torta brownie nutella, Budín de limón relleno, Tarta arroz con leche, Choco orange pie).
-- "TIEMPO" aparece como ingrediente en varias fichas: es mano de obra y no debería sumarse al costo de materia prima.
+- "TIEMPO" es la mano de obra de la ficha y **se mantiene**: forma parte del costo que se usa para adelantos (decisión de Mat; ver SKILL.md).
 
 ## Planilla única propuesta (Google Sheets)
 
 1. Proveedores: precio de compra y formato.
 2. Insumos: costo por unidad de uso y merma, calculado desde Proveedores.
 3. Recetas: una fila por ingrediente (receta, ingrediente, cantidad, unidad); ingrediente elegido de una lista (insumo u otra receta); rendimiento por receta.
-4. Costos: costo total, por porción y para adelantos (+25%). Las sub-recetas entran siempre por costo por porción.
+4. Costos: costo total (con mano de obra), por porción y para adelantos (+25%). Las sub-recetas entran siempre por costo por porción.
 5. Revisar: ciclos, ingredientes inexistentes, cantidades sin precio, con el motivo, para que Laura confirme.
 
 Migración: pasar las fichas limpias automáticamente y mandar a "Revisar" solo las dudosas. Pendiente de definir con Matías: si se migran las fichas viejas (eventos 2019, Año Nuevo, etc.) y si el 25% aplica a todo.
 
-## Estructura y margen (agosto 2026)
+## Estructura y margen (agosto 2026) — solo como antecedente
+
+Ojo: este análisis separó la mano de obra del costo del plato y eso le trajo problemas a Mat. No usar estas cifras para cambiar precios ni criterios de costeo.
+
 
 Ventas $65,9 M; compras $23,3 M; estructura $19,03 M (28,9% de la venta: retiros $17,19 M, servicios EPE/Litoral Gas/Clean City, taxi, mantenimiento, cursos); resultado $23,5 M. No hay canon ni cargas sociales (cooperativa, monotributistas). Los retiros son remuneración del trabajo, no reparto de excedentes. Antecedente: claude.ai/artifact/19jn2r5Cq5PtnR5PSxrSrE.
