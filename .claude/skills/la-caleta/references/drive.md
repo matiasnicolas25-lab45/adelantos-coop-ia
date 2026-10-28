@@ -20,6 +20,9 @@ Verificado el 28/10/2026. Si un ID no abre, buscá por nombre y actualizá este 
 | LEEME con todos los links | "LEEME — La Caleta Sistema" (Doc) | `19hTysl-aWPKtFb-fseUjCeMt4uIrMJps_IeUVaTUmaE` |
 | Subcarpetas | 1 Bitácora y reglas / 2 Ventas y análisis / 3 Recetas y costos / 4 Informes para el consejo | `1eWd6vGO1hR0GTvSPTirt0Y7FIPMsMytR` / `1NiJRrZ5rO0B5cMT0qEaOQxbYfa2Rh1qk` / `1-oaZwN1oaLh9P1wrpeS-QOyYRIZQxdOc` / `1HNJjl8FwPn0scmxxy6dYNvT1YBMjvEdp` |
 | Informes originales de Resto Soft (.xls) | "Informes Resto Soft (originales)" | `1youEOcz9c7-kDSBk0YFdFIphOmJ0RiPQ` |
+| **Resumen anual mes a mes (ventas, costos, retiros)** | "La Caleta 2026 — mes a mes" (carpeta 2) | `1l-rwCQxFhadqVfmnXRkAiRDebnkmKgMS8lk4Qtson7I` |
+| Informes de Resto Soft ene-jul 2026 (compartidos por lacaletaycr) | carpeta "RESTOSOFT" | `1wO-WdCuwm0PtuFtz_MdcFj-uZwXlMsmZ` |
+| Gastos de la tesorera | "GASTOS 2026 " | `1v4zobLlIs0homILGpkQx6XpcLHlMNANPoU4d5780pT0` |
 | Análisis de ventas agosto | "Ventas agosto 2026 — análisis" | `1W2zKhWCRG2THuwty7Voa4GvhXrd6dJ4L5ouLWELdrmY` |
 | Análisis de ventas septiembre | "Ventas septiembre 2026 — análisis" | `12CplCboAd91C1kQ1Y21pSlDqKw87rU6gSDxwqrtV1PI` |
 | **Costos de recetas (vigente, con precios y hoja RESTO SOFT)** | "COSTOS RECETAS LA CALETA" (Hoja de Google, carpeta 3) | `1IS6goPstA-20qET9q1ZTMfwcAjN5miUzm01bXd6luSI` |
