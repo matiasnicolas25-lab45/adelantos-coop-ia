@@ -1,11 +1,11 @@
 ---
 name: la-caleta
-description: "Reglas y contexto de La Caleta, la cooperativa gastronómica del Yacht Club Rosario: adelantos semanales de los asociados y sus mensajes de WhatsApp, precios de proveedores, facturas y remitos, costeo de recetas (sub-recetas incluidas), ventas de Resto Soft e informes para el consejo. Usalo siempre que se hable de La Caleta, la cooperativa, un asociado por su nombre (Laura, Silvia, Yas, Romi, etc.), adelantos, devoluciones, la planilla de precios, la de recetas de Laura, Verdu Jorge u otro proveedor, facturas de la carpeta de Drive, el 25% de recargo o el costo de un plato, aunque no se nombre a La Caleta."
+description: "Reglas y contexto de La Caleta, la cooperativa gastronómica del Yacht Club Rosario: adelantos semanales de los asociados y sus mensajes de WhatsApp, precios de proveedores, facturas y remitos, costeo de recetas (sub-recetas incluidas), ventas de Resto Soft e informes para el consejo. Usalo siempre que se hable de La Caleta, la cooperativa, un asociado por su nombre (Silvia, Yas, Romi, etc.), adelantos, devoluciones, la planilla de precios, la planilla de costos de recetas, Verdu Jorge u otro proveedor, facturas de la carpeta de Drive, el 25% de recargo o el costo de un plato, aunque no se nombre a La Caleta."
 ---
 
 # La Caleta
 
-Cooperativa gastronómica que atiende el restaurante del Yacht Club Rosario (solo socios del club). Quien escribe suele ser Matías, que lleva la administración junto a la sindicatura. Laura es la cocinera que armó y mantiene el costeo de recetas.
+Cooperativa gastronómica que atiende el restaurante del Yacht Club Rosario (solo socios del club). Quien escribe suele ser Matías, que lleva la administración junto a la sindicatura.
 
 Claude no tiene memoria entre chats, y Matías usa chats distintos para cada tema (uno de adelantos, otro de facturas y precios, otro de recetas). Lo que conecta a esos chats son dos cosas:
 
@@ -27,7 +27,7 @@ Cómo usar la bitácora:
 
 ## Antes de tocar cualquier planilla
 
-- Leé de nuevo justo antes de escribir: Matías y Laura editan seguido.
+- Leé de nuevo justo antes de escribir: hay otras personas que editan las planillas.
 - Cambios de datos (precios, montos, renglones de adelantos): mostrá lo que vas a cambiar y pedí confirmación. Ordenar o formatear sin cambiar montos se puede hacer directo si lo pidió.
 - Nunca escribas un número calculado a mano donde va una fórmula. Las columnas de saldo son fórmulas: no las pises.
 - Después de escribir, releé y verificá que los totales sigan dando.
@@ -66,9 +66,10 @@ Detalle en `references/precios-y-facturas.md`. Lo esencial:
 
 Detalle en `references/recetas.md`. Lo esencial:
 
-- Archivo vigente de Laura: `COSTOS RECETAS 2022 ... V7` (Excel, ~626 hojas, una ficha por hoja, hoja `LISTA` con los insumos, hoja `RESUMEN COSTOS` con costo y costo para adelantos).
+- Archivo vigente: `COSTOS RECETAS 2022 ... V7` (Excel, ~626 hojas, una ficha por hoja, hoja `LISTA` con los insumos, hoja `RESUMEN COSTOS` con costo y costo para adelantos).
 - Hay recetas que usan otras recetas (hasta 4 niveles). **Una sub-receta entra siempre por su costo por porción (o por kg), nunca por su precio de venta ni por el costo de toda la tanda.**
 - **La mano de obra va en las recetas** (renglón "TIEMPO" de cada ficha) y forma parte del CD que se usa para el precio de adelantos. Es una decisión de Mat y por ahora no se cambia. **No la saques, no la separes y no propongas sacarla** al migrar fichas, armar la planilla única ni hacer análisis. Antecedente: un análisis anterior la trató como costo fijo y la dejó afuera del costo del plato; eso le trajo a Mat un problema muy serio con la cooperativa y casi le cuesta el proyecto.
+- **Nombres en recetas y costos**: no nombres a quién armó o mantiene las fichas, ni en respuestas, ni en informes, ni en la bitácora. Hablá de "las fichas", "la planilla de costos" o "el costeo". Lo dudoso se le plantea solo a Mat. (En adelantos, cada socio se nombra normalmente por su pestaña.)
 - **Cambios de criterio de costeo** (qué entra en el costo, recargos, cómo se prorratea): nunca los apliques ni los presentes como decididos. Si ves algo para mejorar, planteáselo a Mat en privado, como pregunta, y esperá su decisión.
 - En la lista de Platos para adelantos quedaron afuera las fichas que tienen el costo de la receta entera en vez de la porción, los promedios y las bebidas por medida con costos viejos.
 - Plan en curso: pasar todo a una sola Google Sheet (Proveedores → Insumos → Recetas → Costos → Revisar) donde un cambio de precio se propaga solo por todos los niveles.

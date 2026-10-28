@@ -15,7 +15,7 @@ Verificado el 28/10/2026. Si un ID no abre, buscá por nombre y actualizá este 
 | Carta con precios | "Carta La Caleta — precios" (carpeta "Carta La Caleta") | `1v8k1M2i2z9IGk56Yn1F51KLYCRAgEdcN2q6dNiBdZvo` |
 | Facturas de octubre | "Facturas Octubre " | `1dIVyu3RbbAdPCB9bNEHtDtG5HNEJ7TlH` |
 | Costeo migrado en agosto (6 copias; la última) | "precios_insumos" | `1p_hUMLcunY5WSS1zw9wVZ5IPA5Q8VSZQkEt4go_zxSM` |
-| Costeo original de Laura | "COSTOS RECETAS 2022.xls" | `1fQaR7akKaiov-MZS01_63FmLa1iLjanX` |
+| Costeo original (2022) | "COSTOS RECETAS 2022.xls" | `1fQaR7akKaiov-MZS01_63FmLa1iLjanX` |
 | Recetas compartidas por la cuenta del restaurante | "RECETAS " (de lacaletaycr@gmail.com) | `17NnrUKa-CmUg490PlghfqI6Jl8yDOwbH5JjT5v7QMGg` |
 
 Hojas de "Precios La Caleta":

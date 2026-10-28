@@ -26,7 +26,7 @@ Una receta usada como ingrediente aparece en LISTA con una fórmula que apunta a
 2. Insumos: costo por unidad de uso y merma, calculado desde Proveedores.
 3. Recetas: una fila por ingrediente (receta, ingrediente, cantidad, unidad); ingrediente elegido de una lista (insumo u otra receta); rendimiento por receta.
 4. Costos: costo total (con mano de obra), por porción y para adelantos (+25%). Las sub-recetas entran siempre por costo por porción.
-5. Revisar: ciclos, ingredientes inexistentes, cantidades sin precio, con el motivo, para que Laura confirme.
+5. Revisar: ciclos, ingredientes inexistentes, cantidades sin precio, con el motivo, para que Mat lo revise.
 
 Migración: pasar las fichas limpias automáticamente y mandar a "Revisar" solo las dudosas. Pendiente de definir con Matías: si se migran las fichas viejas (eventos 2019, Año Nuevo, etc.) y si el 25% aplica a todo.
 
