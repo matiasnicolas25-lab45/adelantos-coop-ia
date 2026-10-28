@@ -180,3 +180,8 @@ https://drive.google.com/drive/folders/1quRYus4l1p-_RjsQ2Hebry6i5yeYnWDZ
 - Tónica 1,5 L figuraba en Mercadería a $3.375 (el precio de la Coca grande); la tónica sale $2.714 (Coca-Cola). Verificar antes de cobrarla.
 - Patitas de pollo: Frío Net vende la bolsa de 5 kg a $48.000 ($9.600/kg). Una "bolsa 5 kg" a $9.000 es un error.
 - Si no hay acceso a WhatsApp Web en el chat (por ejemplo, desde el celular), pedile a Mat que pegue los mensajes o exporte el chat a Drive.
+
+
+## Préstamos que se descuentan del pago
+
+Si un asociado figura en cero varias semanas en la liquidación (por ejemplo Yasmila), suele ser porque la cooperativa le dio préstamos y se le descuentan del pago semanal. No es una alerta.
