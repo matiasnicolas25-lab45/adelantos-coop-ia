@@ -7,10 +7,12 @@ Verificado el 28/10/2026. Si un ID no abre, buscá por nombre y actualizá este 
 | **Bitácora compartida entre chats** | "Bitácora La Caleta" (planilla) | `1WmRFsbXJ6XbBtsU1Xaa31PoRm2MUAbmho5afuSWNn10` |
 | Adelantos (se renombra cada semana, mismo archivo) | "ADELANTOS DEL 1/10 al 08/10" | `1p9VNq6C5nrnmRZyosf9MEbMDYUmOQnypyrLVVa31oB8` |
 | Carpeta adelantos | "ADELANTOS" | `1AYLEqRNqdpJiAizvxTH4ZUq2AiDSGzFl` |
-| **Lista de precios vigente** (Mercadería, Platos, Por proveedor, Proveedores) | "Precios La Caleta" | `1q17AXG0q01wCKnyayCaG_dBqWvlthWUr8EH_MauzOXw` |
-| Copia atrasada de la lista (no usar) | "Precios La Caleta( lista completa )" | `1TG-ayAZoRvvg5-3rPSDjTfEaC5qzA-IubckD3AwAB9M` |
+| **Lista de precios maestra** (Mercadería, Platos, Por proveedor, Proveedores) | "Precios La Caleta" | `1q17AXG0q01wCKnyayCaG_dBqWvlthWUr8EH_MauzOXw` |
+| Lista que ven los socios (mantener igual a la maestra) | "Precios La Caleta( lista completa )" | `1TG-ayAZoRvvg5-3rPSDjTfEaC5qzA-IubckD3AwAB9M` |
 | Carpeta listas de precios (PDF para socios) | "Listas de precios La Caleta" | `1quRYus4l1p-_RjsQ2Hebry6i5yeYnWDZ` |
 | Historial de listas | "Historial" | `1OG5Z2TUu8kGIAiApwRWLvLPI01gHNXST` |
+| PDF "Precios Recetas" vigente (22/10, 467 platos) | "Precios Recetas" | `1dUkvgSqT1i_G9TCiWwvBrqkSJXfhbUqM` |
+| Carta con precios | "Carta La Caleta — precios" (carpeta "Carta La Caleta") | `1v8k1M2i2z9IGk56Yn1F51KLYCRAgEdcN2q6dNiBdZvo` |
 | Facturas de octubre | "Facturas Octubre " | `1dIVyu3RbbAdPCB9bNEHtDtG5HNEJ7TlH` |
 | Costeo migrado en agosto (6 copias; la última) | "precios_insumos" | `1p_hUMLcunY5WSS1zw9wVZ5IPA5Q8VSZQkEt4go_zxSM` |
 | Costeo original de Laura | "COSTOS RECETAS 2022.xls" | `1fQaR7akKaiov-MZS01_63FmLa1iLjanX` |

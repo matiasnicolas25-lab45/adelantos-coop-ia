@@ -14,7 +14,7 @@ Claude no tiene memoria entre chats, y Matías usa chats distintos para cada tem
 
 Cómo usar la bitácora:
 1. **Al empezar**, leé los pendientes "Abierto" (sobre todo los de tu tema y los de precios, porque afectan a todos) y mencioná en una línea los que tocan lo que te piden.
-2. **Al terminar algo importante**, agregá renglones al final: lo que se hizo y lo que quedó pendiente, con el chat que corresponde. Un renglón por cosa, en lenguaje simple, con montos y nombres.
+2. **Al terminar algo importante**, agregá renglones debajo del último, escribiendo con un rango explícito (por ejemplo `'Bitácora'!A25:E26`): lo que se hizo y lo que quedó pendiente, con el chat que corresponde. Un renglón por cosa, en lenguaje simple, con montos y nombres.
 3. **Si resolviste un pendiente** (aunque lo haya anotado otro chat), cambiá su Estado a "Resuelto" y agregá un renglón "Hecho" que diga cómo se resolvió.
 4. **Si cambiaste un precio** en "Precios La Caleta", anotalo siempre: el chat de adelantos cobra con esos precios.
 
@@ -34,30 +34,33 @@ Cómo usar la bitácora:
 
 ## Adelantos (planilla semanal)
 
-Detalle completo en `references/adelantos.md`. Lo esencial:
+La referencia completa y vigente es `references/adelantos.md` (viene del chat de adelantos y manda sobre todo lo demás). **Leela entera antes de cargar o revisar una semana.** Lo esencial:
 
-- Una pestaña por asociado. Ciclo semanal que se cierra el sábado con la **devolución** (lo que se le descuenta del retiro).
-- Cada semana empieza con un renglón `SEMANA DEL dd/mm AL dd/mm`, luego la **Devolución primera**, luego los consumos **ordenados por fecha**.
-- Columnas: A fecha · B descripción · C debe (consumo) · D haber (devolución) · E saldo (fórmula `=N(E anterior)+N(C)-N(D)`). Ojo: Leticia, Jesús y Luna tienen C y D invertidas (C = haber, D = debe).
-- **Platos**: precio por porción con **25% de recargo** (hoja "Platos" de Precios La Caleta). **Mercadería**: al costo, con IVA, sin recargo (hoja "Mercadería").
-- Descripción con cantidad y unidad: `Queso barra 0,125 kg`, `Empanada salteña 4 u`. Si falta precio: `(FALTA PRECIO)` / `(FALTA RECETA)` y monto vacío.
-- **Tope de adelanto en efectivo: $150.000 por semana** por persona. Si se pasa, se anota un renglón de aviso.
-- La leche que llevan los socios es **Tregar** ($2.012,23), no la común.
-- Ajustes de semanas anteriores: renglón `Ajuste <producto> dd/mm: <motivo>` con la diferencia.
+- Una pestaña por socio. Lo que cada uno se lleva (mercadería, platos, efectivo) sale del grupo de WhatsApp **"Adelantos Coope"**, que se lee por WhatsApp Web cuando el chat tiene navegador. Si no lo tiene (por ejemplo, desde el celular), pedile a Mat que pegue los mensajes.
+- Cada semana: encabezado `SEMANA DEL dd/mm AL dd/mm` en la columna A, en negrita negra; después la **Devolución** (monto de la foto "DEVUELVEN" del sábado; nunca saltearla) y después los movimientos por fecha.
+- Columnas `A Fecha | B Concepto | C Debe | D Haber | E Saldo`, con el saldo como fórmula `=N(E{fila-1})+N(C{fila})-N(D{fila})`. Fechas como texto `dd/mm/aaaa`. En Leticia, Jesús y Luna se vieron filas viejas con C y D invertidas: mirá la fórmula antes de escribir.
+- **Escribí siempre con rango explícito, nunca con `append_values`**: inserta filas en el medio de la pestaña.
+- **Mercadería al costo** (sin recargo, aunque el socio ponga +25%). **Platos = CD de la ficha (con mano de obra) ÷ porciones × 1,25.**
+- **Precio vigente el día que se lo llevó**: un aumento posterior no le aplica. Lo que se vende por presentación (lata, paquete, caja) se cobra por presentación, nunca por kilo.
+- Equivalencias fijas (leche = Tregar, chicle = Beldent, Topline, dulce de leche Vacalín, etc.) en la referencia.
+- **Tope de efectivo: $150.000 por socio por ciclo.** Si se pasa, se carga igual y se marca en el mensaje.
+- Cumples: se cargan a todos menos el cumpleañero y Jesús.
+- Correcciones de semanas cerradas: fila `Ajuste …` en la semana actual. No se tocan las semanas cerradas.
+- Montos raros o líneas repetidas: preguntar antes de cargar.
 
-Al revisar una semana, chequeá cada renglón contra la lista de precios (precio unitario × cantidad), duplicados, fechas fuera de orden, productos sin precio y el tope. Errores ya vistos que se repiten: precio del bulto cargado como unidad o al revés (patitas "bolsa 5 kg" a $9.000 cuando la bolsa sale $48.000), un producto cargado al precio de otro (tónica al precio de la Coca, Topline al precio del Beldent).
-
-**Mensajes de WhatsApp**: formato en `references/adelantos.md`. Claude no puede leer WhatsApp (no hay conector). Si hay que controlar un mensaje enviado, pedí que lo peguen, manden captura o exporten el chat a Drive. Al generar mensajes, guardá también una copia en Drive para poder revisarlos después.
+**Mensajes**: van al chat de WhatsApp **"La Caleta"**, listos para copiar (nunca en un .txt). Llevan saludo, los movimientos de la semana por fecha, el total de la semana y el link a las listas de precios. **No llevan devolución ni saldo anterior.** El formato exacto está en la referencia. Si un mensaje ya salió con un error, se manda un ajuste aparte.
 
 ## Precios de proveedores y facturas
 
 Detalle en `references/precios-y-facturas.md`. Lo esencial:
 
-- **Regla de carga: precio final con IVA, con el descuento ya aplicado, por unidad de uso** (kg, litro, unidad). Siempre declarar el formato de compra ("bolsa 25 kg", "caja x6", "atado 180 g") y que la planilla calcule la unidad.
-- Facturas y remitos en Drive (carpeta "Facturas <Mes>"). Verificá cada comprobante: renglones suman el subtotal, subtotal + impuestos = total.
-- Remitos manuscritos (verdulería, carnicería): el lector de texto de Drive los devuelve vacíos. **Bajá la imagen y mirala**; validá que los renglones sumen el total escrito.
-- Marcá aparte: proformas (precio ofertado, no facturado), comprobantes "no válido como factura", facturas sin detalle ("gastos varios"), notas de crédito no descontadas.
-- Hoy hay dos copias de la lista de precios; la buena es **"Precios La Caleta"** (carpeta ADELANTOS). La "(lista completa)" quedó atrasada. Objetivo: una sola.
+- Hay **dos planillas de precios y las dos se usan**: "Precios La Caleta" (la maestra) y "Precios La Caleta (lista completa)", que es la que ven los socios. **Todo cambio de precio se hace en las dos**, y si corresponde se regenera el PDF de la carpeta de socios. El PDF viejo se mueve a ADELANTOS como "(viejo dd-mm)" y nunca se borra.
+- La pestaña "Por proveedor" es fórmula: no se edita.
+- **Regla de carga: precio final con IVA, con el descuento ya aplicado, por unidad de uso** (kg, litro, unidad), declarando el formato de compra. **Las facturas A son netas: hay que sumar 21% de IVA.**
+- Germar o Cepro: vale el precio del proveedor donde se compró último.
+- Facturas y remitos en Drive (carpeta "Facturas <Mes>" y otras). Verificá cada comprobante: los renglones suman el subtotal y el subtotal más impuestos da el total.
+- Remitos manuscritos (verdulería, carnicería): el lector de texto de Drive los devuelve vacíos. **Bajá la imagen y mirala**, y validá que los renglones sumen el total escrito.
+- Marcá aparte: proformas (precio ofertado, no facturado), comprobantes "no válido como factura", facturas sin detalle ("gastos varios") y notas de crédito no descontadas.
 
 ## Recetas y costeo
 
@@ -65,7 +68,8 @@ Detalle en `references/recetas.md`. Lo esencial:
 
 - Archivo vigente de Laura: `COSTOS RECETAS 2022 ... V7` (Excel, ~626 hojas, una ficha por hoja, hoja `LISTA` con los insumos, hoja `RESUMEN COSTOS` con costo y costo para adelantos).
 - Hay recetas que usan otras recetas (hasta 4 niveles). **Una sub-receta entra siempre por su costo por porción (o por kg), nunca por su precio de venta ni por el costo de toda la tanda.**
-- La mano de obra **no** va en el costo del plato: es costo fijo (retiros de asociados). Se mide aparte (horas de cocina).
+- Mano de obra: **para el precio de adelantos se usa el CD de la ficha con mano de obra** (regla del chat de adelantos). Para analizar márgenes de la carta, en cambio, la mano de obra se trata como costo fijo (retiros) y se mide aparte en horas de cocina. No mezclar los dos criterios en un mismo número.
+- En la lista de Platos para adelantos quedaron afuera las fichas que tienen el costo de la receta entera en vez de la porción, los promedios y las bebidas por medida con costos viejos.
 - Costo real de un plato = materia prima + **28,9% del precio de venta** (estructura de agosto 2026: retiros, servicios, taxi, mantenimiento). Recalcular si cambia la estructura.
 - Plan en curso: pasar todo a una sola Google Sheet (Proveedores → Insumos → Recetas → Costos → Revisar) donde un cambio de precio se propaga solo por todos los niveles.
 
