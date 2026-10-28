@@ -35,4 +35,4 @@ Migración: pasar las fichas limpias automáticamente y mandar a "Revisar" solo 
 Ojo: este análisis separó la mano de obra del costo del plato y eso le trajo problemas a Mat. No usar estas cifras para cambiar precios ni criterios de costeo.
 
 
-Ventas $65,9 M; compras $23,3 M; estructura $19,03 M (28,9% de la venta: retiros $17,19 M, servicios EPE/Litoral Gas/Clean City, taxi, mantenimiento, cursos); resultado $23,5 M. No hay canon ni cargas sociales (cooperativa, monotributistas). Los retiros son remuneración del trabajo, no reparto de excedentes. Antecedente: claude.ai/artifact/19jn2r5Cq5PtnR5PSxrSrE.
+Ventas $65,9 M; compras $23,3 M; estructura $19,03 M (28,9% de la venta: retiros $17,19 M, servicios EPE/Litoral Gas/Clean City, taxi, mantenimiento, cursos); resultado $23,5 M. No hay canon ni cargas sociales (cooperativa, monotributistas). Los retiros son remuneración del trabajo, no reparto de excedentes.
