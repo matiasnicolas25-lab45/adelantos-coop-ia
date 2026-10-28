@@ -6,6 +6,14 @@
 
 Precios cruzados el 28/10 con "Precios La Caleta" (pestaña Proveedores, al 22/10) y facturas de octubre: 78 precios cambiados (celdas amarillas con nota del precio anterior), lista completa y lo que quedó "a revisar" en la hoja "PRECIOS 28-10". Regla usada: se cambia solo la celda que se tipea (FINAL/actualización), y solo si la variación está entre −40% y +70%; si no, va a revisar (suele ser otra unidad: cajón vs kg). La lista que hay que mantener al día para recetas es la de proveedores: cuando se cargue una factura nueva en "Precios La Caleta", cargarla también en la hoja del proveedor de este archivo.
 
+### Precios de carta → Resto Soft
+
+Hoja "RESTO SOFT" (después de AUMENTOS): una fila por plato activo de Resto Soft (y por tamaño), con su código, el precio que tiene hoy en Resto Soft y la fila de AUMENTOS a la que está vinculado (en pastas, también la fila de la salsa). "Precio nuevo" = precio de Resto Soft × (AUMENTOS hoy ÷ AUMENTOS al vincular), redondeado a $100; usa INDIRECT a la columna C de AUMENTOS para que no se corra cuando se inserta una columna de aumento nueva. "Precio a mano" pisa todo. Columna "Cambia" = SÍ si el precio nuevo es distinto.
+
+Para armar el .txt que se importa en Resto Soft: bajar la planilla de Drive como .xlsx (ya calculada), pedirle a Mat una exportación nueva de la carta de Resto Soft (CARTA.txt) y correr `python3 scripts/restosoft_txt.py planilla.xlsx CARTA.txt salida.txt`. Sale una copia de CARTA.txt idéntica salvo los precios que cambian (tablas PLATOS y PLATOS_TAMANIOS). Antes de importar, Mat guarda una exportación de respaldo.
+
+Al 28/10: 499 filas (309 vinculadas, 190 sin vincular: kiosco, vinos y varios; se vinculan escribiendo la fila de AUMENTOS en la columna G). 14 platos tienen distinto precio en AUMENTOS y en Resto Soft (nota en la columna O); no se tocaron.
+
 Pendiente: sub-recetas que entran por precio de venta y el ciclo de TALLA PROMO (ver abajo) siguen sin tocar; plantearlo solo a Mat. "DD LECHE EUREKA FAMILIAR" falta en LISTA (Torta brownie nutella).
 
 ## Archivo anterior
