@@ -4,6 +4,7 @@ Verificado el 28/10/2026. Si un ID no abre, buscá por nombre y actualizá este 
 
 | Qué | Nombre | ID |
 |---|---|---|
+| **Bitácora compartida entre chats** | "Bitácora La Caleta" (planilla) | `1WmRFsbXJ6XbBtsU1Xaa31PoRm2MUAbmho5afuSWNn10` |
 | Adelantos (se renombra cada semana, mismo archivo) | "ADELANTOS DEL 1/10 al 08/10" | `1p9VNq6C5nrnmRZyosf9MEbMDYUmOQnypyrLVVa31oB8` |
 | Carpeta adelantos | "ADELANTOS" | `1AYLEqRNqdpJiAizvxTH4ZUq2AiDSGzFl` |
 | **Lista de precios vigente** (Mercadería, Platos, Por proveedor, Proveedores) | "Precios La Caleta" | `1q17AXG0q01wCKnyayCaG_dBqWvlthWUr8EH_MauzOXw` |

@@ -7,7 +7,16 @@ description: "Reglas y contexto de La Caleta, la cooperativa gastronómica del Y
 
 Cooperativa gastronómica que atiende el restaurante del Yacht Club Rosario (solo socios del club). Quien escribe suele ser Matías, que lleva la administración junto a la sindicatura. Laura es la cocinera que armó y mantiene el costeo de recetas.
 
-Claude no tiene memoria entre chats. Este skill y la bitácora son la memoria: por eso, al empezar, **leé `BITACORA.md` en la raíz del repo `adelantos-coop-ia`** (si estás en un chat con el repo) para saber en qué quedó el trabajo, y al terminar algo importante agregale una entrada corta.
+Claude no tiene memoria entre chats, y Matías usa chats distintos para cada tema (uno de adelantos, otro de facturas y precios, otro de recetas). Lo que conecta a esos chats son dos cosas:
+
+- **Este skill**: las reglas fijas.
+- **La bitácora**: la planilla de Google **"Bitácora La Caleta"** (ID `1WmRFsbXJ6XbBtsU1Xaa31PoRm2MUAbmho5afuSWNn10`, carpeta ADELANTOS). Columnas: Fecha · Chat (adelantos / precios / facturas / recetas / otro) · Tipo (Hecho / Pendiente) · Detalle · Estado (Abierto / Resuelto).
+
+Cómo usar la bitácora:
+1. **Al empezar**, leé los pendientes "Abierto" (sobre todo los de tu tema y los de precios, porque afectan a todos) y mencioná en una línea los que tocan lo que te piden.
+2. **Al terminar algo importante**, agregá renglones al final: lo que se hizo y lo que quedó pendiente, con el chat que corresponde. Un renglón por cosa, en lenguaje simple, con montos y nombres.
+3. **Si resolviste un pendiente** (aunque lo haya anotado otro chat), cambiá su Estado a "Resuelto" y agregá un renglón "Hecho" que diga cómo se resolvió.
+4. **Si cambiaste un precio** en "Precios La Caleta", anotalo siempre: el chat de adelantos cobra con esos precios.
 
 ## Cómo hablarle a Matías
 
