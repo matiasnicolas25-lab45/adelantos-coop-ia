@@ -22,7 +22,7 @@ Verificado el 28/10/2026. Si un ID no abre, buscá por nombre y actualizá este 
 | Informes originales de Resto Soft (.xls) | "Informes Resto Soft (originales)" | `1youEOcz9c7-kDSBk0YFdFIphOmJ0RiPQ` |
 | Análisis de ventas agosto | "Ventas agosto 2026 — análisis" | `1W2zKhWCRG2THuwty7Voa4GvhXrd6dJ4L5ouLWELdrmY` |
 | Análisis de ventas septiembre | "Ventas septiembre 2026 — análisis" | `12CplCboAd91C1kQ1Y21pSlDqKw87rU6gSDxwqrtV1PI` |
-| **Costos de recetas (vigente, con precios y hoja RESTO SOFT)** | "COSTOS RECETAS LA CALETA.xlsx" (carpeta 3; subido como .xlsx el 28/10, falta convertirlo a Hoja de Google) | `1ToTAr8YyCudZOBa5-Qs8TrfWAQtSNvfD` |
+| **Costos de recetas (vigente, con precios y hoja RESTO SOFT)** | "COSTOS RECETAS LA CALETA" (Hoja de Google, carpeta 3) | `1IS6goPstA-20qET9q1ZTMfwcAjN5miUzm01bXd6luSI` |
 | Carta de Resto Soft (platos activos + vendidos ago/sep) | "Carta Resto Soft — platos activos" (carpeta 3) | `1n9CRYUqHcBquekTuhkMwuh6kmbtXwUgAHtZ-Wh_BWO0` |
 | Informe al consejo de septiembre | "Informe al consejo — septiembre 2026" (Doc, carpeta 4) | `1qYa5Bt3icK3vq4xR5FRE0raKn3HF3KnrMcXB-K54tts` |
 | Recetas compartidas por la cuenta del restaurante | "RECETAS " (de lacaletaycr@gmail.com) | `17NnrUKa-CmUg490PlghfqI6Jl8yDOwbH5JjT5v7QMGg` |
