@@ -16,6 +16,12 @@ Verificado el 28/10/2026. Si un ID no abre, buscá por nombre y actualizá este 
 | Facturas de octubre | "Facturas Octubre " | `1dIVyu3RbbAdPCB9bNEHtDtG5HNEJ7TlH` |
 | Costeo migrado en agosto (6 copias; la última) | "precios_insumos" | `1p_hUMLcunY5WSS1zw9wVZ5IPA5Q8VSZQkEt4go_zxSM` |
 | Costeo original (2022) | "COSTOS RECETAS 2022.xls" | `1fQaR7akKaiov-MZS01_63FmLa1iLjanX` |
+| **Carpeta del sistema** (índice: "LEEME — La Caleta Sistema") | "La Caleta — Sistema" | `13Yk7euSzLVH8duZwIBafVLP21xs0ddGF` |
+| LEEME con todos los links | "LEEME — La Caleta Sistema" (Doc) | `19hTysl-aWPKtFb-fseUjCeMt4uIrMJps_IeUVaTUmaE` |
+| Subcarpetas | 1 Bitácora y reglas / 2 Ventas y análisis / 3 Recetas y costos / 4 Informes para el consejo | `1eWd6vGO1hR0GTvSPTirt0Y7FIPMsMytR` / `1NiJRrZ5rO0B5cMT0qEaOQxbYfa2Rh1qk` / `1-oaZwN1oaLh9P1wrpeS-QOyYRIZQxdOc` / `1HNJjl8FwPn0scmxxy6dYNvT1YBMjvEdp` |
+| Informes originales de Resto Soft (.xls) | "Informes Resto Soft (originales)" | `1youEOcz9c7-kDSBk0YFdFIphOmJ0RiPQ` |
+| Análisis de ventas agosto | "Ventas agosto 2026 — análisis" | `1W2zKhWCRG2THuwty7Voa4GvhXrd6dJ4L5ouLWELdrmY` |
+| Análisis de ventas septiembre | "Ventas septiembre 2026 — análisis" | `12CplCboAd91C1kQ1Y21pSlDqKw87rU6gSDxwqrtV1PI` |
 | Recetas compartidas por la cuenta del restaurante | "RECETAS " (de lacaletaycr@gmail.com) | `17NnrUKa-CmUg490PlghfqI6Jl8yDOwbH5JjT5v7QMGg` |
 
 Hojas de "Precios La Caleta":
@@ -24,3 +30,5 @@ Hojas de "Precios La Caleta":
 - Por proveedor / Proveedores: precio de compra, precio por unidad, fecha y observación.
 
 Repo de GitHub: `matiasnicolas25-lab45/adelantos-coop-ia` (este skill, la bitácora y el código de automatizaciones).
+
+Planillas de análisis de ventas (una por mes): para un mes nuevo, copiar la del mes anterior, borrar los datos de Productos (A–F e I–J), Tickets, Compras y Caja desde la fila 4, pegar los informes nuevos de Resto Soft y actualizar títulos y la pestaña "A revisar". El Resumen y las pestañas de análisis son fórmulas y se recalculan solas. Control: consumos − descuentos parciales − cobrado tiene que dar 0 o casi.
