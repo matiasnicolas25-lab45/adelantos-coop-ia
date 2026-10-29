@@ -23,6 +23,9 @@ Hoja "INCREMENTOS HISTÓRICOS" (después de RESTO SOFT), con el modelo del Excel
 
 Pendiente: sub-recetas que entran por precio de venta y el ciclo de TALLA PROMO (ver abajo) siguen sin tocar; plantearlo solo a Mat. "DD LECHE EUREKA FAMILIAR" falta en LISTA (Torta brownie nutella).
 
+### Hoja MARGEN (desde 29/10)
+Hoja "MARGEN" (pestaña verde, después de RESUMEN COSTOS): una fila por plato de la carta (filas de AUMENTOS). Precio de carta = columna C de AUMENTOS (INDIRECT, no se corre al insertar columna). Costo por porción, **con mano de obra**: vínculo directo a la celda "CD por Porción" de la ficha; parrilla desde PIALA columna CP (costo de la porción; CO es el precio de venta); gaseosas y aguas desde la columna E de COCA COLA / BETTAMAR; helado desde MONTEVIDEANA AL6/40 y /24; medialuna PAN ninoshka Y4/160; cafés, té, Nesquik, capuchino, remo y promos con infusión desde COSTOS CAFETERIA (M20:M30, F45:F46). % de costo = costo ÷ precio de carta (con IVA, como se pone el precio en la carta). Límite editable en C3 (30% por defecto): OK hasta el límite, OJO hasta 5 puntos más, SUBIR más que eso; "Precio sugerido" = costo ÷ límite redondeado a $100. "REVISAR FICHA" cuando el costo da más del 80% o menos del 3% del precio: son fichas "PROMEDIO …" o con sub-recetas que suman precios de venta (empanadas promedio, salsas, ensaladas para armar, entrecot con salsa, menú ejecutivo, tostado/carlito, desayuno… ver Sub-recetas); no usar su número hasta arreglar la ficha. La columna B de AUMENTOS de la parrilla apunta a columnas de % de PIALA (muestra "0.00%"): debería apuntar a la columna CO; no se tocó.
+
 ## Archivo anterior
 
 `COSTOS_RECETAS_2022_REVISION_PRELIMINAR_V7_CAMBIOS_CLAUDE.xlsx` (Matías lo sube al chat; no está en Drive con ese nombre). 626 hojas:
