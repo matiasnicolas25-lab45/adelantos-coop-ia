@@ -54,6 +54,7 @@ La referencia completa y vigente es `references/adelantos.md` (viene del chat de
 
 Detalle en `references/precios-y-facturas.md`. Lo esencial:
 
+- **Cada vez que se actualizan precios en las listas de adelantos, cambiar la fecha del encabezado** ("Actualizado al dd/mm/aaaa", fila 2 de Platos y Mercadería) a la fecha del día (pedido de Mat).
 - Hay **dos planillas de precios y las dos se usan**: "Precios La Caleta" (la maestra) y "Precios La Caleta (lista completa)", que es la que ven los socios. **Todo cambio de precio se hace en las dos**, y si corresponde se regenera el PDF de la carpeta de socios. El PDF viejo se mueve a ADELANTOS como "(viejo dd-mm)" y nunca se borra.
 - La pestaña "Por proveedor" es fórmula: no se edita.
 - **Regla de carga: precio final con IVA, con el descuento ya aplicado, por unidad de uso** (kg, litro, unidad), declarando el formato de compra. **Las facturas A son netas: hay que sumar 21% de IVA.**
