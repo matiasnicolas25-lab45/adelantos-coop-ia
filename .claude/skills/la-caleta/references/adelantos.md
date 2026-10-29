@@ -91,7 +91,7 @@ Nombres exactos de pestaña (varios tienen espacio al final):
 | picada / pulpa picada | Picada Especial (kg) |
 | merluza rebozada | Merluza Finas Hierbas (kg) |
 | arvejas congeladas | Cepro (kg) |
-| manteca | Gastroinsumos $11.507,40/kg; Luis "la pauli" = La Paulina $16.830/kg |
+| manteca | **Milkaut** $16.829,12/kg (la que se usa, desde 29/10; hoja DOTAR-MILKAUT de COSTOS RECETAS). La de Gastroinsumos ($11.507,40) quedó "no vigente". Luis "la pauli" = La Paulina $16.830/kg |
 | dulce de leche | Vacalín $4.356,50/kg mientras haya stock (en la lista están Vacalín y Eureka); en el adelanto escribir "Vacalín" |
 | chicle | Beldent ($630,71) |
 | topline | Chicle Topline 7 $818,42 (factura Arcor 15/10) |
