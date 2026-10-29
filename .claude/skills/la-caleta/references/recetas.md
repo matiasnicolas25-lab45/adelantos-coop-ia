@@ -16,6 +16,11 @@ Criterios de Mat (28/10): cuando AUMENTOS y Resto Soft no coinciden, **va el pre
 
 Al 28/10: 499 filas (309 vinculadas, 190 sin vincular: kiosco, vinos y varios; se vinculan escribiendo la fila de AUMENTOS en la columna G). 14 platos tenían distinto precio: se resolvieron con "va el más alto" (8 suben en Resto Soft con PRECIOS RESTO SOFT 28-10.txt; en 5 se corrigió AUMENTOS; ESTOFADO de pastas se desvinculó porque es la salsa).
 
+Al 29/10: **las 499 filas están vinculadas**. Los platos del sistema que no tenían fila en AUMENTOS se agregaron al final (filas 301–365, bajo el título "AGREGADOS DESDE RESTO SOFT"), con el precio que tienen hoy en Resto Soft. Los que figuran a $0 o $1 son de precio abierto. Para subir un precio de esos, se cambia en AUMENTOS como cualquier otro.
+
+### Planilla para la comisión directiva (aumentos)
+Hoja "COMISIÓN" (después de RESTO SOFT), con el modelo del Excel histórico "19-8-26INCREMENTOS HISTORICOS.xlsx" (hoja Actual). Se arma sola desde AUMENTOS (filas 3–97, la carta): plato, precio base al 04/01/2024 (sacado del histórico; vacío en los platos que no estaban), vigente (columna D de AUMENTOS), propuesto (columna C), % de este aumento y % acumulado desde 04/01/2024. Arriba, el aumento promedio. Uso: se inserta la columna nueva de precios en AUMENTOS en C como siempre → la hoja COMISIÓN se actualiza → Archivo → Descargar → PDF (o .xlsx) y se manda a la comisión. Las columnas G:H están ocultas (H = fila de AUMENTOS).
+
 Pendiente: sub-recetas que entran por precio de venta y el ciclo de TALLA PROMO (ver abajo) siguen sin tocar; plantearlo solo a Mat. "DD LECHE EUREKA FAMILIAR" falta en LISTA (Torta brownie nutella).
 
 ## Archivo anterior

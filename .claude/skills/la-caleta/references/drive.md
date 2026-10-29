@@ -29,6 +29,7 @@ Verificado el 28/10/2026. Si un ID no abre, buscá por nombre y actualizá este 
 | **Costos de recetas (vigente, con precios y hoja RESTO SOFT)** | "COSTOS RECETAS LA CALETA" (Hoja de Google, carpeta 3) | `1IS6goPstA-20qET9q1ZTMfwcAjN5miUzm01bXd6luSI` |
 | Carta de Resto Soft (platos activos + vendidos ago/sep) | "Carta Resto Soft — platos activos" (carpeta 3) | `1n9CRYUqHcBquekTuhkMwuh6kmbtXwUgAHtZ-Wh_BWO0` |
 | Informe al consejo de septiembre | "Informe al consejo — septiembre 2026" (Doc, carpeta 4) | `1qYa5Bt3icK3vq4xR5FRE0raKn3HF3KnrMcXB-K54tts` |
+| Excel histórico de aumentos que va a la comisión directiva (modelo de la hoja COMISIÓN) | "19-8-26INCREMENTOS HISTORICOS.xlsx" (raíz del Drive de Mat) | `11KJgKhI5JBJuCvnFiwN3kMwIb97buaUU` |
 | Recetas compartidas por la cuenta del restaurante | "RECETAS " (de lacaletaycr@gmail.com) | `17NnrUKa-CmUg490PlghfqI6Jl8yDOwbH5JjT5v7QMGg` |
 
 Hojas de "Precios La Caleta":
