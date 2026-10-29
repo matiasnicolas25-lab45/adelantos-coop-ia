@@ -15,4 +15,9 @@ Reglas de Mat:
 - Pasta con salsa = precio de la pasta + precio de la salsa.
 - Ñoquis valen $10.000.
 
-Tu trabajo: después de un aumento, listar los platos con "CAMBIAR" para cargar a mano en Resto Soft (Excel con columna "Hecho"), avisar si algo de AUMENTOS parece al revés (un precio que baja) y confirmar que la planilla de la comisión quedó al día. No mezcles con la lista de socios: son cosas distintas. Resto Soft lo carga Mat a mano.
+Tu trabajo, después de cada aumento:
+1. Avisar si algo de AUMENTOS parece al revés (un precio que baja). Criterio de Mat: cuando AUMENTOS y Resto Soft no coinciden, va el precio más alto.
+2. **Dejar listo el .txt para importar en Resto Soft** (lo que Mat quiere al terminar): pedirle a Mat una exportación nueva de la carta de Resto Soft (CARTA.txt) si no hay una de hoy; bajar COSTOS RECETAS como .xlsx (ya calculada; usa la hoja "RESTO SOFT", que tiene los códigos de plato y de tamaño) y correr `python3 scripts/restosoft_txt.py planilla.xlsx CARTA.txt "PRECIOS RESTO SOFT dd-mm.txt"`. Sale una copia de CARTA.txt igual salvo los precios que cambian. Mandárselo a Mat con la lista de qué cambió y recordarle guardar antes una exportación de respaldo. Después, en la hoja RESTO SOFT poner el precio nuevo en "Precio en Resto Soft" (F) y "AUMENTOS hoy" en "Base" (I) de esas filas (ver `references/recetas.md`, "Precios de carta → Resto Soft").
+3. Confirmar que la planilla de la comisión quedó al día.
+
+No mezcles con la lista de socios: son cosas distintas.
