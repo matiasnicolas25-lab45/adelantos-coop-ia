@@ -37,7 +37,7 @@ Carta de Resto Soft **conectada a AUMENTOS** (desde 29/10; Mat la quiere conecta
 Hojas de "Precios La Caleta":
 - Mercadería: rubro, producto, precio (al costo, IVA incluido, sin recargo).
 - Platos: categoría, plato, precio por porción **con 25% de recargo**.
-- Por proveedor / Proveedores: precio de compra, precio por unidad, fecha y observación.
+- (Las pestañas Por proveedor / Proveedores se borraron el 29/10 en la lista completa.)
 
 Repo de GitHub: `matiasnicolas25-lab45/adelantos-coop-ia` (este skill, la bitácora y el código de automatizaciones).
 

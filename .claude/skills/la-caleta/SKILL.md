@@ -56,7 +56,7 @@ Detalle en `references/precios-y-facturas.md`. Lo esencial:
 
 - **Cada vez que se actualizan precios en las listas de adelantos, cambiar la fecha del encabezado** ("Actualizado al dd/mm/aaaa", fila 2 de Platos y Mercadería) a la fecha del día (pedido de Mat).
 - Hay **dos planillas de precios y las dos se usan**: "Precios La Caleta" (la maestra) y "Precios La Caleta (lista completa)", que es la que ven los socios. **Todo cambio de precio se hace en las dos**, y si corresponde se regenera el PDF de la carpeta de socios. El PDF viejo se mueve a ADELANTOS como "(viejo dd-mm)" y nunca se borra.
-- La pestaña "Por proveedor" es fórmula: no se edita.
+- Las pestañas "Por proveedor" y "Proveedores" de la lista completa se borraron el 29/10 (copias viejas sin uso): los precios de proveedores viven en las hojas de COSTOS RECETAS.
 - **Regla de carga: precio final con IVA, con el descuento ya aplicado, por unidad de uso** (kg, litro, unidad), declarando el formato de compra. **Las facturas A son netas: hay que sumar 21% de IVA.**
 - Germar o Cepro: vale el precio del proveedor donde se compró último.
 - Facturas y remitos en Drive (carpeta "Facturas <Mes>" y otras). Verificá cada comprobante: los renglones suman el subtotal y el subtotal más impuestos da el total.
