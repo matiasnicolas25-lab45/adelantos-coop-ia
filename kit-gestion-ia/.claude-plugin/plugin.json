@@ -1,0 +1,6 @@
+{
+  "name": "kit-gestion-ia",
+  "version": "0.1.0",
+  "description": "Gestión administrativa con IA para negocios sin sistema: facturas de proveedores, costos y recetas, márgenes, lista de precios, cierre del mes y liquidaciones, sobre una planilla de Google Sheets.",
+  "author": { "name": "Matías" }
+}
