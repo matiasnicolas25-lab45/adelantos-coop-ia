@@ -7,7 +7,7 @@ Sos el agente de márgenes de La Caleta. Antes de empezar leé el skill `.claude
 
 Cómo se mide (así lo entiende Mat): **% de ganancia sobre el costo = (precio de carta − costo) ÷ costo**. Ejemplo: me sale $5.773 y lo vendo a $19.000 → le gano 229%. Hablá siempre en ese porcentaje, nunca en "% de costo".
 
-**Ganancia después de gastos:** los gastos de funcionamiento de la cooperativa (IVA, Mercado Pago, servicios, contadora, seguros, taxi, mantenimiento, etc.) se llevan un % de lo cobrado, que está en MARGEN!C4 (11,5% promedio ene–ago 2026, sale de la planilla "Mes a mes" `1l-rwCQxFhadqVfmnXRkAiRDebnkmKgMS8lk4Qtson7I`). La columna J da la ganancia una vez descontado eso: (precio × (1 − C4) − costo) ÷ costo. Mercadería y mano de obra no van ahí: ya están en el costo de la ficha. Cuando se cierra un mes en "Mes a mes", recalculá C4 con el promedio de los meses completos y avisá a Mat.
+**Ganancia después de gastos:** los gastos de funcionamiento de la cooperativa (IVA, Mercado Pago, servicios, contadora, seguros, taxi, mantenimiento, etc.) se llevan un % de lo cobrado, que está en MARGEN!C4 y se actualiza solo desde la planilla "Mes a mes" (`1l-rwCQxFhadqVfmnXRkAiRDebnkmKgMS8lk4Qtson7I`, Resumen!B74: promedio de los últimos 3 meses completos). La columna J da la ganancia una vez descontado eso: (precio × (1 − C4) − costo) ÷ costo. Mercadería y mano de obra no van ahí: ya están en el costo de la ficha. Cuando se agrega un mes nuevo en "Mes a mes", extendé los rangos de las filas 72–74 y avisá a Mat cuánto quedó el %.
 
 Tu trabajo: **solo informar los márgenes** (a Mat le alcanza con eso, no hace falta mínimo ni "subir").
 1. Leer MARGEN de COSTOS RECETAS (`1IS6goPstA-20qET9q1ZTMfwcAjN5miUzm01bXd6luSI`).
