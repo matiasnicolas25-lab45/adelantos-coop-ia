@@ -28,6 +28,8 @@ Verificado el 28/10/2026. Si un ID no abre, buscá por nombre y actualizá este 
 | Análisis de ventas septiembre | "Ventas septiembre 2026 — análisis" | `12CplCboAd91C1kQ1Y21pSlDqKw87rU6gSDxwqrtV1PI` |
 | **Costos de recetas (vigente, con precios y hoja RESTO SOFT)** | "COSTOS RECETAS LA CALETA" (Hoja de Google, carpeta 3) | `1IS6goPstA-20qET9q1ZTMfwcAjN5miUzm01bXd6luSI` |
 | Carta de Resto Soft (platos activos + vendidos ago/sep) | "Carta Resto Soft — platos activos" (carpeta 3) | `1n9CRYUqHcBquekTuhkMwuh6kmbtXwUgAHtZ-Wh_BWO0` |
+
+Carta de Resto Soft conectada a AUMENTOS (desde 29/10): pestaña "Conexión AUMENTOS" con `IMPORTRANGE(COSTOS RECETAS, "AUMENTOS!A1:C150")` (C es siempre la columna de precios más nueva). En Carta: H = precio nuevo, I = precio nuevo de porción/grande (platos con tamaños), J = "CAMBIAR" si difiere de lo cargado en Resto Soft (D o el texto de tamaños en E); columnas ocultas K/L = fila de AUMENTOS (114 platos mapeados a mano; pastas con salsa, vinos, kiosco y lo que no está en AUMENTOS quedan sin fila). Mat aprieta una vez "Permitir acceso" en A1 de "Conexión AUMENTOS".
 | Informe al consejo de septiembre | "Informe al consejo — septiembre 2026" (Doc, carpeta 4) | `1qYa5Bt3icK3vq4xR5FRE0raKn3HF3KnrMcXB-K54tts` |
 | Excel histórico de aumentos que va a la comisión directiva (modelo de la hoja INCREMENTOS HISTÓRICOS) | "19-8-26INCREMENTOS HISTORICOS.xlsx" (raíz del Drive de Mat) | `11KJgKhI5JBJuCvnFiwN3kMwIb97buaUU` |
 | Recetas compartidas por la cuenta del restaurante | "RECETAS " (de lacaletaycr@gmail.com) | `17NnrUKa-CmUg490PlghfqI6Jl8yDOwbH5JjT5v7QMGg` |
