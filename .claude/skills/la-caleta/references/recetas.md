@@ -49,7 +49,7 @@ Mat pidió el 28/10 mantener el formato de siempre (ver "Archivo vigente"). Esto
 4. Costos: costo total (con mano de obra), por porción y para adelantos (+25%). Las sub-recetas entran siempre por costo por porción.
 5. Revisar: ciclos, ingredientes inexistentes, cantidades sin precio, con el motivo, para que Mat lo revise.
 
-Migración: pasar las fichas limpias automáticamente y mandar a "Revisar" solo las dudosas. Pendiente de definir con Matías: si se migran las fichas viejas (eventos 2019, Año Nuevo, etc.) y si el 25% aplica a todo.
+Migración: pasar las fichas limpias automáticamente y mandar a "Revisar" solo las dudosas. Decidido (29/10): no se migran las fichas; se sigue con el formato de siempre. **El 25% de adelanto va para todos los platos.**
 
 ## Estructura y margen (agosto 2026) — solo como antecedente
 

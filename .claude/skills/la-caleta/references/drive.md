@@ -22,7 +22,8 @@ Verificado el 28/10/2026. Si un ID no abre, buscá por nombre y actualizá este 
 | Informes originales de Resto Soft (.xls) | "Informes Resto Soft (originales)" | `1youEOcz9c7-kDSBk0YFdFIphOmJ0RiPQ` |
 | **Resumen anual mes a mes (ventas, costos, retiros)** | "La Caleta 2026 — mes a mes" (carpeta 2) | `1l-rwCQxFhadqVfmnXRkAiRDebnkmKgMS8lk4Qtson7I` |
 | Informes de Resto Soft ene-jul 2026 (compartidos por lacaletaycr) | carpeta "RESTOSOFT" | `1wO-WdCuwm0PtuFtz_MdcFj-uZwXlMsmZ` |
-| Gastos de la tesorera | "GASTOS 2026 " | `1v4zobLlIs0homILGpkQx6XpcLHlMNANPoU4d5780pT0` |
+| Gastos de la tesorera (desde 29/10) | pestaña "Gastos tesorera" de "La Caleta 2026 — mes a mes" | `1l-rwCQxFhadqVfmnXRkAiRDebnkmKgMS8lk4Qtson7I` |
+| Planilla vieja de gastos (ya no se usa) | "GASTOS 2026 " (de lacaletaycr) | `1v4zobLlIs0homILGpkQx6XpcLHlMNANPoU4d5780pT0` |
 | Análisis de ventas agosto | "Ventas agosto 2026 — análisis" | `1W2zKhWCRG2THuwty7Voa4GvhXrd6dJ4L5ouLWELdrmY` |
 | Análisis de ventas septiembre | "Ventas septiembre 2026 — análisis" | `12CplCboAd91C1kQ1Y21pSlDqKw87rU6gSDxwqrtV1PI` |
 | **Costos de recetas (vigente, con precios y hoja RESTO SOFT)** | "COSTOS RECETAS LA CALETA" (Hoja de Google, carpeta 3) | `1IS6goPstA-20qET9q1ZTMfwcAjN5miUzm01bXd6luSI` |
