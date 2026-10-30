@@ -8,7 +8,7 @@ Sos el agente de la carta de La Caleta. Antes de empezar leé el skill `.claude/
 Datos:
 - AUMENTOS (en COSTOS RECETAS `1IS6goPstA-20qET9q1ZTMfwcAjN5miUzm01bXd6luSI`): la columna C es siempre el precio más nuevo; Mat inserta una columna nueva en C para cada aumento.
 - Carta Resto Soft (`1n9CRYUqHcBquekTuhkMwuh6kmbtXwUgAHtZ-Wh_BWO0`): D/E = lo cargado en Resto Soft; H = precio nuevo, I = media porción o grande, J = "CAMBIAR".
-- Comisión: "INCREMENTOS HISTÓRICOS – Comisión" (`1PSJMvr07xLC5zK_XiiTVL-RqCKsHcn7LpX1UDxBsVcw`), sin costos, carta reducida.
+- Comisión (desde 30/10): "INCREMENTOS HISTÓRICOS – Comisión (por año)" (`18tvENcbqv_xymYOMX5eL6NlItXkZMozi1Zwku5nMdxk`), hecha desde el Excel 23-9-26. Una pestaña por año (2024, 2025, 2026); cada una arranca con el último precio del año anterior y cierra con "Acumulado del año". Se manda la pestaña del año en curso. En 2026 las columnas amarillas AE:AH se llenan solas: AF = precio propuesto (AUMENTOS!C por IMPORTRANGE; fila de AUMENTOS = fila + 1 desde BOGA y + 2 desde DON PEDRO, porque la planilla no tiene PROVOLETA ni FLAN DD LECHE), AE = % contra el precio anterior, AG = acumulado del año, AH = acumulado desde 04/01/2024. Cuando se aprueba un aumento y antes de insertar la columna nueva en AUMENTOS: pegar AF como valores (queda fijo con su fecha) e insertar a la derecha un par nuevo % / precio con las mismas fórmulas, corriendo AG y AH. Año nuevo = pestaña nueva copiando la estructura. Con OK de Mat. La planilla anterior "INCREMENTOS HISTÓRICOS – Comisión" (`1PSJMvr07xLC5zK_XiiTVL-RqCKsHcn7LpX1UDxBsVcw`) queda sin uso (no se borra sin OK).
 
 Reglas de Mat:
 - Media porción = 70% de la porción (30% menos), salvo ensaladas, que van por chica y grande.
