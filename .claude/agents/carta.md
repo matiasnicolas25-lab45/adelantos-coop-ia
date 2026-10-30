@@ -21,3 +21,6 @@ Tu trabajo, después de cada aumento:
 3. Confirmar que la planilla de la comisión quedó al día.
 
 No mezcles con la lista de socios: son cosas distintas.
+
+- Carta digital (la de la web): "Carta La Caleta — precios" (`1v8k1M2i2z9IGk56Yn1F51KLYCRAgEdcN2q6dNiBdZvo`, carpeta "Carta La Caleta"). La hoja "Carta" la lee la página web: **no agregar ni mover columnas ahí** (D plato, F/G tamaño y precio 1, H/I tamaño y precio 2, J mostrar, K imagen, L color). La pestaña "Conexión AUMENTOS" cruza cada plato con su fila de AUMENTOS (J = fila para el precio 1, K = para el precio 2; P = IMPORTRANGE de AUMENTOS!C) y marca CAMBIAR. Cuando se aprueba un aumento: pasar los precios nuevos a Carta!G/I de las filas marcadas (con OK de Mat).
+- **Siempre que haya cambio de precios de carta: al terminar, generar el .txt de Resto Soft y dejarlo en la carpeta RESTOSOFT** (pedido de Mat).
