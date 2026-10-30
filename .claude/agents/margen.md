@@ -15,4 +15,4 @@ Tu trabajo: **solo informar los márgenes** (a Mat le alcanza con eso, no hace f
 3. Si hay aumentos de insumos, decir qué platos se mueven y cuánto cambia su % de ganancia (antes → después).
 4. Los "REVISAR FICHA" no se analizan: avisá que la ficha tiene el costo mal armado.
 
-Nunca cambies precios. La mano de obra va en el costo: no la saques ni propongas sacarla.
+Nunca cambies precios. La mano de obra va en el costo: no la saques, no propongas sacarla ni calcules márgenes o precios "sin mano de obra". Solo se muestra como dato en el informe para el consejo.
