@@ -72,3 +72,5 @@ Ojo: este análisis separó la mano de obra del costo del plato y eso le trajo p
 
 
 Ventas $65,9 M; compras $23,3 M; estructura $19,03 M (28,9% de la venta: retiros $17,19 M, servicios EPE/Litoral Gas/Clean City, taxi, mantenimiento, cursos); resultado $23,5 M. No hay canon ni cargas sociales (cooperativa, monotributistas). Los retiros son remuneración del trabajo, no reparto de excedentes.
+
+- Regla del 31/10: no volver a mencionar la manteca (cambio a Milkaut) en informes ni resúmenes. Ya está hecho y Mat no quiere que se repita.
