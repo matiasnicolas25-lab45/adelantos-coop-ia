@@ -1,13 +1,9 @@
-/**
- * Arma el .txt de precios para Resto Soft y lo deja en la carpeta RESTOSOFT de Drive.
- *
- * Va pegado en la planilla "Carta Resto Soft — platos activos" (Extensiones → Apps Script).
- * Toma la última exportación "CARTA.txt" de Drive y cambia solo los precios de las filas
- * que dicen CAMBIAR en la pestaña Carta (H = porción / único / chica, I = 1/2 o grande).
- * Se dispara tildando la casilla Carta!N1 (anda desde el celular) o desde el menú "Resto Soft".
- *
- * Instalar una sola vez: pegar este archivo, guardar y correr la función instalar().
- */
+// Arma el .txt de precios para Resto Soft y lo deja en la carpeta RESTOSOFT de Drive.
+// Va pegado en la planilla "Carta Resto Soft — platos activos" (Extensiones → Apps Script).
+// Toma la última exportación "CARTA.txt" de Drive y cambia solo los precios de las filas
+// que dicen CAMBIAR en la pestaña Carta (H = porción / único / chica, I = 1/2 o grande).
+// Se dispara tildando la casilla Carta!N1 (anda desde el celular) o desde el menú "Resto Soft".
+// Instalar una sola vez: pegar este archivo, guardar y correr la función instalar().
 var CARPETA_RESTOSOFT = '1wO-WdCuwm0PtuFtz_MdcFj-uZwXlMsmZ';
 var HOJA = 'Carta';
 var CASILLA = 'N1';
