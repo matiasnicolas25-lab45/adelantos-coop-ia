@@ -1,3 +1,4 @@
+
 // Arma el .txt de precios para Resto Soft y lo deja en la carpeta RESTOSOFT de Drive.
 // Va pegado en la planilla "Carta Resto Soft — platos activos" (Extensiones → Apps Script).
 // Toma la última exportación "CARTA.txt" de Drive y cambia solo los precios de las filas
