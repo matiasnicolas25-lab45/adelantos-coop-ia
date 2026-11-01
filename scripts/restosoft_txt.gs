@@ -58,6 +58,12 @@ function ultimaCarta() {
     if (!mejor || f.getLastUpdated() > mejor.getLastUpdated()) mejor = f;
   }
   if (!mejor) throw new Error('no encontré CARTA.txt en Drive');
+  // Al importar, Resto Soft reemplaza toda la carta: una exportación vieja pisa lo que se cambió después.
+  var horas = (new Date() - mejor.getLastUpdated()) / 36e5;
+  if (horas > 12) {
+    var dia = Utilities.formatDate(mejor.getLastUpdated(), 'America/Argentina/Buenos_Aires', 'dd/MM HH:mm');
+    throw new Error('el CARTA.txt es del ' + dia + '. Exportá la carta de Resto Soft de nuevo y subila a Drive antes de generar');
+  }
   return mejor;
 }
 
