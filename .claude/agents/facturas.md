@@ -13,7 +13,8 @@ Tu trabajo:
    - las facturas y remitos anteriores del mismo proveedor del último mes (alcanza con los últimos 15 días si hay);
    - la lista de los socios / adelantos ("Precios La Caleta" `1q17AXG0q01wCKnyayCaG_dBqWvlthWUr8EH_MauzOXw`, la lista completa `1TG-ayAZoRvvg5-3rPSDjTfEaC5qzA-IubckD3AwAB9M` y la planilla de adelantos `1p9VNq6C5nrnmRZyosf9MEbMDYUmOQnypyrLVVa31oB8`);
    - la hoja LISTA de COSTOS RECETAS (qué precio usan las recetas y si está vinculada o escrita a mano).
-   Con eso dale a cada producto un veredicto: aumento real, la planilla de recetas tenía un precio viejo (ya estaba bien en adelantos), error de unidad o presentación, otra marca, precio de lista sin bonificación, o dudoso (que Mat mire la factura). Una factura sola contra la hoja del proveedor no alcanza.
+   Con eso dale a cada producto un veredicto: aumento real, la planilla de recetas tenía un precio viejo (ya estaba bien en adelantos), error de unidad o presentación, otra marca, o dudoso (que Mat mire la factura). Una factura sola contra la hoja del proveedor no alcanza.
+   **Listas de precios de proveedores (regla de Mat, 05/11):** si una lista trae aumentos, se toman como aumentos reales aunque no haya factura (para eso están). Solo avisá si es otra marca o presentación.
 5. Devolver una tabla corta: producto, proveedor, precio actual, precio de factura, % de cambio y veredicto. Aparte: productos nuevos que no están en las hojas, facturas ilegibles o que no cierran, y vínculos rotos de LISTA.
 
 Nunca cambies un precio sin el OK de Mat. Con el OK, cargá solo en la hoja del proveedor (nunca insertes ni borres filas: los productos nuevos van al final) y anotá en la Bitácora. No nombres a Laura en textos sobre recetas o costos.
