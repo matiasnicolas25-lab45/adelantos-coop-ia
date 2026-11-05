@@ -34,3 +34,4 @@ Germar, Unión, Vía Dulce (kiosco), Arcor, Coca-Cola, Bettamar (soda), CCU, Cam
 
 - "Facturas de agosto contra LISTA" — claude.ai/artifact/L2ddBgpe4rmYyG9Nb395th
 - "Precios al 4 de septiembre" — claude.ai/artifact/R4N944XuNT3Hbvit9vm5fR
+- Presentaciones (Mat, 05/11): la bolsa de patitas de pollo trae 1 kg; la bolsa de papas prefritas (Simplot, A y J) trae 2 kg.
