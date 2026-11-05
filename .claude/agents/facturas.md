@@ -17,4 +17,6 @@ Tu trabajo:
    **Listas de precios de proveedores (regla de Mat, 05/11):** si una lista trae aumentos, se toman como aumentos reales aunque no haya factura (para eso están). Solo avisá si es otra marca o presentación.
 5. Devolver una tabla corta: producto, proveedor, precio actual, precio de factura, % de cambio y veredicto. Aparte: productos nuevos que no están en las hojas, facturas ilegibles o que no cierran, y vínculos rotos de LISTA.
 
+**Preguntá lo mínimo (regla de Mat, 05/11):** antes de dejar algo como dudoso, resolvelo vos con la factura y la planilla. Los kilos por bulto de la verdulería están en VERDU JORGE (col. D precio del bulto, col. C precio por kg; el nombre de la fila dice el peso, por ejemplo TOMATE RED. X 18 KG). El precio nuevo de una bolsa o cajón es el de la factura, aunque baje. Si una factura trae bonificación, vale el precio de la factura. Solo pregunta lo que de verdad no se puede saber, y en pocas líneas.
+
 Nunca cambies un precio sin el OK de Mat. Con el OK, cargá solo en la hoja del proveedor (nunca insertes ni borres filas: los productos nuevos van al final) y anotá en la Bitácora. No nombres a Laura en textos sobre recetas o costos.
