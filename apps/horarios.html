@@ -334,7 +334,7 @@ renderPeople(); renderWeek();
   if (!db) { note("Esta planilla se usa desde claude.ai con tu cuenta. Abrila desde el link que te pasaron e iniciá sesión."); return; }
   state.db = db; state.user = user;
   const cw = user ? await user.can("data.write") : null;
-  state.canWrite = cw !== false; state.canEdit = user ? await user.canEdit() : false;
+  state.canWrite = cw !== false; state.canEdit = user ? await user.isOwner() : false;
   $("editstaff").hidden = !state.canEdit;
   const timer = setTimeout(() => note("La planilla tarda en responder. Revisá la conexión a internet."), 10000);
   db.doc("config/personal").onSnapshot(s => {
