@@ -34,8 +34,8 @@ function estado() {
   return { personas, abiertos, ahora: hora(new Date()), hoy: fecha(new Date()) };
 }
 
-/** Marca entrada ("in") o salida ("out"). Devuelve un texto para mostrar. */
-function marcar(nombre, pin, tipo) {
+/** Marca entrada ("in") o salida ("out"). `pos` = {lat, lon, acc} del celular o null. */
+function marcar(nombre, pin, tipo, pos) {
   const p = validar(nombre, pin);
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -44,17 +44,22 @@ function marcar(nombre, pin, tipo) {
     const marcas = leerMarcas();
     const abierta = marcas.filter(m => m.nombre === p.nombre && !m.salida).pop();
     const ahora = new Date();
+    const lugar = donde(pos);
     if (tipo === "in") {
       if (abierta) return { ok: false, texto: p.nombre + ", ya marcaste entrada a las " + abierta.entrada + ". Marcá la salida primero." };
       const fila = hoja.getLastRow() + 1;
       hoja.getRange(fila, 1, 1, 4).setValues([["'" + fecha(ahora), p.nombre, "'" + hora(ahora), ""]]);
       hoja.getRange(fila, 5).setFormulaR1C1('=IF(R[0]C[-1]="","",MOD(TIMEVALUE(R[0]C[-1])-TIMEVALUE(R[0]C[-2]),1)*24)');
       hoja.getRange(fila, 6, 1, 2).setValues([["app", ahora]]);
-      return { ok: true, texto: "¡Listo " + p.nombre + "! Entraste a las " + hora(ahora) + "." };
+      hoja.getRange(fila, 8).setValue(lugar.texto);
+      hoja.getRange(fila, 10).setValue(lugar.coord);
+      return { ok: true, texto: "¡Listo " + p.nombre + "! Entraste a las " + hora(ahora) + "." + lugar.aviso };
     }
     if (!abierta) return { ok: false, texto: p.nombre + ", no tenés una entrada abierta. Marcá la entrada primero." };
     hoja.getRange(abierta.fila, 4).setValue("'" + hora(ahora));
-    return { ok: true, texto: "¡Listo " + p.nombre + "! Saliste a las " + hora(ahora) + "." };
+    hoja.getRange(abierta.fila, 9).setValue(lugar.texto);
+    hoja.getRange(abierta.fila, 11).setValue(lugar.coord);
+    return { ok: true, texto: "¡Listo " + p.nombre + "! Saliste a las " + hora(ahora) + "." + lugar.aviso };
   } finally {
     lock.releaseLock();
   }
@@ -77,6 +82,25 @@ function misHoras(nombre, pin) {
     dia.horas += duracion(m.entrada, m.salida);
   }
   return { nombre: p.nombre, dias, total: dias.reduce((a, d) => a + d.horas, 0) };
+}
+
+/* ---------------- ubicación ---------------- */
+
+/** Compara la posición del celular con la del club (hoja CONFIG). Nunca bloquea la marca. */
+function donde(pos) {
+  if (!pos || pos.lat == null) return { texto: "sin dato", coord: "", aviso: "" };
+  const c = libro().getSheetByName("CONFIG").getRange("B2:B4").getValues().map(r => Number(r[0]));
+  const [lat, lon, radio] = c;
+  const m = metros(lat, lon, pos.lat, pos.lon);
+  const dist = m < 1000 ? Math.round(m) + " m" : (m / 1000).toFixed(1).replace(".", ",") + " km";
+  const adentro = m <= radio + Math.min(pos.acc || 0, 500);
+  return { texto: (adentro ? "SÍ" : "NO") + " (" + dist + ")", coord: pos.lat.toFixed(6) + ", " + pos.lon.toFixed(6),
+    aviso: adentro ? "" : " Ojo: no parece que estés en el club (" + dist + "). La marca quedó guardada para que Matías la revise." };
+}
+
+function metros(a1, o1, a2, o2) {
+  const r = Math.PI / 180, x = Math.sin((a2 - a1) * r / 2) ** 2 + Math.cos(a1 * r) * Math.cos(a2 * r) * Math.sin((o2 - o1) * r / 2) ** 2;
+  return 6371000 * 2 * Math.asin(Math.sqrt(x));
 }
 
 /* ---------------- datos ---------------- */
@@ -193,8 +217,18 @@ function instalar() {
   }
 
   const mar = hoja("MARCAS");
-  if (mar.getLastRow() < 1) mar.getRange(1, 1, 1, 7).setValues([["Fecha", "Nombre", "Entrada", "Salida", "Horas", "Origen", "Marcado"]]);
-  mar.getRange("I1").setValue("Para corregir: cambiá Entrada o Salida (HH:MM) y poné 'a mano' en Origen. Para cargar un turno olvidado, copiá una fila y cambiala.");
+  mar.getRange(1, 1, 1, 11).setValues([["Fecha", "Nombre", "Entrada", "Salida", "Horas", "Origen", "Marcado",
+    "En el club al entrar", "En el club al salir", "Ubicación entrada", "Ubicación salida"]]);
+  mar.getRange("M1").setValue("Para corregir: cambiá Entrada o Salida (HH:MM) y poné 'a mano' en Origen. Para cargar un turno olvidado, copiá una fila y cambiala.");
+  const rojo = SpreadsheetApp.newConditionalFormatRule().whenTextStartsWith("NO").setBackground("#f4c7c3")
+    .setRanges([mar.getRange("H2:I")]).build();
+  mar.setConditionalFormatRules([rojo]);
+
+  const cfg = hoja("CONFIG");
+  if (cfg.getLastRow() < 1) {
+    cfg.getRange(1, 1, 4, 2).setValues([["Dato", "Valor"], ["Latitud del club", -32.9508], ["Longitud del club", -60.6253], ["Radio en metros", 300]]);
+    cfg.getRange("D1").setValue("Ubicación de Av. Carlos Colombres 1296 (esquina Washington), aproximada. Para afinarla: marcar desde el club y copiar acá la 'Ubicación entrada' de esa fila de MARCAS.");
+  }
 
   const fer = hoja("FERIADOS");
   if (fer.getLastRow() < 1) {
@@ -209,7 +243,7 @@ function instalar() {
   }
 
   armarSemana(hoja("SEMANA"));
-  ["SEMANA", "PERSONAL", "MARCAS", "FERIADOS"].forEach((n, i) => { ss.setActiveSheet(ss.getSheetByName(n)); ss.moveActiveSheet(i + 1); });
+  ["SEMANA", "PERSONAL", "MARCAS", "FERIADOS", "CONFIG"].forEach((n, i) => { ss.setActiveSheet(ss.getSheetByName(n)); ss.moveActiveSheet(i + 1); });
   const sobra = ss.getSheetByName("Hoja 1") || ss.getSheetByName("Sheet1");
   if (sobra && sobra.getLastRow() === 0) ss.deleteSheet(sobra);
 }

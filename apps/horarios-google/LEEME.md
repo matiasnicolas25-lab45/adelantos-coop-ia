@@ -28,6 +28,10 @@ Planilla: "Horarios La Caleta" en la carpeta "La Caleta — Sistema" de Drive
   cargado a mano. Antes de liquidar, poner en la celda amarilla C1 el sábado de la semana que se paga.
 - **PERSONAL**: nombre, PIN (4 números, se le pasa a cada uno), valor hora, activo (NO = dado de baja).
 - **MARCAS**: cada turno (fecha, nombre, entrada, salida, horas). Se corrige a mano acá.
+- **Ubicación**: al marcar, el celular pide permiso de ubicación. En MARCAS quedan "En el club al entrar / al
+  salir" (SÍ/NO y la distancia; NO en rojo) y las coordenadas. Nunca bloquea: sin permiso queda "sin dato".
+  El punto del club y el radio (300 m) están en la hoja **CONFIG**; para afinarlo, copiar ahí la ubicación de
+  una marca hecha en el club.
 - **FERIADOS**: fecha (AAAA-MM-DD), motivo y por cuánto se multiplica la hora.
 
 ## Cambios en el código

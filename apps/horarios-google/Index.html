@@ -84,9 +84,11 @@ function abrir(nombre) {
   const tabla = el("div");
   function enviar(tipo, btn) {
     if (pin.value.length !== 4) { mostrar("Poné tu PIN de 4 números.", true); return; }
-    btn.disabled = true;
-    google.script.run.withSuccessHandler(r => { mostrar(r.texto, !r.ok); if (r.ok) setTimeout(cerrar, 1800); else btn.disabled = false; })
-      .withFailureHandler(err => { mostrar(err.message, true); btn.disabled = false; }).marcar(nombre, pin.value, tipo);
+    btn.disabled = true; mostrar("Buscando tu ubicación…", false);
+    ubicacion(pos => {
+      google.script.run.withSuccessHandler(r => { mostrar(r.texto, !r.ok); if (r.ok) setTimeout(cerrar, r.texto.includes("Ojo") ? 5000 : 1800); else btn.disabled = false; })
+        .withFailureHandler(err => { mostrar(err.message, true); btn.disabled = false; }).marcar(nombre, pin.value, tipo, pos);
+    });
   }
   function mostrar(t, err) { msg.textContent = t; msg.className = "msg" + (err ? " err" : ""); msg.hidden = false; }
   bin.onclick = () => enviar("in", bin);
@@ -107,6 +109,16 @@ function abrir(nombre) {
     el("p", { className: "hint", textContent: a ? "Entraste a las " + a.entrada + ". Poné tu PIN y tocá Salí." : "Poné tu PIN y tocá Entré." }),
     pin, el("div", { className: "two" }, bin, bout), msg, ver, tabla, volver);
   $("sheet").hidden = false; pin.focus();
+}
+/* Pide la ubicación solo al marcar. Si no hay permiso o tarda, marca igual sin ubicación. */
+function ubicacion(listo) {
+  let hecho = false; const fin = p => { if (!hecho) { hecho = true; listo(p); } };
+  setTimeout(() => fin(null), 9000);
+  try {
+    navigator.geolocation.getCurrentPosition(
+      p => fin({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }),
+      () => fin(null), { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+  } catch (e) { fin(null); }
 }
 cargar(); setInterval(cargar, 60000);
 </script>
