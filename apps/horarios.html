@@ -75,7 +75,7 @@ section { display: grid; gap: 12px; }
 .weeknav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
 .weeknav strong { font: 600 16px var(--f-narrow); }
 .tablebox { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
-table { border-collapse: collapse; width: 100%; min-width: 820px; font-variant-numeric: tabular-nums; }
+table { border-collapse: collapse; width: 100%; min-width: 1000px; font-variant-numeric: tabular-nums; }
 th, td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 6px 8px; vertical-align: top; text-align: left; }
 th { font: 700 12px var(--f-narrow); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: var(--soft); white-space: nowrap; }
 th.today { color: var(--navy); }
@@ -132,7 +132,7 @@ textarea { min-height: 220px; resize: vertical; }
       <span><i style="color:var(--ochre)">✎</i>: corregido a mano</span>
       <span>Tocá un casillero para corregir o cargar un horario.</span>
     </div>
-    <div class="row end"><button class="btn-plain" id="editstaff" type="button" hidden>Editar lista de personal</button></div>
+    <div class="row end"><button class="btn-plain" id="editstaff" type="button" hidden>Editar personal y valor hora</button></div>
   </section>
 </div>
 
@@ -141,7 +141,7 @@ textarea { min-height: 220px; resize: vertical; }
 
 <script>
 const DIAS = ["Sábado", "Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
-const state = { db: null, user: null, canWrite: false, canEdit: false, staff: [], week: [], open: [], weekStart: startOfWeek(new Date()), unsubWeek: null };
+const state = { db: null, user: null, canWrite: false, canEdit: false,  staff: [], valores: {}, valoresFecha: "", week: [], open: [], weekStart: startOfWeek(new Date()), unsubWeek: null };
 const $ = id => document.getElementById(id);
 
 function pad(n) { return String(n).padStart(2, "0"); }
@@ -152,6 +152,8 @@ function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); retu
 function ddmm(d) { return pad(d.getDate()) + "/" + pad(d.getMonth() + 1); }
 function mins(t) { const [h, m] = t.split(":").map(Number); return h * 60 + m; }
 function dur(t) { if (!t.salida) return 0; let m = mins(t.salida) - mins(t.entrada); if (m < 0) m += 1440; return m; }
+function pesos(n) { return "$" + Math.round(n).toLocaleString("es-AR"); }
+function plata(name, m) { const v = state.valores[name]; return v && m ? m / 60 * v : 0; }
 function fmtHs(m) { return m ? Math.floor(m / 60) + ":" + pad(m % 60) : ""; }
 function toast(txt) { const t = $("toast"); t.textContent = txt; t.hidden = false; clearTimeout(toast.k); toast.k = setTimeout(() => t.hidden = true, 3200); }
 function note(txt) { $("msg").textContent = txt || ""; $("msg").hidden = !txt; }
@@ -166,7 +168,7 @@ function openFor(p) { return state.open.filter(t => t.persona === p).sort((a, b)
 function renderPeople() {
   const box = $("people"); box.textContent = "";
   if (!state.staff.length) { const p = document.createElement("p"); p.className = "note";
-    p.textContent = state.canEdit ? "Todavía no hay personal cargado. Usá \"Editar lista de personal\" abajo para agregar los nombres." : "Todavía no hay personal cargado.";
+    p.textContent = state.canEdit ? "Todavía no hay personal cargado. Usá \"Editar personal y valor hora\" abajo para agregar los nombres." : "Todavía no hay personal cargado.";
     box.append(p); return; }
   for (const name of state.staff) {
     const o = openFor(name); const b = document.createElement("button");
@@ -185,7 +187,9 @@ function renderWeek() {
   const th0 = document.createElement("th"); th0.textContent = "Nombre"; thead.append(th0);
   days.forEach((d, i) => { const th = document.createElement("th"); th.textContent = DIAS[i] + " " + pad(d.getDate()); if (iso(d) === today) th.className = "today"; thead.append(th); });
   const thh = document.createElement("th"); thh.textContent = "HS"; thead.append(thh);
-  const body = t.createTBody(); const dayTot = Array(7).fill(0); let grand = 0;
+  const thv = document.createElement("th"); thv.textContent = "Valor hora"; thead.append(thv);
+  const thp = document.createElement("th"); thp.textContent = "A cobrar"; thead.append(thp);
+  const body = t.createTBody(); const dayTot = Array(7).fill(0); let grand = 0, grandPlata = 0;
   const names = [...state.staff]; for (const x of state.week) if (!names.includes(x.persona)) names.push(x.persona);
   for (const name of names) {
     const tr = body.insertRow(); const tdn = tr.insertCell(); tdn.className = "name"; tdn.textContent = name; let tot = 0;
@@ -200,9 +204,12 @@ function renderWeek() {
       td.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDay(name, key); } });
     });
     grand += tot; const tdh = tr.insertCell(); tdh.className = "hs"; tdh.textContent = fmtHs(tot);
+    const v = state.valores[name]; const tdv = tr.insertCell(); tdv.className = "hs"; tdv.textContent = v ? pesos(v) : "sin valor";
+    const p = plata(name, tot); grandPlata += p; const tdp = tr.insertCell(); tdp.className = "hs"; tdp.textContent = p ? pesos(p) : "";
   }
   const f = t.createTFoot().insertRow(); const c0 = f.insertCell(); c0.textContent = "Total del día";
   dayTot.forEach(m => f.insertCell().textContent = fmtHs(m)); const cg = f.insertCell(); cg.className = "hs"; cg.textContent = fmtHs(grand);
+  f.insertCell().textContent = state.valoresFecha ? "valores " + state.valoresFecha : ""; const cp = f.insertCell(); cp.className = "hs"; cp.textContent = grandPlata ? pesos(grandPlata) : "";
 }
 
 /* ---------- sheet ---------- */
@@ -286,16 +293,22 @@ function openDay(name, dia) {
 
 function openStaff() {
   const box = $("sheetbox"); box.textContent = "";
-  const ta = el("textarea", { id: "staffnames", value: state.staff.join("\n") });
+  const ta = el("textarea", { id: "staffnames", value: state.staff.map(n => state.valores[n] ? n + ": " + state.valores[n] : n).join("\n") });
+  const fe = el("input", { type: "text", id: "valfecha", value: state.valoresFecha, placeholder: "ej. 09/26" });
   const save = el("button", { className: "btn-main", type: "button", textContent: "Guardar lista" });
   const cancel = el("button", { className: "btn-plain", type: "button", textContent: "Cancelar" }); cancel.addEventListener("click", closeSheet);
   save.addEventListener("click", async () => {
-    const nombres = [...new Set(ta.value.split("\n").map(s => s.trim()).filter(Boolean))];
+    const nombres = [], valores = {};
+    for (const line of ta.value.split("\n")) {
+      const m = line.match(/^(.*?)(?:[:;=]\s*\$?\s*([\d.,]+))?\s*$/); const n = (m[1] || "").trim(); if (!n || nombres.includes(n)) continue;
+      nombres.push(n); if (m[2]) valores[n] = Number(m[2].replace(/\./g, "").replace(",", "."));
+    }
     save.disabled = true;
-    try { await state.db.doc("config/personal").set({ nombres }); toast("Lista guardada"); closeSheet(); }
+    try { await state.db.doc("config/personal").set({ nombres, valores, valoresFecha: fe.value.trim() }); toast("Lista guardada"); closeSheet(); }
     catch (e) { save.disabled = false; toast("No se pudo guardar la lista."); }
   });
-  box.append(el("h3", { textContent: "Lista de personal" }), el("label", { htmlFor: "staffnames", className: "status", textContent: "Un nombre por renglón, en el orden en que querés verlos." }), ta, el("div", { className: "row end" }, cancel, save));
+  box.append(el("h3", { textContent: "Lista de personal" }), el("label", { htmlFor: "staffnames", className: "status", textContent: "Un nombre por renglón, en el orden en que querés verlos. Después de los dos puntos va el valor de la hora (ej. Laura: 9941)." }), ta,
+    el("label", { htmlFor: "valfecha", className: "status", textContent: "Mes de los valores" }), fe, el("div", { className: "row end" }, cancel, save));
   $("sheet").hidden = false; ta.focus();
 }
 
@@ -326,7 +339,7 @@ renderPeople(); renderWeek();
   const timer = setTimeout(() => note("La planilla tarda en responder. Revisá la conexión a internet."), 10000);
   db.doc("config/personal").onSnapshot(s => {
     clearTimeout(timer); note(state.canWrite ? "" : "Con tu acceso solo podés ver la planilla.");
-    state.staff = (s.exists && s.data().nombres) || []; renderPeople(); renderWeek();
+    const d = s.exists ? s.data() : {}; state.staff = d.nombres || []; state.valores = d.valores || {}; state.valoresFecha = d.valoresFecha || ""; renderPeople(); renderWeek();
   }, () => note("Se cortó la conexión con la planilla. Recargá la página."));
   db.collection("turnos").where("salida", "==", "").onSnapshot(s => {
     state.open = s.docs.map(d => ({ id: d.id, ...d.data() })); renderPeople();
