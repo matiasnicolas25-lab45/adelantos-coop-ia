@@ -119,6 +119,62 @@ function duracion(a, b) {
   return x / 60;
 }
 
+/* ---------------- liquidación ---------------- */
+
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu("La Caleta")
+    .addItem("Armar mensajes de cobro", "armarMensajes")
+    .addItem("Guardar liquidación de la semana", "guardarLiquidacion")
+    .addToUi();
+}
+
+function plata(n) {
+  const s = Math.abs(n).toFixed(2).split(".");
+  return (n < 0 ? "-$" : "$") + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + s[1];
+}
+function horasTxt(h) { return (Math.round(h * 100) / 100).toString().replace(".", ",") + " hs"; }
+
+/** Escribe en la columna Mensaje el texto para WhatsApp de cada uno que trabajó. */
+function armarMensajes() {
+  const sh = libro().getSheetByName("SEMANA");
+  const inicio = sh.getRange("C1").getValue();
+  const fin = new Date(inicio.getTime() + 6 * 86400000);
+  const periodo = Utilities.formatDate(inicio, ZONA, "dd") + " al " + Utilities.formatDate(fin, ZONA, "dd/MM");
+  const v = sh.getRange(4, 1, 40, 19).getValues();
+  const out = v.map(r => {
+    const [nombre, , , , , , , , , hs, pago, propina, extra, detalle, prestamo, adelantos, total, efectivo, transf] = r;
+    if (!nombre || !(hs > 0 || extra || prestamo || adelantos)) return [""];
+    const l = ["*" + String(nombre).toUpperCase() + "*", "Horas trabajadas: " + horasTxt(hs || 0),
+      "Hs " + periodo + ": " + plata(pago || 0)];
+    if (propina) l.push("Propina: " + plata(propina));
+    if (extra) l.push((detalle ? "Extra " + detalle : "Extra") + ": " + plata(extra));
+    if (prestamo) l.push("Cuota préstamo: " + plata(-prestamo));
+    if (adelantos) l.push("Adelantos: " + plata(-adelantos));
+    l.push("*TOTAL: " + plata(total || 0) + "*");
+    if (efectivo) l.push("Efectivo: " + plata(efectivo));
+    if (transf) l.push("Transferencia: " + plata(transf));
+    return [l.join("\n")];
+  });
+  sh.getRange(4, 20, 40, 1).setValues(out).setWrap(true).setVerticalAlignment("top");
+}
+
+/** Copia la semana (valores, no fórmulas) a una hoja "Liq dd-mm" y limpia lo cargado a mano. */
+function guardarLiquidacion() {
+  armarMensajes();
+  const ss = libro(), sh = ss.getSheetByName("SEMANA");
+  const nombre = "Liq " + Utilities.formatDate(sh.getRange("C1").getValue(), ZONA, "dd-MM-yyyy");
+  if (ss.getSheetByName(nombre)) { SpreadsheetApp.getUi().alert("Ya existe la hoja " + nombre + ". Borrala si querés guardarla de nuevo."); return; }
+  const copia = sh.copyTo(ss).setName(nombre);
+  const rango = copia.getDataRange();
+  rango.setValues(rango.getValues());
+  copia.getRange("C1").setValue(sh.getRange("C1").getValue());
+  sh.getRange("M4:P43").clearContent();
+  sh.getRange("R4:R43").clearContent();
+  sh.getRange("T4:T43").clearContent();
+  sh.getRange("R1").setValue(0);
+  SpreadsheetApp.getUi().alert("Guardado en la hoja " + nombre + ".");
+}
+
 /* ---------------- instalación ---------------- */
 
 /** Arma las hojas. Correr una sola vez desde el editor (Ejecutar → instalar). */
@@ -174,25 +230,31 @@ function armarSemana(sh) {
       sh.getRange(f, col).setFormula('=IF($A' + f + '="","",SUMIFS(MARCAS!$E:$E,MARCAS!$B:$B,$A' + f + ',MARCAS!$A:$A,TEXT($C$1+' + i + ',"yyyy-mm-dd")))');
     }
   }
-  sh.getRange("J3:M3").setValues([["HS", "Pago horas", "Propina", "Total"]]);
+  sh.getRange("J3:T3").setValues([["HS", "Pago horas", "Propina", "Extra", "Detalle del extra", "Cuota préstamo",
+    "Adelantos", "TOTAL", "Efectivo", "Transferencia", "Mensaje"]]);
   sh.getRange("O1").setValue("Propina de la semana a repartir:");
-  sh.getRange("R1").setValue(0).setBackground("#fff2cc").setNumberFormat("$ #,##0");
-  sh.getRange("O2").setValue("Se reparte proporcional a las horas trabajadas (falta que la tesorera confirme la regla).");
+  sh.getRange("R1").setValue(0).setBackground("#fff2cc").setNumberFormat("$ #,##0.00");
+  sh.getRange("O2").setValue("Amarillo = se carga a mano. La propina se reparte proporcional a las horas.");
   for (let f = 4; f < 4 + 40; f++) {
     sh.getRange(f, 1).setFormula('=IFERROR(INDEX(FILTER(PERSONAL!$A$2:$A,PERSONAL!$D$2:$D<>"NO",PERSONAL!$A$2:$A<>""),' + (f - 3) + '),"")');
     sh.getRange(f, 2).setFormula('=IF($A' + f + '="","",IFERROR(VLOOKUP($A' + f + ',PERSONAL!$A:$C,3,FALSE),""))');
     sh.getRange(f, 10).setFormula('=IF($A' + f + '="","",SUM(C' + f + ':I' + f + '))');
-    sh.getRange(f, 11).setFormula('=IF($A' + f + '="","",ROUND(SUMPRODUCT(C' + f + ':I' + f + ',$C$2:$I$2)*B' + f + ',0))');
-    sh.getRange(f, 12).setFormula('=IF($A' + f + '="","",IF(SUM($J$4:$J$43)=0,0,ROUND($R$1*J' + f + '/SUM($J$4:$J$43),0)))');
-    sh.getRange(f, 13).setFormula('=IF($A' + f + '="","",K' + f + '+L' + f + ')');
+    sh.getRange(f, 11).setFormula('=IF($A' + f + '="","",ROUND(SUMPRODUCT(C' + f + ':I' + f + ',$C$2:$I$2)*B' + f + ',2))');
+    sh.getRange(f, 12).setFormula('=IF($A' + f + '="","",IF(SUM($J$4:$J$43)=0,0,ROUND($R$1*J' + f + '/SUM($J$4:$J$43),2)))');
+    sh.getRange(f, 17).setFormula('=IF($A' + f + '="","",K' + f + '+L' + f + '+N(M' + f + ')-N(O' + f + ')-N(P' + f + '))');
+    sh.getRange(f, 19).setFormula('=IF($A' + f + '="","",Q' + f + '-N(R' + f + '))');
   }
+  sh.getRange("M4:P43").setBackground("#fff2cc");
+  sh.getRange("R4:R43").setBackground("#fff2cc");
   sh.getRange("A44").setValue("TOTAL");
-  ["C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"].forEach(c => sh.getRange(c + "44").setFormula("=SUM(" + c + "4:" + c + "43)"));
+  ["C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "O", "P", "Q", "R", "S"].forEach(c => sh.getRange(c + "44").setFormula("=SUM(" + c + "4:" + c + "43)"));
   sh.getRange("C4:J44").setNumberFormat("0.00");
   sh.getRange("B4:B43").setNumberFormat("$ #,##0");
-  sh.getRange("K4:M44").setNumberFormat("$ #,##0");
-  sh.getRange("A3:M3").setFontWeight("bold").setBackground("#1d3a66").setFontColor("#ffffff");
-  sh.getRange("A44:M44").setFontWeight("bold");
+  sh.getRange("K4:M44").setNumberFormat("$ #,##0.00");
+  sh.getRange("O4:S44").setNumberFormat("$ #,##0.00");
+  sh.getRange("A3:T3").setFontWeight("bold").setBackground("#1d3a66").setFontColor("#ffffff");
+  sh.getRange("A44:T44").setFontWeight("bold");
+  sh.setColumnWidth(20, 320);
   sh.setFrozenRows(3);
   sh.setFrozenColumns(1);
 }

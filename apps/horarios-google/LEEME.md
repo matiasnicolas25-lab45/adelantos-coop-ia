@@ -20,6 +20,12 @@ Planilla: "Horarios La Caleta" en la carpeta "La Caleta — Sistema" de Drive
 
 - **SEMANA**: la semana de sábado a viernes (cambiar la fecha amarilla para ver otra). Horas por día, HS,
   pago de horas (con multiplicador de feriado), propina proporcional a las horas y total.
+- **Liquidación (en SEMANA)**: Pago horas = horas × valor hora (× feriado); Propina = propina de la semana
+  (celda R1) × horas de cada uno ÷ horas de todos; a mano (amarillo): Extra y su detalle (ej. "Evento Rozzi"),
+  Cuota préstamo, Adelantos y Efectivo. TOTAL = horas + propina + extra − préstamo − adelantos;
+  Transferencia = TOTAL − Efectivo. Menú **La Caleta → Armar mensajes de cobro** deja en la columna Mensaje el
+  texto para WhatsApp; **Guardar liquidación de la semana** la copia a una hoja "Liq dd-mm-aaaa" y limpia lo
+  cargado a mano. Antes de liquidar, poner en la celda amarilla C1 el sábado de la semana que se paga.
 - **PERSONAL**: nombre, PIN (4 números, se le pasa a cada uno), valor hora, activo (NO = dado de baja).
 - **MARCAS**: cada turno (fecha, nombre, entrada, salida, horas). Se corrige a mano acá.
 - **FERIADOS**: fecha (AAAA-MM-DD), motivo y por cuánto se multiplica la hora.
@@ -29,4 +35,4 @@ Planilla: "Horarios La Caleta" en la carpeta "La Caleta — Sistema" de Drive
 Después de cambiar el código: Implementar → Administrar implementaciones → lápiz → Versión: "Nueva versión"
 → Implementar. Así el link sigue siendo el mismo.
 
-Pendiente (tesorera): regla de la propina, pago de feriados, y cualquier otro adicional.
+Pendiente (tesorera): de dónde sale el monto de la propina, pago de feriados y otros adicionales.
