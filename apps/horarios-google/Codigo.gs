@@ -36,8 +36,9 @@ function estado() {
   return { personas, sinPin, abiertos, ahora: hora(new Date()), hoy: fecha(new Date()) };
 }
 
-/** Marca entrada ("in") o salida ("out"). `pos` = {lat, lon, acc} del celular o null. */
-function marcar(nombre, pin, tipo, pos) {
+/** Marca entrada ("in"), salida ("out") o una salida olvidada ("olvido", con `horaOlvido` = "HH:MM").
+ * `pos` = {lat, lon, acc} del celular o null. */
+function marcar(nombre, pin, tipo, pos, horaOlvido) {
   const p = validar(nombre, pin);
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -58,6 +59,12 @@ function marcar(nombre, pin, tipo, pos) {
       return { ok: true, texto: "¡Listo " + p.nombre + "! Entraste a las " + hora(ahora) + "." + lugar.aviso + nuevoPin(p) };
     }
     if (!abierta) return { ok: false, texto: p.nombre + ", no tenés una entrada abierta. Marcá la entrada primero." };
+    if (tipo === "olvido") {
+      if (!/^\d{2}:\d{2}$/.test(String(horaOlvido))) return { ok: false, texto: "Poné la hora en que saliste." };
+      hoja.getRange(abierta.fila, 4).setValue("'" + horaOlvido).setBackground("#fff2cc");
+      hoja.getRange(abierta.fila, 6).setValue("olvido: salida cargada por el socio el " + Utilities.formatDate(ahora, ZONA, "dd/MM HH:mm")).setBackground("#fff2cc");
+      return { ok: true, texto: "¡Listo " + p.nombre + "! Quedó tu salida a las " + horaOlvido + ". Matías la va a revisar." };
+    }
     hoja.getRange(abierta.fila, 4).setValue("'" + hora(ahora));
     hoja.getRange(abierta.fila, 9).setValue(lugar.texto);
     hoja.getRange(abierta.fila, 11).setValue(lugar.coord);
@@ -328,6 +335,10 @@ const PANTALLA = `<!DOCTYPE html>
   .person small { display: block; font-weight: 500; font-size: 12px; color: var(--muted); }
   .person.inside { border-color: var(--in); background: var(--in-bg); }
   .person.inside small { color: var(--in); }
+  .person.olvido { border-color: var(--ochre); }
+  .person.olvido small { color: var(--ochre); font-weight: 700; }
+  .warn { padding: 12px; border-radius: 10px; border: 1px solid var(--ochre); color: var(--ink); }
+  input[type=time] { letter-spacing: normal; }
   .sheet { position: fixed; inset: 0; background: rgba(10,15,25,.5); display: grid; place-items: end center; }
   .box { background: var(--card); width: min(480px, 100%); border-radius: 16px 16px 0 0; padding: 20px 16px 28px; display: grid; gap: 14px; max-height: 92vh; overflow: auto; }
   @media (min-width: 600px) { .sheet { place-items: center; } .box { border-radius: 16px; } }
@@ -361,6 +372,13 @@ const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2, "0");
 function tick() { const d = new Date(); $("clock").textContent = pad(d.getHours()) + ":" + pad(d.getMinutes()); }
 tick(); setInterval(tick, 15000);
+/* Una entrada abierta hace más de 14 horas es una salida que se olvidó de marcar. */
+function olvidada(a) {
+  if (!a) return false;
+  const [y, m, d] = a.fecha.split("-").map(Number), [hh, mm] = a.entrada.split(":").map(Number);
+  return Date.now() - new Date(y, m - 1, d, hh, mm).getTime() > 14 * 3600 * 1000;
+}
+function diaTxt(f) { const d = new Date(f + "T12:00:00"); return ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"][d.getDay()] + " " + f.slice(8) + "/" + f.slice(5, 7); }
 function hs(h) { const m = Math.round(h * 60); return Math.floor(m / 60) + ":" + pad(m % 60); }
 function el(tag, props, ...kids) { const e = document.createElement(tag); Object.assign(e, props || {}); e.append(...kids); return e; }
 
@@ -373,8 +391,9 @@ function dibujar() {
   const box = $("people"); box.textContent = "";
   for (const n of estado.personas) {
     const a = estado.abiertos[n];
-    const b = el("button", { className: "person" + (a ? " inside" : ""), type: "button" }, n,
-      el("small", { textContent: a ? "Adentro desde las " + a.entrada : "Afuera" }));
+    const olv = olvidada(a);
+    const b = el("button", { className: "person" + (olv ? " olvido" : a ? " inside" : ""), type: "button" }, n,
+      el("small", { textContent: olv ? "⚠ Falta marcar la salida" : a ? "Adentro desde las " + a.entrada : "Afuera" }));
     b.onclick = () => abrir(n); box.append(b);
   }
 }
@@ -397,6 +416,22 @@ function abrir(nombre) {
       google.script.run.withSuccessHandler(r => { mostrar(r.texto, !r.ok); if (r.ok) setTimeout(cerrar, /Ojo|PIN/.test(r.texto) ? 6000 : 1800); else btn.disabled = false; })
         .withFailureHandler(err => { mostrar(err.message, true); btn.disabled = false; }).marcar(nombre, pin.value, tipo, pos);
     });
+  }
+  if (olvidada(a)) {
+    const hora = el("input", { type: "time", id: "horaOlvido" });
+    const guardar = el("button", { className: "btn out", type: "button", textContent: "Guardar salida" });
+    guardar.onclick = () => {
+      if (pin.value.length !== 4) { mostrar("Poné tu PIN de 4 números.", true); return; }
+      if (!hora.value) { mostrar("Poné la hora en que saliste.", true); return; }
+      guardar.disabled = true;
+      google.script.run.withSuccessHandler(r => { mostrar(r.texto, !r.ok); if (r.ok) setTimeout(cerrar, 4000); else guardar.disabled = false; })
+        .withFailureHandler(err => { mostrar(err.message, true); guardar.disabled = false; }).marcar(nombre, pin.value, "olvido", null, hora.value);
+    };
+    box.append(el("h2", { textContent: nombre }),
+      el("p", { className: "warn", textContent: "Te olvidaste de marcar la salida del " + diaTxt(a.fecha) + " (entraste a las " + a.entrada + "). Poné tu PIN y la hora en que saliste." }),
+      pin, el("label", { className: "hint", htmlFor: "horaOlvido", textContent: "Hora de salida" }), hora, guardar, msg, volver);
+    $("sheet").hidden = false; pin.focus();
+    return;
   }
   function mostrar(t, err) { msg.textContent = t; msg.className = "msg" + (err ? " err" : ""); msg.hidden = false; }
   bin.onclick = () => enviar("in", bin);

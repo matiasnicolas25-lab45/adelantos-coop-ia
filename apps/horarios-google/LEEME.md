@@ -30,6 +30,8 @@ Planilla: "Horarios La Caleta" en la carpeta "La Caleta — Sistema" de Drive
 - **MARCAS**: cada turno (fecha, nombre, entrada, salida, horas). Se corrige a mano acá.
 - **Ubicación**: al marcar, el celular pide permiso de ubicación. En MARCAS quedan "En el club al entrar / al
   salir" (SÍ/NO y la distancia; NO en rojo) y las coordenadas. Nunca bloquea: sin permiso queda "sin dato".
+  Salida olvidada: si una entrada lleva más de 14 h abierta, la app muestra "⚠ Falta marcar la salida" y el socio
+  carga la hora; queda en amarillo con Origen "olvido: ..." para revisar.
   El punto del club y el radio (150 m) están en la hoja **CONFIG**; para afinarlo, copiar ahí la ubicación de
   una marca hecha en el club.
 - **FERIADOS**: fecha (AAAA-MM-DD), motivo y por cuánto se multiplica la hora.
