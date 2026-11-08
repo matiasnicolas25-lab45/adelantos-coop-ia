@@ -36,6 +36,11 @@ Planilla: "Horarios La Caleta" en la carpeta "La Caleta — Sistema" de Drive
   una marca hecha en el club.
 - **FERIADOS**: fecha (AAAA-MM-DD), motivo y por cuánto se multiplica la hora.
 
+## Página lacaleta.ycr.com.ar/app (WordPress)
+
+La página "App" está en el editor clásico: todo su contenido es el texto de `wordpress-app.html` (arregla el
+zoom y muestra el botón "¿No carga? Tocá acá para abrir la app" si Google falla a los 9 segundos).
+
 ## Cambios en el código
 
 Después de cambiar el código: Implementar → Administrar implementaciones → lápiz → Versión: "Nueva versión"
