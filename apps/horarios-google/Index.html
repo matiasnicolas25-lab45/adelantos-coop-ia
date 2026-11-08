@@ -253,6 +253,7 @@ function abrir(n) {
   verHoras.onclick = function () {
     if (!pinOk()) return;
     verHoras.disabled = true;
+    zona.textContent = ""; zona.append(el("div", { className: "panel" }, el("p", { className: "hint", textContent: "Buscando tus horas…" })));
     google.script.run.withSuccessHandler(function (r) {
       verHoras.disabled = false; msg.hidden = true;
       var t = el("table");
@@ -268,6 +269,7 @@ function abrir(n) {
   verAdel.onclick = function () {
     if (!pinOk()) return;
     verAdel.disabled = true;
+    zona.textContent = ""; zona.append(el("div", { className: "panel" }, el("p", { className: "hint", textContent: "Buscando tus adelantos… puede tardar unos segundos." })));
     google.script.run.withSuccessHandler(function (r) {
       verAdel.disabled = false; msg.hidden = true; zona.textContent = "";
       if (!r.visible) { zona.append(el("div", { className: "panel" }, el("h4", { textContent: "Mis adelantos" }), el("p", { className: "hint", textContent: "Los adelantos de la semana todavía no están listos. Se publican los jueves a la noche." }))); return; }

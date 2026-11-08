@@ -117,9 +117,13 @@ function misAdelantos(nombre, pin) {
   const ver = String(libro().getSheetByName("CONFIG").getRange("B5").getDisplayValue()).trim().toUpperCase();
   if (ver !== "SÍ" && ver !== "SI") return { visible: false };
   const buscada = PESTANAS[p.nombre] || p.nombre.toLowerCase();
-  const hoja = SpreadsheetApp.openById(ADELANTOS_ID).getSheets().find(h => h.getName().trim().toLowerCase() === buscada);
+  const ss = SpreadsheetApp.openById(ADELANTOS_ID);
+  const hoja = ss.getSheets().find(h => h.getName().trim().toLowerCase() === buscada);
   if (!hoja) return { visible: true, error: "No encuentro tu pestaña en la planilla de adelantos." };
-  const v = hoja.getDataRange().getValues(), d = hoja.getDataRange().getDisplayValues();
+  // Solo las últimas 120 filas: la semana actual siempre está al final y leer toda la pestaña tarda.
+  const ultima = hoja.getLastRow(), desdeFila = Math.max(1, ultima - 119);
+  const rango = hoja.getRange(desdeFila, 1, ultima - desdeFila + 1, 4);
+  const v = rango.getValues(), d = rango.getDisplayValues();
   let ini = -1;
   for (let i = 0; i < v.length; i++) if (/^semana del/i.test(String(d[i][0]).trim() || String(d[i][1]).trim())) ini = i;
   if (ini < 0) return { visible: true, error: "Todavía no hay una semana cargada." };
@@ -630,6 +634,7 @@ function abrir(n) {
   verHoras.onclick = function () {
     if (!pinOk()) return;
     verHoras.disabled = true;
+    zona.textContent = ""; zona.append(el("div", { className: "panel" }, el("p", { className: "hint", textContent: "Buscando tus horas…" })));
     google.script.run.withSuccessHandler(function (r) {
       verHoras.disabled = false; msg.hidden = true;
       var t = el("table");
@@ -645,6 +650,7 @@ function abrir(n) {
   verAdel.onclick = function () {
     if (!pinOk()) return;
     verAdel.disabled = true;
+    zona.textContent = ""; zona.append(el("div", { className: "panel" }, el("p", { className: "hint", textContent: "Buscando tus adelantos… puede tardar unos segundos." })));
     google.script.run.withSuccessHandler(function (r) {
       verAdel.disabled = false; msg.hidden = true; zona.textContent = "";
       if (!r.visible) { zona.append(el("div", { className: "panel" }, el("h4", { textContent: "Mis adelantos" }), el("p", { className: "hint", textContent: "Los adelantos de la semana todavía no están listos. Se publican los jueves a la noche." }))); return; }
