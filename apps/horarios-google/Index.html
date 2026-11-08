@@ -101,9 +101,12 @@
   .precio .tag { grid-column: 1; font-size: 12px; color: var(--muted); }
   .precio { cursor: pointer; border-radius: 10px; }
   .precio.elegido { box-shadow: inset 4px 0 0 var(--ink); background: var(--card); padding-left: 10px; }
-  .busca.escribiendo #rubros { display: none; }
+  .busca.escribiendo #rubros, .busca.escribiendo #tipos, .busca.escribiendo .cuenta { display: none; }
+  .busca.escribiendo, .busca.compacta { padding: 4px 0; gap: 0; }
+  .busca.escribiendo .campo input, .busca.compacta .campo input { padding-top: 8px; padding-bottom: 8px; font-size: 16px; }
+  #vistaPrecios { scroll-margin-top: 4px; }
   .busca.compacta #tipos, .busca.compacta #rubros, .busca.compacta .cuenta { display: none; }
-  #listaPrecios { scroll-margin-top: 80px; }
+  #listaPrecios { scroll-margin-top: 56px; }
   .precio .val { grid-row: 1 / span 2; grid-column: 2; white-space: nowrap; font: 600 17px var(--f-body); font-variant-numeric: tabular-nums; }
 </style>
 </head>
@@ -448,7 +451,10 @@ function irAResultados() {
 }
 $("buscar").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); irAResultados(); } });
 $("buscar").addEventListener("search", irAResultados);
-$("buscar").addEventListener("focus", function () { caja().classList.add("escribiendo"); caja().classList.remove("compacta"); });
+$("buscar").addEventListener("focus", function () {
+  caja().classList.add("escribiendo"); caja().classList.remove("compacta");
+  setTimeout(function () { $("vistaPrecios").scrollIntoView({ behavior: "smooth", block: "start" }); }, 200);
+});
 $("buscar").addEventListener("blur", function () { caja().classList.remove("escribiendo"); caja().classList.toggle("compacta", !!$("buscar").value.trim()); });
 $("listaPrecios").addEventListener("touchstart", function () { if (document.activeElement === $("buscar")) $("buscar").blur(); }, { passive: true });
 $("limpiar").onclick = function () { caja().classList.remove("compacta"); $("buscar").value = ""; dibujarPrecios(); $("buscar").focus(); };
