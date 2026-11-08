@@ -316,6 +316,7 @@ const PANTALLA = `<!DOCTYPE html>
   :root { --paper:#f3f5f7; --card:#fff; --ink:#14213a; --muted:#5b6577; --line:#d5dbe3; --navy:#1d3a66; --in:#1f7a4d; --in-bg:#e3f3ea; --out:#a33a2c; --ochre:#b8741a; }
   @media (prefers-color-scheme: dark) { :root { --paper:#0f1522; --card:#172033; --ink:#e8edf5; --muted:#9aa6b8; --line:#2a3550; --navy:#7fa6e0; --in:#5fd39a; --in-bg:#16342a; --out:#ef8c7d; --ochre:#e0a24f; color-scheme: dark; } }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.4 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
   .wrap { max-width: 720px; margin: 0 auto; padding: 18px 16px 40px; display: grid; gap: 16px; }
   header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
