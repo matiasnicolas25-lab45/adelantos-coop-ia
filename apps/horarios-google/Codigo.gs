@@ -10,6 +10,7 @@
  */
 
 const ZONA = "America/Argentina/Buenos_Aires";
+const HORA_CORTE = 6;   // ningún turno termina después de esta hora: una entrada de un día anterior todavía abierta es un olvido
 const ADELANTOS_ID = "1p9VNq6C5nrnmRZyosf9MEbMDYUmOQnypyrLVVa31oB8";   // planilla "ADELANTOS DEL …" (una pestaña por socio)
 const PRECIOS_ID = "1TG-ayAZoRvvg5-3rPSDjTfEaC5qzA-IubckD3AwAB9M";     // "Precios La Caleta (lista completa)", la que ven los socios
 const ICONO = "https://drive.google.com/uc?export=view&id=1CsDX9Co-9A2gbOiBk54I8uIMxCdlTJV-&ext=.png";  // icono-la-caleta.png (Drive, público)
@@ -48,7 +49,8 @@ function estado() {
   const sinCel = activos.filter(p => !p.cel).map(p => p.nombre);
   const abiertos = {};
   for (const m of leerMarcas()) if (!m.salida) abiertos[m.nombre] = { fecha: m.fecha, entrada: m.entrada };
-  return { personas, sinPin, sinCel, abiertos, ahora: hora(new Date()), hoy: fecha(new Date()) };
+  const olvidos = Object.keys(abiertos).filter(n => esOlvido(abiertos[n].fecha, abiertos[n].entrada));
+  return { personas, sinPin, sinCel, abiertos, olvidos, ahora: hora(new Date()), hoy: fecha(new Date()) };
 }
 
 /** Marca entrada ("in"), salida ("out") o una salida olvidada ("olvido", con `horaOlvido` = "HH:MM").
@@ -246,11 +248,21 @@ function duracion(a, b) {
 
 /* ---------------- aviso diario por mail ---------------- */
 
-/** Correr una sola vez (Ejecutar → activarAvisos): manda avisoDiario todos los días entre las 9 y las 10. */
+/** Correr una vez, y de nuevo si se cambia la hora en CONFIG B6 (Ejecutar → activarAvisos). */
 function activarAvisos() {
+  const cfg = libro().getSheetByName("CONFIG");
+  if (!cfg.getRange("B6").getValue()) cfg.getRange("A6:B6").setValues([["Hora del mail de avisos (0 a 23)", 7]]);
+  const horaMail = Math.min(23, Math.max(0, Math.round(Number(cfg.getRange("B6").getValue()) || 7)));
   ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === "avisoDiario").forEach(t => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger("avisoDiario").timeBased().everyDays(1).atHour(9).inTimezone(ZONA).create();
+  ScriptApp.newTrigger("avisoDiario").timeBased().everyDays(1).atHour(horaMail).inTimezone(ZONA).create();
   avisoDiario(true);
+}
+
+/** Una entrada sin salida es un olvido si es de un día anterior y ya pasó la hora de corte, o si lleva más de 20 horas. */
+function esOlvido(f, entrada) {
+  const ahora = new Date(), hoy = fecha(ahora), horaAhora = Number(Utilities.formatDate(ahora, ZONA, "H"));
+  const inicio = new Date(f + "T" + entrada + ":00-03:00").getTime();
+  return (f < hoy && horaAhora >= HORA_CORTE) || ahora.getTime() - inicio > 20 * 3600000;
 }
 
 /** Mail a Matías con olvidos de salida y marcas de afuera del club, con botones de WhatsApp para avisar a cada socio. */
@@ -258,13 +270,12 @@ function avisoDiario(prueba) {
   const personal = {};
   leerPersonal().forEach(p => personal[p.nombre] = p);
   const v = libro().getSheetByName("MARCAS").getDataRange().getDisplayValues();
-  const ayer = fecha(new Date(Date.now() - 86400000)), ahora = Date.now();
+  const ayer = fecha(new Date(Date.now() - 86400000));
   const olvidos = [], afuera = [], cargadas = [];
   for (let i = 1; i < v.length; i++) {
     const [f, nombre, entrada, salida, , origen, , lugarIn, lugarOut] = v[i];
     if (!nombre) continue;
-    const inicio = new Date(f + "T" + entrada + ":00-03:00").getTime();
-    if (!salida && ahora - inicio > 14 * 3600000) olvidos.push({ nombre, f, entrada });
+    if (!salida && esOlvido(f, entrada)) olvidos.push({ nombre, f, entrada });
     if (f === ayer && (/^NO/.test(lugarIn) || /^NO/.test(lugarOut))) afuera.push({ nombre, f, entrada, salida, lugar: /^NO/.test(lugarIn) ? lugarIn : lugarOut });
     if (/^olvido/.test(origen) && origen.indexOf(Utilities.formatDate(new Date(Date.now() - 86400000), ZONA, "dd/MM")) >= 0) cargadas.push({ nombre, f, entrada, salida });
   }
@@ -378,7 +389,7 @@ function instalar() {
 
   const cfg = hoja("CONFIG");
   if (cfg.getLastRow() < 1) {
-    cfg.getRange(1, 1, 5, 2).setValues([["Dato", "Valor"], ["Latitud del club", -32.900235], ["Longitud del club", -60.681259], ["Radio en metros", 150], ["Mostrar adelantos (SÍ/NO)", "NO"]]);
+    cfg.getRange(1, 1, 6, 2).setValues([["Dato", "Valor"], ["Latitud del club", -32.900235], ["Longitud del club", -60.681259], ["Radio en metros", 150], ["Mostrar adelantos (SÍ/NO)", "NO"], ["Hora del mail de avisos (0 a 23)", 7]]);
     cfg.getRange("D1").setValue("Ubicación tomada por Matías desde adentro del restaurante (08/11/2026), Av. Carlos Colombres 1296. Para cambiarla, poner acá otra latitud y longitud.");
   }
 
@@ -591,7 +602,8 @@ function iniciales(n) { return n.split(" ").map(function (p) { return p.charAt(0
 function plata(n) { return (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function horasTxt(h) { var m = Math.round(h * 60); return Math.floor(m / 60) + ":" + pad2(m % 60); }
 function desde(a) { var f = a.fecha.split("-").map(Number), h = a.entrada.split(":").map(Number); return new Date(f[0], f[1] - 1, f[2], h[0], h[1]); }
-function olvidada(a) { return !!a && Date.now() - desde(a).getTime() > 14 * 3600000; }
+/* El servidor decide qué entradas son olvidos (día anterior y ya pasaron las 6, o más de 20 horas). */
+function olvidada(a) { return !!a && (estado.olvidos || []).some(function (n) { return estado.abiertos[n] === a; }); }
 function lleva(a) { var m = Math.max(0, Math.floor((Date.now() - desde(a).getTime()) / 60000)); return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + (m % 60) + " min"; }
 function diaTxt(f) { var d = new Date(f + "T12:00:00"); return ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"][d.getDay()] + " " + f.slice(8) + "/" + f.slice(5, 7); }
 function vibrar() { try { if (navigator.vibrate) navigator.vibrate(60); } catch (e) {} }
