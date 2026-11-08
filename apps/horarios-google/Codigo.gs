@@ -28,10 +28,11 @@ function doGet() {
 
 /** Nombres y quién está adentro ahora (sin PIN ni valores). */
 function estado() {
-  const personas = leerPersonal().filter(p => p.activo).map(p => p.nombre);
+  const activos = leerPersonal().filter(p => p.activo);
+  const personas = activos.map(p => p.nombre), sinPin = activos.filter(p => !p.pin).map(p => p.nombre);
   const abiertos = {};
   for (const m of leerMarcas()) if (!m.salida) abiertos[m.nombre] = { fecha: m.fecha, entrada: m.entrada };
-  return { personas, abiertos, ahora: hora(new Date()), hoy: fecha(new Date()) };
+  return { personas, sinPin, abiertos, ahora: hora(new Date()), hoy: fecha(new Date()) };
 }
 
 /** Marca entrada ("in") o salida ("out"). `pos` = {lat, lon, acc} del celular o null. */
@@ -53,13 +54,13 @@ function marcar(nombre, pin, tipo, pos) {
       hoja.getRange(fila, 6, 1, 2).setValues([["app", ahora]]);
       hoja.getRange(fila, 8).setValue(lugar.texto);
       hoja.getRange(fila, 10).setValue(lugar.coord);
-      return { ok: true, texto: "¡Listo " + p.nombre + "! Entraste a las " + hora(ahora) + "." + lugar.aviso };
+      return { ok: true, texto: "¡Listo " + p.nombre + "! Entraste a las " + hora(ahora) + "." + lugar.aviso + nuevoPin(p) };
     }
     if (!abierta) return { ok: false, texto: p.nombre + ", no tenés una entrada abierta. Marcá la entrada primero." };
     hoja.getRange(abierta.fila, 4).setValue("'" + hora(ahora));
     hoja.getRange(abierta.fila, 9).setValue(lugar.texto);
     hoja.getRange(abierta.fila, 11).setValue(lugar.coord);
-    return { ok: true, texto: "¡Listo " + p.nombre + "! Saliste a las " + hora(ahora) + "." + lugar.aviso };
+    return { ok: true, texto: "¡Listo " + p.nombre + "! Saliste a las " + hora(ahora) + "." + lugar.aviso + nuevoPin(p) };
   } finally {
     lock.releaseLock();
   }
@@ -83,6 +84,8 @@ function misHoras(nombre, pin) {
   }
   return { nombre: p.nombre, dias, total: dias.reduce((a, d) => a + d.horas, 0) };
 }
+
+function nuevoPin(p) { return p.nuevo ? " Tu PIN quedó guardado: " + p.pin + ". Anotalo, lo vas a usar siempre." : ""; }
 
 /* ---------------- ubicación ---------------- */
 
@@ -109,7 +112,8 @@ function libro() { return SpreadsheetApp.getActiveSpreadsheet(); }
 
 function leerPersonal() {
   const v = libro().getSheetByName("PERSONAL").getDataRange().getDisplayValues().slice(1);
-  return v.filter(r => r[0]).map(r => ({ nombre: r[0].trim(), pin: String(r[1]).trim(), activo: r[3].trim().toUpperCase() !== "NO" }));
+  return v.map((r, i) => ({ fila: i + 2, nombre: r[0].trim(), pin: String(r[1]).trim(), activo: r[3].trim().toUpperCase() !== "NO" }))
+    .filter(p => p.nombre);
 }
 
 function leerMarcas() {
@@ -122,10 +126,17 @@ function leerMarcas() {
   return out;
 }
 
+/** Revisa el PIN. Si la persona todavía no tiene, el que pone la primera vez queda como su PIN. */
 function validar(nombre, pin) {
   const p = leerPersonal().find(x => x.nombre === nombre && x.activo);
   if (!p) throw new Error("No encuentro a " + nombre + " en la lista.");
-  if (!p.pin || p.pin !== String(pin).trim()) throw new Error("PIN incorrecto.");
+  pin = String(pin).trim();
+  if (!/^\d{4}$/.test(pin)) throw new Error("El PIN tiene que ser de 4 números.");
+  if (!p.pin) {
+    libro().getSheetByName("PERSONAL").getRange(p.fila, 2).setValue("'" + pin);
+    p.pin = pin; p.nuevo = true;
+  }
+  if (p.pin !== pin) throw new Error("PIN incorrecto.");
   return p;
 }
 
@@ -209,11 +220,9 @@ function instalar() {
 
   const per = hoja("PERSONAL");
   if (per.getLastRow() < 2) {
-    const usados = new Set();
-    const pin = () => { let p; do { p = String(1000 + Math.floor(Math.random() * 9000)); } while (usados.has(p)); usados.add(p); return p; };
     per.getRange(1, 1, 1, 4).setValues([["Nombre", "PIN", "Valor hora", "Activo"]]);
-    per.getRange(2, 1, PERSONAL_INICIAL.length, 4).setValues(PERSONAL_INICIAL.map(([n, v]) => [n, "'" + pin(), v, "SÍ"]));
-    per.getRange("F1").setValue("Valores de la hora: básica + antigüedad 09/26. Para dar de baja a alguien, poné NO en Activo.");
+    per.getRange(2, 1, PERSONAL_INICIAL.length, 4).setValues(PERSONAL_INICIAL.map(([n, v]) => [n, "", v, "SÍ"]));
+    per.getRange("F1").setValue("Valores de la hora: básica + antigüedad 09/26. Para dar de baja a alguien, poné NO en Activo. PIN vacío = la persona lo elige la primera vez que usa la app; para que elija uno nuevo, borrá su PIN.");
   }
 
   const mar = hoja("MARCAS");

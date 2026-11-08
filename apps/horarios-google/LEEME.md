@@ -26,7 +26,7 @@ Planilla: "Horarios La Caleta" en la carpeta "La Caleta — Sistema" de Drive
   Transferencia = TOTAL − Efectivo. Menú **La Caleta → Armar mensajes de cobro** deja en la columna Mensaje el
   texto para WhatsApp; **Guardar liquidación de la semana** la copia a una hoja "Liq dd-mm-aaaa" y limpia lo
   cargado a mano. Antes de liquidar, poner en la celda amarilla C1 el sábado de la semana que se paga.
-- **PERSONAL**: nombre, PIN (4 números, se le pasa a cada uno), valor hora, activo (NO = dado de baja).
+- **PERSONAL**: nombre, PIN (4 números; vacío = cada uno lo elige la primera vez que usa la app; para resetearlo, borrarlo), valor hora, activo (NO = dado de baja).
 - **MARCAS**: cada turno (fecha, nombre, entrada, salida, horas). Se corrige a mano acá.
 - **Ubicación**: al marcar, el celular pide permiso de ubicación. En MARCAS quedan "En el club al entrar / al
   salir" (SÍ/NO y la distancia; NO en rojo) y las coordenadas. Nunca bloquea: sin permiso queda "sin dato".

@@ -86,7 +86,7 @@ function abrir(nombre) {
     if (pin.value.length !== 4) { mostrar("Poné tu PIN de 4 números.", true); return; }
     btn.disabled = true; mostrar("Buscando tu ubicación…", false);
     ubicacion(pos => {
-      google.script.run.withSuccessHandler(r => { mostrar(r.texto, !r.ok); if (r.ok) setTimeout(cerrar, r.texto.includes("Ojo") ? 5000 : 1800); else btn.disabled = false; })
+      google.script.run.withSuccessHandler(r => { mostrar(r.texto, !r.ok); if (r.ok) setTimeout(cerrar, /Ojo|PIN/.test(r.texto) ? 6000 : 1800); else btn.disabled = false; })
         .withFailureHandler(err => { mostrar(err.message, true); btn.disabled = false; }).marcar(nombre, pin.value, tipo, pos);
     });
   }
@@ -106,7 +106,9 @@ function abrir(nombre) {
     }).withFailureHandler(err => mostrar(err.message, true)).misHoras(nombre, pin.value);
   };
   box.append(el("h2", { textContent: nombre }),
-    el("p", { className: "hint", textContent: a ? "Entraste a las " + a.entrada + ". Poné tu PIN y tocá Salí." : "Poné tu PIN y tocá Entré." }),
+    el("p", { className: "hint", textContent: (estado.sinPin || []).includes(nombre)
+      ? "Primera vez: elegí 4 números que te acuerdes. Ese va a ser tu PIN de ahora en adelante."
+      : a ? "Entraste a las " + a.entrada + ". Poné tu PIN y tocá Salí." : "Poné tu PIN y tocá Entré." }),
     pin, el("div", { className: "two" }, bin, bout), msg, ver, tabla, volver);
   $("sheet").hidden = false; pin.focus();
 }
