@@ -42,8 +42,17 @@ function doGet() {
   return pagina;
 }
 
-/** Nombres y quién está adentro ahora (sin PIN ni valores). */
+/** Nombres y quién está adentro ahora (sin PIN ni valores). Se guarda 60 s; marcar lo borra. */
 function estado() {
+  const cache = CacheService.getScriptCache(), guardado = cache.get("estado");
+  if (guardado) return JSON.parse(guardado);
+  const out = calcularEstado();
+  try { cache.put("estado", JSON.stringify(out), 60); } catch (e) {}
+  return out;
+}
+function olvidarEstado() { try { CacheService.getScriptCache().remove("estado"); } catch (e) {} }
+
+function calcularEstado() {
   const activos = leerPersonal().filter(p => p.activo);
   const personas = activos.map(p => p.nombre), sinPin = activos.filter(p => !p.pin).map(p => p.nombre);
   const sinCel = activos.filter(p => !p.cel).map(p => p.nombre);
@@ -56,6 +65,7 @@ function estado() {
 /** Marca entrada ("in"), salida ("out") o una salida olvidada ("olvido", con `horaOlvido` = "HH:MM").
  * `pos` = {lat, lon, acc} del celular o null. */
 function marcar(nombre, pin, tipo, pos, horaOlvido, cel) {
+  olvidarEstado();
   const p = validar(nombre, pin);
   if (cel && !p.cel) {
     const n = String(cel).replace(/\D/g, "");
@@ -97,6 +107,7 @@ function marcar(nombre, pin, tipo, pos, horaOlvido, cel) {
 
 /** Guarda el celular de la persona (10 números: código de área sin 0 y número sin 15). */
 function guardarCelular(nombre, pin, cel) {
+  olvidarEstado();
   const p = validar(nombre, pin);
   const n = String(cel).replace(/\D/g, "");
   if (n.length !== 10) return { ok: false, texto: "Tienen que ser 10 números: código de área sin 0 y el número sin 15 (ej. 341 5123456)." };
@@ -132,6 +143,8 @@ function misAdelantos(nombre, pin) {
   const p = validar(nombre, pin);
   const ver = String(libro().getSheetByName("CONFIG").getRange("B5").getDisplayValue()).trim().toUpperCase();
   if (ver !== "SÍ" && ver !== "SI") return { visible: false };
+  const cache = CacheService.getScriptCache(), clave = "adel_" + p.fila, guardado = cache.get(clave);
+  if (guardado) return JSON.parse(guardado);
   const buscada = PESTANAS[p.nombre] || p.nombre.toLowerCase();
   const ss = SpreadsheetApp.openById(ADELANTOS_ID);
   const hoja = ss.getSheets().find(h => h.getName().trim().toLowerCase() === buscada);
@@ -154,7 +167,9 @@ function misAdelantos(nombre, pin) {
     else if (haber) aFavor.push({ fecha, concepto, monto: haber });
   }
   const total = [...efectivo, ...consumos].reduce((a, x) => a + x.monto, 0) - aFavor.reduce((a, x) => a + x.monto, 0);
-  return { visible: true, semana, efectivo, consumos, aFavor, total, listas: LISTAS_PDF };
+  const out = { visible: true, semana, efectivo, consumos, aFavor, total, listas: LISTAS_PDF };
+  try { cache.put(clave, JSON.stringify(out), 600); } catch (e) {}
+  return out;
 }
 
 function num(x) {
@@ -208,12 +223,16 @@ function leerPersonal() {
     .filter(p => p.nombre);
 }
 
+/** Las últimas 600 marcas (alcanza para varias semanas y es mucho más rápido que leer toda la hoja). */
 function leerMarcas() {
-  const v = libro().getSheetByName("MARCAS").getDataRange().getDisplayValues();
+  const hoja = libro().getSheetByName("MARCAS"), ultima = hoja.getLastRow();
+  if (ultima < 2) return [];
+  const desdeFila = Math.max(2, ultima - 599);
+  const v = hoja.getRange(desdeFila, 1, ultima - desdeFila + 1, 4).getDisplayValues();
   const out = [];
-  for (let i = 1; i < v.length; i++) {
+  for (let i = 0; i < v.length; i++) {
     if (!v[i][1]) continue;
-    out.push({ fila: i + 1, fecha: v[i][0], nombre: v[i][1], entrada: v[i][2], salida: v[i][3] });
+    out.push({ fila: desdeFila + i, fecha: v[i][0], nombre: v[i][1], entrada: v[i][2], salida: v[i][3] });
   }
   return out;
 }
@@ -465,7 +484,8 @@ const PANTALLA = `<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>La Caleta</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
 <style>
   :root {
     --paper: #f6f4ef; --card: #ffffff; --ink: #161616; --muted: #6b6760; --line: #e3dfd6;
@@ -544,12 +564,21 @@ const PANTALLA = `<!DOCTYPE html>
   .total { display: flex; justify-content: space-between; align-items: baseline; border-top: 2px solid var(--ink); padding-top: 10px; }
   .total b { font: 24px var(--f-display); }
   a { color: var(--ink); }
-  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .seg button { font: 600 14px var(--f-body); padding: 9px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--muted); cursor: pointer; }
-  .seg button.on { border-color: var(--ink); color: var(--ink); }
-  .rubro { margin: 8px 0 0; font: 600 12px var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
-  .precio { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
-  .precio span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .busca { position: sticky; top: 0; z-index: 2; background: var(--paper); padding: 6px 0 8px; display: grid; gap: 8px; }
+  .campo { position: relative; }
+  .campo input { padding-right: 46px; font-size: 18px; border-radius: 14px; border-color: var(--ink); }
+  .campo button { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--line); color: var(--ink); font-size: 16px; cursor: pointer; }
+  .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; font: 600 13px var(--f-body); padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .chip.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .cuenta { margin: 0; font-size: 13px; color: var(--muted); }
+  .rubro { margin: 14px 0 2px; font: 600 12px var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .precio { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .precio .nom { font-weight: 500; }
+  .precio .nom b { background: var(--warn-bg); color: var(--ink); border-radius: 3px; }
+  .precio .tag { grid-column: 1; font-size: 12px; color: var(--muted); }
+  .precio .val { grid-row: 1 / span 2; grid-column: 2; white-space: nowrap; font: 600 17px var(--f-body); font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -578,11 +607,19 @@ const PANTALLA = `<!DOCTYPE html>
   </div>
 
   <div id="vistaPrecios" class="vista" hidden>
-    <div class="seg">
-      <button type="button" id="segMerc" class="on">Mercadería</button>
-      <button type="button" id="segPlatos">Platos</button>
+    <div class="busca">
+      <div class="campo">
+        <input type="search" id="buscar" placeholder="¿Qué buscás? Ej: pechuga, mila, yerba" autocomplete="off" enterkeyhint="search">
+        <button type="button" id="limpiar" aria-label="Borrar búsqueda" hidden>✕</button>
+      </div>
+      <div class="chips" id="tipos">
+        <button type="button" class="chip on" data-tipo="todo">Todo</button>
+        <button type="button" class="chip" data-tipo="platos">Platos</button>
+        <button type="button" class="chip" data-tipo="mercaderia">Mercadería</button>
+      </div>
+      <div class="chips" id="rubros"></div>
+      <p class="cuenta" id="cuenta"></p>
     </div>
-    <input type="search" id="buscar" placeholder="Buscar: pechuga, yerba, milanesa…" autocomplete="off">
     <p class="hint" id="notaPrecios">Cargando precios…</p>
     <div id="listaPrecios"></div>
     <p class="hint">Listas completas en PDF (productos y recetas): <a id="linkPdf" href="#" target="_blank" rel="noopener">abrir carpeta</a></p>
@@ -593,7 +630,9 @@ const PANTALLA = `<!DOCTYPE html>
 <script>
 var DIAS = ["Sáb", "Dom", "Lun", "Mar", "Mié", "Jue", "Vie"];
 var estado = { personas: [], abiertos: {}, sinPin: [], sinCel: [] };
-var PRECIOS = null, vistaPrecio = "mercaderia";
+var PRECIOS = null, tipoPrecio = "todo", rubroPrecio = "";
+function guardarLocal(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function leerLocal(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
 function $(id) { return document.getElementById(id); }
 function pad2(n) { return String(n).padStart(2, "0"); }
 function hhmm(d) { return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
@@ -627,8 +666,12 @@ $("tabMarcar").onclick = function () { mostrarVista("marcar"); };
 $("tabPrecios").onclick = function () { mostrarVista("precios"); };
 
 /* ---------- horarios ---------- */
+var primeraVez = true;
 function cargar() {
-  google.script.run.withSuccessHandler(function (e) { estado = e; dibujar(); })
+  google.script.run.withSuccessHandler(function (e) {
+    estado = e; dibujar(); guardarLocal("lc_estado", e);
+    if (primeraVez) { primeraVez = false; if (!PRECIOS) cargarPrecios(); }
+  })
     .withFailureHandler(function (err) { $("hint").hidden = false; $("hint").textContent = "No se pudo cargar: " + err.message; }).estado();
 }
 function tarjeta(n) {
@@ -794,29 +837,87 @@ function ubicacion(listo) {
 }
 
 /* ---------- precios ---------- */
-function cargarPrecios() {
-  google.script.run.withSuccessHandler(function (r) { PRECIOS = r; $("linkPdf").href = r.listas; dibujarPrecios(); })
-    .withFailureHandler(function (err) { $("notaPrecios").textContent = "No se pudieron cargar los precios: " + err.message; }).precios();
+var INDICE = [];
+function sinTildes(s) { return String(s).toLowerCase().replace(/[áàä]/g, "a").replace(/[éèë]/g, "e").replace(/[íìï]/g, "i").replace(/[óòö]/g, "o").replace(/[úùü]/g, "u").replace(/ñ/g, "n"); }
+function raiz(p) { return p.length > 4 ? p.replace(/(es|s)$/, "") : p; }
+function armarIndice() {
+  INDICE = [];
+  [["platos", "Plato"], ["mercaderia", "Producto"]].forEach(function (t) {
+    (PRECIOS[t[0]].filas || []).forEach(function (f) { INDICE.push({ tipo: t[0], etiqueta: t[1], rubro: f[0], nombre: f[1], precio: f[2], texto: sinTildes(f[1] + " " + f[0]), nom: sinTildes(f[1]) }); });
+  });
 }
-function sinTildes(s) { return s.toLowerCase().replace(/[áä]/g, "a").replace(/[éë]/g, "e").replace(/[íï]/g, "i").replace(/[óö]/g, "o").replace(/[úü]/g, "u"); }
+function usarPrecios(r) {
+  PRECIOS = r; $("linkPdf").href = r.listas; armarIndice(); dibujarRubros(); dibujarPrecios();
+}
+function cargarPrecios() {
+  var guardado = leerLocal("lc_precios");
+  if (guardado && !PRECIOS) usarPrecios(guardado);
+  google.script.run.withSuccessHandler(function (r) { guardarLocal("lc_precios", r); usarPrecios(r); })
+    .withFailureHandler(function (err) { if (!PRECIOS) $("notaPrecios").textContent = "No se pudieron cargar los precios: " + err.message; }).precios();
+}
+function dibujarRubros() {
+  var box = $("rubros"); box.textContent = "";
+  if (tipoPrecio === "todo") { box.hidden = true; rubroPrecio = ""; return; }
+  box.hidden = false;
+  var vistos = [];
+  INDICE.forEach(function (x) { if (x.tipo === tipoPrecio && vistos.indexOf(x.rubro) < 0) vistos.push(x.rubro); });
+  [""].concat(vistos).forEach(function (r) {
+    var b = el("button", { type: "button", className: "chip" + (r === rubroPrecio ? " on" : ""), textContent: r || "Todos" });
+    b.onclick = function () { rubroPrecio = r; dibujarRubros(); dibujarPrecios(); };
+    box.append(b);
+  });
+}
+/* Pinta en negrita las palabras buscadas dentro del nombre, sin usar HTML. */
+function resaltar(nombre, palabras) {
+  var s = el("span", { className: "nom" }), base = sinTildes(nombre), marcas = [];
+  palabras.forEach(function (p) { var k = base.indexOf(p); if (k >= 0) marcas.push([k, k + p.length]); });
+  marcas.sort(function (a, b) { return a[0] - b[0]; });
+  var pos = 0;
+  marcas.forEach(function (m) { if (m[0] < pos) return; s.append(nombre.slice(pos, m[0]), el("b", { textContent: nombre.slice(m[0], m[1]) })); pos = m[1]; });
+  s.append(nombre.slice(pos));
+  return s;
+}
 function dibujarPrecios() {
   if (!PRECIOS) return;
-  var lista = PRECIOS[vistaPrecio], q = sinTildes($("buscar").value.trim());
-  $("notaPrecios").textContent = lista.nota;
-  var box = $("listaPrecios"); box.textContent = "";
-  var ultimo = null, cuantos = 0;
-  lista.filas.forEach(function (f) {
-    if (q && sinTildes(f[0] + " " + f[1]).indexOf(q) < 0) return;
-    if (f[0] !== ultimo) { box.append(el("p", { className: "rubro", textContent: f[0] })); ultimo = f[0]; }
-    box.append(el("div", { className: "precio" }, el("span", { textContent: f[1] }), el("span", { textContent: f[2] })));
-    cuantos++;
+  var q = sinTildes($("buscar").value.trim()), palabras = q ? q.split(/[^a-z0-9]+/).filter(Boolean).map(raiz) : [];
+  $("limpiar").hidden = !q;
+  var notas = [];
+  if (tipoPrecio !== "mercaderia") notas.push(PRECIOS.platos.nota);
+  if (tipoPrecio !== "platos") notas.push(PRECIOS.mercaderia.nota);
+  $("notaPrecios").textContent = notas.join(" · ");
+  var lista = INDICE.filter(function (x) {
+    if (tipoPrecio !== "todo" && x.tipo !== tipoPrecio) return false;
+    if (rubroPrecio && x.rubro !== rubroPrecio) return false;
+    return palabras.every(function (p) { return x.texto.indexOf(p) >= 0; });
   });
-  if (!cuantos) box.append(el("p", { className: "hint", textContent: "No encontré nada con esa palabra." }));
+  if (palabras.length) {
+    var puntos = function (x) { var n = 0; if (x.nom.indexOf(palabras[0]) === 0) n += 3; palabras.forEach(function (p) { if ((" " + x.nom).indexOf(" " + p) >= 0) n += 2; else if (x.nom.indexOf(p) >= 0) n += 1; }); return n; };
+    lista.sort(function (a, b) { return puntos(b) - puntos(a) || a.nombre.localeCompare(b.nombre); });
+  }
+  var box = $("listaPrecios"); box.textContent = "";
+  $("cuenta").textContent = !q && tipoPrecio === "todo" ? "Escribí lo que buscás o elegí Platos o Mercadería." : lista.length === 1 ? "1 resultado" : lista.length + " resultados";
+  if (!q && tipoPrecio === "todo") return;
+  var ultimo = null, max = 150;
+  lista.slice(0, max).forEach(function (x) {
+    if (!palabras.length && x.rubro !== ultimo) { box.append(el("p", { className: "rubro", textContent: x.rubro })); ultimo = x.rubro; }
+    box.append(el("div", { className: "precio" }, resaltar(x.nombre, palabras), el("span", { className: "tag", textContent: x.etiqueta + " · " + x.rubro }), el("span", { className: "val", textContent: x.precio })));
+  });
+  if (lista.length > max) box.append(el("p", { className: "hint", textContent: "Hay más resultados: escribí una palabra más para achicar la lista." }));
+  if (!lista.length) box.append(el("p", { className: "hint", textContent: "No encontré nada. Probá con otra palabra (ej. “mila” en vez de “milanesa napolitana”)." }));
 }
-$("segMerc").onclick = function () { vistaPrecio = "mercaderia"; $("segMerc").className = "on"; $("segPlatos").className = ""; dibujarPrecios(); };
-$("segPlatos").onclick = function () { vistaPrecio = "platos"; $("segPlatos").className = "on"; $("segMerc").className = ""; dibujarPrecios(); };
-$("buscar").addEventListener("input", dibujarPrecios);
+var esperaBusqueda = null;
+$("buscar").addEventListener("input", function () { clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(dibujarPrecios, 120); });
+$("limpiar").onclick = function () { $("buscar").value = ""; dibujarPrecios(); $("buscar").focus(); };
+Array.prototype.forEach.call($("tipos").children, function (b) {
+  b.onclick = function () {
+    tipoPrecio = b.getAttribute("data-tipo"); rubroPrecio = "";
+    Array.prototype.forEach.call($("tipos").children, function (o) { o.className = "chip" + (o === b ? " on" : ""); });
+    dibujarRubros(); dibujarPrecios();
+  };
+});
 
+/* Arranque: se muestra al instante lo último guardado en este celular y después se actualiza. */
+(function () { var e = leerLocal("lc_estado"); if (e && e.personas) { estado = e; dibujar(); } })();
 cargar(); setInterval(cargar, 60000);
 </script>
 </body>
