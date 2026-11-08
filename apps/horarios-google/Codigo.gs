@@ -303,7 +303,7 @@ function avisoDiario(prueba) {
     afuera.forEach(o => html += "<li><b>" + o.nombre + "</b>: " + o.entrada + " a " + (o.salida || "…") + " · " + o.lugar + "</li>");
     html += "</ul>";
   }
-  if (!olvidos.length && !afuera.length && !cargadas.length) html += "<p>Prueba: los avisos quedaron activados. Todos los días a las 9 te llega este mail si hay algo para revisar.</p>";
+  if (!olvidos.length && !afuera.length && !cargadas.length) html += "<p>Prueba: los avisos quedaron activados. Todos los días a las " + (Number(libro().getSheetByName("CONFIG").getRange("B6").getValue()) || 12) + " h te llega este mail si hay algo para revisar.</p>";
   html += "<p style='color:#888;font-size:13px'>Planilla: " + libro().getUrl() + "</p></div>";
   MailApp.sendEmail(Session.getEffectiveUser().getEmail(), (prueba ? "Prueba · " : "") + "La Caleta · avisos de horarios", "Abrí este mail en un programa que muestre HTML.", { htmlBody: html, name: "La Caleta" });
 }
