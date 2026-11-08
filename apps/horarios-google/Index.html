@@ -4,153 +4,332 @@
 <base target="_top">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Horarios La Caleta</title>
+<title>La Caleta</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
-  :root { --paper:#f3f5f7; --card:#fff; --ink:#14213a; --muted:#5b6577; --line:#d5dbe3; --navy:#1d3a66; --in:#1f7a4d; --in-bg:#e3f3ea; --out:#a33a2c; --ochre:#b8741a; }
-  @media (prefers-color-scheme: dark) { :root { --paper:#0f1522; --card:#172033; --ink:#e8edf5; --muted:#9aa6b8; --line:#2a3550; --navy:#7fa6e0; --in:#5fd39a; --in-bg:#16342a; --out:#ef8c7d; --ochre:#e0a24f; color-scheme: dark; } }
+  :root {
+    --paper: #f6f4ef; --card: #ffffff; --ink: #161616; --muted: #6b6760; --line: #e3dfd6;
+    --in: #2f6b4f; --in-bg: #e7f0ea; --out: #9b3b2e; --warn: #a8661b; --warn-bg: #fbf1e3;
+    --f-display: "Marcellus", "Optima", "Candara", Georgia, serif;
+    --f-body: "Figtree", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --paper: #121211; --card: #1c1c1a; --ink: #f2efe8; --muted: #a39f96; --line: #2e2d2a;
+    --in: #7cc59f; --in-bg: #1b2b22; --out: #ec8f80; --warn: #e6a659; --warn-bg: #2c2216; color-scheme: dark; }
+    .logo { filter: invert(1); } }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.4 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
-  .wrap { max-width: 720px; margin: 0 auto; padding: 18px 16px 40px; display: grid; gap: 16px; }
-  header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  h1 { margin: 0; font-size: 24px; }
-  .clock { font-size: 30px; font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; }
-  .hint { color: var(--muted); margin: 0; }
-  .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
-  .person { text-align: left; font: 600 16px inherit; font-family: inherit; padding: 12px; min-height: 60px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); cursor: pointer; }
-  .person small { display: block; font-weight: 500; font-size: 12px; color: var(--muted); }
-  .person.inside { border-color: var(--in); background: var(--in-bg); }
-  .person.inside small { color: var(--in); }
-  .person.olvido { border-color: var(--ochre); }
-  .person.olvido small { color: var(--ochre); font-weight: 700; }
-  .warn { padding: 12px; border-radius: 10px; border: 1px solid var(--ochre); color: var(--ink); }
-  input[type=time] { letter-spacing: normal; }
-  .sheet { position: fixed; inset: 0; background: rgba(10,15,25,.5); display: grid; place-items: end center; }
-  .box { background: var(--card); width: min(480px, 100%); border-radius: 16px 16px 0 0; padding: 20px 16px 28px; display: grid; gap: 14px; max-height: 92vh; overflow: auto; }
-  @media (min-width: 600px) { .sheet { place-items: center; } .box { border-radius: 16px; } }
-  .box h2 { margin: 0; font-size: 22px; }
-  input { font-size: 28px; letter-spacing: .4em; text-align: center; padding: 10px; border: 1px solid var(--line); border-radius: 10px; width: 100%; background: var(--paper); color: var(--ink); }
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .btn { font: 700 18px inherit; font-family: inherit; padding: 16px; border: 0; border-radius: 12px; cursor: pointer; color: #fff; }
-  .in { background: var(--in); } .out { background: var(--out); }
-  .plain { font: 600 15px inherit; font-family: inherit; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--ink); cursor: pointer; }
-  .btn:disabled, .plain:disabled { opacity: .4; }
-  .msg { padding: 12px; border-radius: 10px; background: var(--in-bg); font-weight: 600; }
-  .msg.err { background: #fbe4e1; color: #7a1f14; }
-  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-  td { padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  td:last-child { text-align: right; font-weight: 700; }
-  :focus-visible { outline: 3px solid var(--ochre); outline-offset: 2px; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.45 var(--f-body); }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 18px 16px 48px; display: grid; gap: 20px; }
+  .vista { display: grid; gap: 20px; }
+  header { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; }
+  .logo { width: 54px; height: auto; }
+  .brand { font: 24px/1.1 var(--f-display); letter-spacing: .12em; }
+  .brand small { display: block; font: 600 11px var(--f-body); letter-spacing: .14em; color: var(--muted); text-transform: uppercase; margin-top: 4px; }
+  .clock { font: 30px var(--f-display); font-variant-numeric: tabular-nums; }
+  nav { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 4px; }
+  nav button { font: 600 15px var(--f-body); padding: 10px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; }
+  nav button.on { background: var(--ink); color: var(--paper); }
+  h2 { margin: 0; font: 600 12px var(--f-body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  section { display: grid; gap: 10px; }
+  .list { display: grid; gap: 8px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .person { display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 10px; text-align: left; width: 100%;
+    font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; cursor: pointer; min-height: 62px; }
+  .person b { font-weight: 600; display: block; }
+  .person small { color: var(--muted); font-size: 13px; }
+  .av { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font: 17px var(--f-display); background: var(--paper); border: 1px solid var(--line); }
+  .person.inside { border-color: var(--in); }
+  .person.inside .av { background: var(--in); color: var(--card); border-color: var(--in); }
+  .person.inside small { color: var(--in); font-weight: 600; }
+  .person.olvido { border-color: var(--warn); background: var(--warn-bg); }
+  .person.olvido small { color: var(--warn); font-weight: 600; }
+  :focus-visible { outline: 3px solid var(--warn); outline-offset: 2px; }
+  .empty, .hint { margin: 0; color: var(--muted); font-size: 15px; }
+  .sheet { position: fixed; inset: 0; background: rgba(10,10,10,.45); display: grid; place-items: end center; z-index: 5; }
+  .box { background: var(--card); width: min(520px, 100%); max-height: 94vh; overflow: auto; border-radius: 22px 22px 0 0; display: grid; gap: 14px; padding: 22px 18px 26px; }
+  @media (min-width: 640px) { .sheet { place-items: center; } .box { border-radius: 22px; } }
+  .box h3 { margin: 0; font: 26px var(--f-display); }
+  .pin { display: flex; justify-content: center; gap: 12px; }
+  .pin span { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ink); }
+  .pin span.on { background: var(--ink); }
+  .pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .pad button { font: 24px var(--f-display); padding: 12px 0; border-radius: 14px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer; }
+  .big { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .big button, .solo { font: 700 19px var(--f-body); padding: 18px 10px; border: 0; border-radius: 16px; cursor: pointer; color: #fff; }
+  .b-in { background: var(--in); } .b-out { background: var(--out); }
+  .big button:disabled, .solo:disabled, .ghost:disabled { opacity: .3; cursor: default; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ghost { font: 600 14px var(--f-body); padding: 12px 8px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+  .close { font: 600 15px var(--f-body); background: none; border: 0; color: var(--muted); cursor: pointer; padding: 6px; }
+  .msg { padding: 12px; border-radius: 12px; background: var(--in-bg); font-weight: 600; }
+  .msg.err { background: var(--warn-bg); color: var(--ink); border: 1px solid var(--warn); }
+  .warn { padding: 12px; border-radius: 12px; border: 1px solid var(--warn); background: var(--warn-bg); margin: 0; }
+  input[type=time], input[type=search] { font: 500 18px var(--f-body); padding: 12px; border: 1px solid var(--line); border-radius: 12px; width: 100%; background: var(--paper); color: var(--ink); }
+  .ok { display: grid; justify-items: center; gap: 10px; padding: 18px 0 6px; text-align: center; }
+  .ok .tick { width: 84px; height: 84px; border-radius: 50%; background: var(--in); color: #fff; display: grid; place-items: center; font-size: 46px; }
+  .ok p { margin: 0; font: 21px var(--f-display); }
+  .ok small { color: var(--muted); font-size: 14px; }
+  @media (prefers-reduced-motion: no-preference) { .ok .tick { animation: pop .35s ease-out; } @keyframes pop { from { transform: scale(.4); opacity: 0; } } }
+  .panel { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px; }
+  .panel h4 { margin: 0; font: 600 12px var(--f-body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 15px; }
+  td { padding: 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.f { color: var(--muted); width: 50px; }
+  td.m { text-align: right; white-space: nowrap; padding-left: 8px; }
+  tr.tot td { font-weight: 700; border-bottom: 0; }
+  .total { display: flex; justify-content: space-between; align-items: baseline; border-top: 2px solid var(--ink); padding-top: 10px; }
+  .total b { font: 24px var(--f-display); }
+  a { color: var(--ink); }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .seg button { font: 600 14px var(--f-body); padding: 9px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--muted); cursor: pointer; }
+  .seg button.on { border-color: var(--ink); color: var(--ink); }
+  .rubro { margin: 8px 0 0; font: 600 12px var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .precio { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .precio span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header><h1>Horarios La Caleta</h1><div class="clock" id="clock">--:--</div></header>
-  <p class="hint" id="hint">Cargando…</p>
-  <div class="people" id="people"></div>
+  <header>
+    <img class="logo" alt="La Caleta" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFUAAAC0CAYAAADl7WB9AAAXYklEQVR42u2debRdVX3HP+fcl+FleCFIEiCE2ZCBSEKE0iAiUCi4qkUKuixWlAKLUmlLK4VWa1tE6qotWJYW6cIBCwsQLRZBhoIMMqM0DIYMJJBmJI9AAklM8t69t3/s38/ze5tz7tnnDi/v3dyz1lkvuefsffb+7t/+Tfu3fzti+F2x3GWgan4fCUwH3gccAcwADgD2BiYAJWAr8BrwEPA94AUgkvJVdsMrFmDsdQhwLnATsBjYIeCE3FuBL5u6o90JzJJ0Wq/9gM8BD2eAWAb65S4DFfOsYp7rb98zwO4WlGk7eixwI7DJAzELwLy7YgblU/KNrnYFM/Km+SnAfRlAFgEx7dbBeLqdqdWCeQzwU4+ymgGkT61V4E1gDzOobUedU4BvmQ77PLDaAlDfAfZpJ1AtdZ4NrPEos9rCuyL3amB0u4CqguE9wM2ms30tBtP/zi0pAzysAT0WeMUIjsogAdpvWMv7hELjduCf5wE7M6hTp3+f3ApC2YCR9qyScdsylq18drhLfgvolZ5C7lNRqyl1IXBqK6Z9NMiAqs1+HXChgFcy7ajIvyOh4EfEPl8KrAXelndGAxOBqcCBwEHANGAy0CPPlb30A9ul7CrgOVHV7pW2lOTvsKbQ7wil7KxBnd8GZtXxnW4B9iDgMLkPEjVtTI7mMWyF0nU5gK4ETvZM1S65S97d5T0LHdwub3YMa0CvyAF0oThLtExc54yIjN8gNh6otrGUFNBzMiS8CqjlMkXb2qnRTEtpvniD+lPccP3ybH4H0HBJPx5Y5lGlP+2vkjIjOrCFTfsbayj2FeB1UYF2O897vdP+92vY8X0elXamfcC07xFFO81asvx05nC3uQeTSr9Wg0oV5OfaTdVpxaV88b1iFmatGSnQV7fr1I+bPPWruGXfUcaOz/I3PNWhw/xpH+H8kv0ZfNTnqXNaMLBtyUtvorbnXtnBW8CeHuV2rhQWcpDw0grZ3nul4KWmXNSugDSjjvOFl5ZrAKXxShsNz612QH230CnjnMJ/WKDOTe3MT+MmlK8Cx+Ei7Co5dSpVbtkd+GEjlApwphFEIdf2dhZScYOA9uPiQk8paG6WO5Rau+w83OJbtaNzNodSIVlTKnfgbBxU5Z8n1cEfR3RATafSCrAXcGQddY30tIEOqKbcfJzvtBJIqfrO6A6lZoNznMcKQq/uDqVm89MFdeqbYzqgpvPTCThXX5F6og6l1i4zGxesW62TUjteqhRqO6oB/bTbaAAdSjVT9ugGBmRMO2sA9YBalnJzG6hjLDCuM/0Hvr8vcHAdoFg9dUKHUgeCMluAqdRBaaqO7dWh1IEAzKtT6bdl9umAOlBIzWvCt6d1pv9AIXV4gxYZuNXX3R5UnaZTcE7peqeuljm4ARbSNqDqu9NFz6w0COpBuCCMSodSk6lfLxhaz3647TltJ6zq4YlHNPhNdciMweVAaZQ3D2tQlTJnNYG6tK45uzOlKnWNBQ5tInXN352lv1LSAcCkAtRVzfnukUZVG65X1Cio00k27db1Qe/3GeJHGG4xA7q9UwlHt3bWBersHAr0KfQ14I2UMhrY1g28f5jx1ZhkI4jtixpGhakjdGezCqJHgZcyBkL/f8IwAlUB3R+4FrcZ5CXgv3G5AyoU2JmtHf4F6bv3sjZLXAx8g9r7Ul9geGxOUwKcC6zL6PeFRQHtAXoZGGZeKz9JFRe9ciHZIeu6z6oZvoRWC6MI5+5cLG3fYaZ9H0k6kSPjAqDuj1voC5mqseGpS2qUUT50xhAHtSRAnoFLzKDRjrERWiqwLg2pUKXc6YTlN7EJtMbJYPRnULiygF8xtBMbKJ/8gfQha9ZVgDVFKGNmQcm/ChcxvU7+nVZWGf8sXBo6GJopOKzLMysOV1nElCKghkp+BW65/O0TSswaENUUPsvQDK7Q2TOOsCWgOA4cJVX8Q/ipArPU/PZsDVCVMv9AeHZ5iLKBsaQnt/GvLXHAKFVllA4sKEwWm38/U6OshrnvAXxyCLIAG6o0KoCYeuPACqcRvvqpdS4zvy0EtpHsZskq8yciGIeiL2CUEdpRDVBXhoJ6SKDNrzb8TuBVA9g64OUaLEDrngWcJu8Mtd3VIwL6DrAkFNSikn+93HYqP+UJpqzr0sD3dpVFlYfBi6H8sajkXykWh53uj+SwD12vOg44vqgdPYQMhOfzQG1U8seG4p7EbUor1Rht/f1LgVQxmFclgJ/2AoviAMk/hmSNPlTVWeI1JsJl030hZ2ortZ4o3quhRK2VgGe/At7KAxVc5sfQVc/IA7Xq8dUHAihQn101BK2qvDY/madzWslfClTKdWov9z6mf+8L0HX1W8cAZ5Gk4xwKlFqtYW6DO9AhyJFyCWF5ovWjb5CESUYpCvRq8n2ymtRmuZTZlf7W2GhAQWntQ6T/zIKSfxWwmYEJEtQt9mvgf8jfca0C7mBRsYYCbx2RQ8GP4fIYlOIA5jsjkJ9WPEdKVt13EJaPSoG9HLcsXmbX+FsjY/tnyYMIuFP/HdeoSNMUF5X8izPeV9AfEtWjlCOwlNK7gX9n16+47pWiBegM3IZLyQxQiXNGZ1/ceU71qlOkNOAdkuM78szekjhbTsYdkdS/C8xX7feBKZSqU/8RXM7sOATUQ6QTIRF+Jc+RUosKbyE86YLqrlfjgjl2FRuYUwOrm0I8eEoNFxeU/FuFumu5+SLx+LxK2MqsXcJ50LQvGkRKjYD/9dqrfd6AWxT9DTHmjXhRyb9WPpJFqcoCdpAcrVEJpNZ+sbT+liSV/WCoU1XRQmZ7s1hZ1624dPddeWa1gv0zwhb79Pn9AdMgNlpFH+HHelTM+x/yWE6rLp2xf5EyYzVKZXbI1NeRGIlbYi4SPPENrzF5wN5HsdN81ChYm8NmmkmpsfgsLA7a3rtCB1cbeQDJcW2VQFA/FwiqPv8IxY/10HefYODaeytceQAfTWmjgrsgFFR94YQCgkTfOaXAtIzESllMdkbgvEG83XyvmYJLT9CIcUtBdjbp3/uKzBSlogsLSv5+XELa0A/53yl6CI226wZvqjbTJL28BpUeW4Sva2evLQjqWpIl3NB8KhFupXZ1HdRq2/adlJnWKKAfIjlmqeKBe2/Rb+lo319Q8j9V0PKyA/hX1H9impb5Me5cgUb0WAV0LknmzHKKoDyqCKiRadQrBSX/TYFCqtnUatvwAgO3eIbyWnt68AdJohvLKcTzw3qpdD9x0xWR/F+sA9Rm8Fa/HduAyxiY+cKe7GPvktfei43GU+bdIZ87cFF/hdLoK/rH1WFCnlUnqNrAEbg1nnqp1W/v87jTLbsD2jAbuDujHjtg19TDtxWQ8wrwOKXkeQ0o49rI36Xx4+h8Y2IZ8M+iIk4RCh6B22VzIvAfZlamHdyogb3rcae1FV6FUFCvLij5N9N4UgQF9oc055y/tENsN4sjZzku2XjIuYKKwTn1ahda4KeBHbNBu40q30oBU6XDRQ/srtXGvgyWUs7xP2j/H6gX0MgUXBLIU/WjdzZJR9Ty59CaQ2krDDwKNISNbBG/cl1nvGiBfcQvWkTy/0udQqoWC7qNwT3tN6tv5zdCMFpoQSCg9sPnNRFUpYgJJAeE9e8iQG9rtF9a8DMFKETZw/FN9m+WjGWzzUzZwTpOuYoL/Rxfj7RP4xFFIvw0FnVlwLpUkassg7xQdM3YdLqVl8YXbAI+hlukbKhfSh0/KSj5/48kbLvZ60Zp1larDgBX4bVT9NemzbwYWFRQ8v+8xR54f0mjFaygbDSD05slH5TCJgvJF5H8322ikMoD9nyafwi41rMddy5h0/qiZH50HZL/8kEA1db/YVwQXJViC4dZC4lVMUGPb3Y/tKJPFZD8OsJnDBKo9huHkqz01gOupfKfk+TI6mpFY79ShyNlbot5atasUj7b64GlwqySYknZfm0H/tH0vdSqhv6ooCNlE+E7q5t5Wd1xKu70yw0FqPQ2knzaLSMIbeDzgZK/mY6UZlHtZOAC3Fr8agaezr4Jt5XzKg/Mlu3c1kon4qKBiyRJuKtVU6dg+/3vjxU+OVcc0JNTKL1l7EoXyKq4rZJ7BE5lf2vPrqRWnTkKbkUcQisywFd+21JpakPBNXNNKOUtZehcOoMUwMh7Zp8XmcGFzVSrQkwvUIG/qXeo7dNvxE9QMv4H+1vwyXAW1MMKOlL6W+BI2dWX3dQ8WnjzOyL0YOAOxiCqe5hiOVLWUSwiZTgACm6B8A5cxONGXPzD9SR7H0pF2MCKgo6UZ9oI0FKKb8G/3zDeqyDNYR+cM7iII+WWQTRPB4NCpxtrrM9oCWWj827B+ZtrrlfFxirpptjhMsvaiI8CfIIkDL7LaBAa6NEvPPb60AoPkL9F9LeltNd1SA5RaRqSD+AiAjN3IdrDuUOluFa0os0kf3+g0VMlOSI6CgE1RJ2KcIFaq9oM1EUFHDm/TY2cMv70DzVP1wOvtwmoyvLuJ39jsZ/xOJVdWEFVBNRVIhHjNgE1xuVBfSrFmkoDdRw10kjHuLXtyQVBXVFEXxtGGsDXCd8tPr4WqJNxbr8i1yttJvlVSN1BkiGzEjgQqQ/2JgmMDdVRl9N+l+qo/5ojKxTMbVnvxYafhu4RhSQ7Wjsd0ak+2dtFEKflI9D/7xC/QCbqUwMBsurUmjYEVTcjb8El7k4TWNrfdSQZ4mpSashHEcfChjYE1Ur4ezLYofpFXhDtp5QF6t4FQV2LW96N2hBUBW2J0VmrKaDfl2dRTSmoTq1pM3Uq7dqeMfU1Y9GdteRQTLJuH3qtLqgpDMfrPTjPlLWYVJDdKRiUaoE6oSBIfW0MqM6+BZ6gUnArwFfz+t9FctJuCAMHt46uH4lSBiTKKJfFTqpkp3sbbAGl/TrPA1mDkG/ABSKXyMlU9DZhHn/1hG8lCehqRcd0a6NufYwJSw7W6KXbLv+UgctGGru6BtiTgHD1SBhv6GHb6nx4DhfdvEQ6Pxq3CDhGrDO9R8k9kiTGoCzf3IoLx3lT7k0iIPKmZ+xReKNh65G0rU+m/YPCT30q/R15lkulqswXORbeMu/XpQGjBbx6w3+2CLAbRAisFKvtVVz4+1rRjys51l5aAAUZapHeGmBxIm634UTTxz7p35/j8h90ERCQEYkN210QhEoNlSqNeqoZfDZ0w9dmsWBWijNnKW6N7FUBfHMDlDpRQPsCA9MgKYVeCfxdKKDaqY3CK6p18K1qoFAKqSeNsqIc6tel4zUC+Gvyd5UMwkYBfBvJKvBI6e9huHR3Z+G24mNkh37zH0hiWIuEDP1my2Srdn00c/tjv4DTR3jM/1YBfq2A30uyp9/GMtig4G24Y0eol6X9mGK5oYYa2FmAh8TY9ply+vsTJNHhdcc0XER4woThCroF3z+YS99dDfyZocyGgkQmC+8ptyGwFkylYp/NLQb+2jPXG/JrqGD5S/F472wTR0mUo1mswiXHvR2XznmH4Z/lZnxcHQM3An/UZra8JuBeg9vA+wtc2viFIsCsuV5ulplszb8qbgvN4TJy/d6dlnygklN3bKZT5P21dynlb8lYYbHnLaoYAbNDLLFtuFjSzWKdbRRjYgMu00WasWB9qE2dJrvLVTJOk6YDWQvUrjaa9jTJN9C5Olfn6lydq3N1rs7VuXaNjexbQEUU4+AdcBllI6OQhx6nlPWMnOdZZ/NVTN/THPV2ebrapL433RprZI99NASJMdP2r+JcXwfj1oDeIixW6v24xAt9BQBVL9BviZ+hR2z1X+LccDtTyo0AjhCHSFqdc3GLh0sy+ng4bqW3x1Bdv/gMnsbF8E/DLV5G0v8ueb9f/Asvi3NGcTlK2pOKkZqm58oLn8gxWXUgxuC8P0eTv5ZkHRinAI/jzhy5BLgCl4zhbdyxyfbbStVH45ZDxqY4gnpIz48VmQFZj1sW/y4uwuRm3DK7njr8Vdwi4n8C3ydZ+7oel/xsPS7LkNY7RX47lAwXo83xVyE/DbL+rkfHX+eBVovn/Y2USXMxTgP29wDROm/wynV5oO7EZf9JA7UkAD2T8k2Ndxjrtb+fJAgNkhgGfecyac8VWVj5iRPPCqDUbpz/9QGZdpO8DqVR6ElS/6WGgmwkSpZwmY5LJPOy3FEKpfbhnM61QP2lfHMUA4Ml/LZOFBZ1r7RtpNf3PYXSH5d6x3rtKezl13jN03E7VC6SSv+4Rn3Kc74iA/BNw1utr9aX0CqNL5Bp+zXcyUDHBcyMtEs38u4gWVbx4w/KDAxK07ZpFEsVl9DxCeDzIoc+ThJmWRelKmg/IllxXIYL1x7Fu2Oe9P3J0onHAgdT69kDt2lME3PvxGU5t+0LodQNuF0nM3G7oGfido7Du4PsegTIe7zBU2f53cKqIlyEzsuNUKrqZcdIJ1+Uv9/ERWN/JG3E5NJo7Q2EBZvpjPg0yYEwb4pA+zBuc265QLv7RLhcglvd+DwuU3uomqZLTqfhVhbWyG/fltnzrvyxoZSqBb6FC9ayVy8u75M/UPpvDb+8N3AwY/n+Txi4x2uGTMmvm99CKHWjaV+e7plGqdr3m80MBReGuoXkJMq4ljBK+2AFl3b+o6LHfYAkl8pW0VmPEb1PeabddrlNwC0ZK6Vagyo+iDs74CIRFvaIz88AXxawQihNy5Y8q7ESSOn9MjtOEnZ3OklmpO3AqTLgi8k4jNbGh9qFt6p08H7hjQtFoi7ExRxBcsSy7UxJdNBbcDFLJ0ln7AFdsTfAVVyc6L+JcfGcfOdZ0SkniMCwMyjy2l3K4NNRigaRB2oVF2hxqyj8C3EHKWrfI5IDziJLrZ+WETklA+gRUsm0jI8/K6PmHxOnoE0Spr6J5NyqrGuGDFjaNQ63aqpJHMaLRL+nBj/cIBK71rT39d67ze8TcNt8ejLqeEX61ePzVE1R/DPcwSyXiYXxtKhNFxreMdLwmlEC2tlkn/OnDZ4kFLtGKO5UYRkniPC4Vt67DfgSyXGg+q2Rhq9XgTMNG9kC/L1QzDW47EUXkMTgbsQFjVwjbXhYiGRfj+InSH2PmvZfKZZWWt8jM0O/4Nv+B4s9O8Y0XuNXvy88dD1uX2pk+JGWHy389p0MqrE8dJZIUlW1tkrdj8ionyaUtckrp4MzRXjuCpmOH5N2jzf6Z1WE1zLRTMaTZENXfroN+IFQppYZIfWtN8CeJH4Ff6ejlukRAuk1AnNQvTvtvP8q1Z9aypCc5QCfZWQkezmA+ccZvs2q0QCqOd/SALQsd2LZ1BfV6Fua6W6fFW3Pbu+kj1pJqSE+V1vGxv1bj3nWv31b29dTLS+MUrzsfh1V7/sx6fsMohQPfpTyjv+MlP765Ya8pz0apG/beieSHDHftG/mZbapykfniYTswaUPGiVurwUiyXvFfJsmdc4z0nauaAZvGEfEDLHAxomn50CRrJPk+f7Gy14C5kuZ16XMRHE6zxGDYrysJEwQFem9JJt2j8WliHpD3l8rWkeXaAU9uM0XR+GiqQ8V996eopUcgdt0sV60jlhUtKgoqDqVZovj4SExUT8pFtWZuJ0dK0TtOUcaURE34EjRb08U3+sCscI+Lh18WpzcD4r6dJiYvntJRy7HZd75tTimd4pV9Y44L04WVeqL0p4N8t7DwO/J+/PkXiL1flD6slPAPhf4LxmAWbgEXo/K36niBDpWBvdl0YPPlkF8iYy9/rUcGzoK08Ur0ysUsk0oapNQz7O4JFmjRE9cKYr1KAFpo1DQ40JFbwm16IEFvdLBW8WiW2fWyfT8gDm4QN1x8s1+oegpsiKg2x5fF2pUP8RDQrUvCbBTgX8SnfMEGfg1uM1v+0i7LxFC2SHtmiH965W6NshAddeS8nnTv1dA0fPxDhTluCJrQvOlg0tkGt0ljZ0jVDVZgJ8pnXpSpupeMv0WSR33y+LcK1Lf49L5x2QazxVqniHUtFnY0PPy24tCcYtk+j4mz5fLIE0SM3OTtGe6PJsqg71I1qgmivm7txDQIuBIM2ufkXe6cXu2UvNy/T9lJ6RxxUzzlAAAAABJRU5ErkJggg==">
+    <div class="brand">LA CALETA<small id="saludo">Cooperativa gastronómica</small></div>
+    <div class="clock" id="clock">--:--</div>
+  </header>
+
+  <nav>
+    <button type="button" id="tabMarcar" class="on">Horarios</button>
+    <button type="button" id="tabPrecios">Precios</button>
+  </nav>
+
+  <div id="vistaMarcar" class="vista">
+    <p class="hint" id="hint">Cargando…</p>
+    <section>
+      <h2>Trabajando ahora</h2>
+      <div class="list" id="adentro"></div>
+    </section>
+    <section>
+      <h2>Tocá tu nombre</h2>
+      <div class="grid" id="todos"></div>
+    </section>
+  </div>
+
+  <div id="vistaPrecios" class="vista" hidden>
+    <div class="seg">
+      <button type="button" id="segMerc" class="on">Mercadería</button>
+      <button type="button" id="segPlatos">Platos</button>
+    </div>
+    <input type="search" id="buscar" placeholder="Buscar: pechuga, yerba, milanesa…" autocomplete="off">
+    <p class="hint" id="notaPrecios">Cargando precios…</p>
+    <div id="listaPrecios"></div>
+    <p class="hint">Listas completas en PDF (productos y recetas): <a id="linkPdf" href="#" target="_blank" rel="noopener">abrir carpeta</a></p>
+  </div>
 </div>
-<div class="sheet" id="sheet" hidden><div class="box" id="box"></div></div>
+<div class="sheet" id="sheet" hidden><div class="box" id="box" role="dialog" aria-modal="true"></div></div>
 
 <script>
-const DIAS = ["Sáb", "Dom", "Lun", "Mar", "Mié", "Jue", "Vie"];
-let estado = { personas: [], abiertos: {} };
-const $ = id => document.getElementById(id);
-const pad = n => String(n).padStart(2, "0");
-function tick() { const d = new Date(); $("clock").textContent = pad(d.getHours()) + ":" + pad(d.getMinutes()); }
-tick(); setInterval(tick, 15000);
-/* Una entrada abierta hace más de 14 horas es una salida que se olvidó de marcar. */
-function olvidada(a) {
-  if (!a) return false;
-  const [y, m, d] = a.fecha.split("-").map(Number), [hh, mm] = a.entrada.split(":").map(Number);
-  return Date.now() - new Date(y, m - 1, d, hh, mm).getTime() > 14 * 3600 * 1000;
-}
-function diaTxt(f) { const d = new Date(f + "T12:00:00"); return ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"][d.getDay()] + " " + f.slice(8) + "/" + f.slice(5, 7); }
-function hs(h) { const m = Math.round(h * 60); return Math.floor(m / 60) + ":" + pad(m % 60); }
-function el(tag, props, ...kids) { const e = document.createElement(tag); Object.assign(e, props || {}); e.append(...kids); return e; }
+var DIAS = ["Sáb", "Dom", "Lun", "Mar", "Mié", "Jue", "Vie"];
+var estado = { personas: [], abiertos: {}, sinPin: [] };
+var PRECIOS = null, vistaPrecio = "mercaderia";
+function $(id) { return document.getElementById(id); }
+function pad2(n) { return String(n).padStart(2, "0"); }
+function hhmm(d) { return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
+function el(t, p) { var e = document.createElement(t); Object.assign(e, p || {}); for (var i = 2; i < arguments.length; i++) e.append(arguments[i]); return e; }
+function iniciales(n) { return n.split(" ").map(function (p) { return p.charAt(0); }).join("").slice(0, 2).toUpperCase(); }
+function plata(n) { return (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function horasTxt(h) { var m = Math.round(h * 60); return Math.floor(m / 60) + ":" + pad2(m % 60); }
+function desde(a) { var f = a.fecha.split("-").map(Number), h = a.entrada.split(":").map(Number); return new Date(f[0], f[1] - 1, f[2], h[0], h[1]); }
+function olvidada(a) { return !!a && Date.now() - desde(a).getTime() > 14 * 3600000; }
+function lleva(a) { var m = Math.max(0, Math.floor((Date.now() - desde(a).getTime()) / 60000)); return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + (m % 60) + " min"; }
+function diaTxt(f) { var d = new Date(f + "T12:00:00"); return ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"][d.getDay()] + " " + f.slice(8) + "/" + f.slice(5, 7); }
+function vibrar() { try { if (navigator.vibrate) navigator.vibrate(60); } catch (e) {} }
 
+function tick() {
+  var d = new Date(), h = d.getHours();
+  $("clock").textContent = hhmm(d);
+  $("saludo").textContent = h < 6 ? "Buenas noches" : h < 13 ? "Buen día" : h < 20 ? "Buenas tardes" : "Buenas noches";
+}
+tick(); setInterval(tick, 15000);
+
+/* ---------- pestañas ---------- */
+function mostrarVista(cual) {
+  $("tabMarcar").className = cual === "marcar" ? "on" : "";
+  $("tabPrecios").className = cual === "precios" ? "on" : "";
+  $("vistaMarcar").hidden = cual !== "marcar";
+  $("vistaPrecios").hidden = cual !== "precios";
+  if (cual === "precios" && !PRECIOS) cargarPrecios();
+}
+$("tabMarcar").onclick = function () { mostrarVista("marcar"); };
+$("tabPrecios").onclick = function () { mostrarVista("precios"); };
+
+/* ---------- horarios ---------- */
 function cargar() {
-  google.script.run.withSuccessHandler(e => { estado = e; dibujar(); })
-    .withFailureHandler(err => { $("hint").textContent = "No se pudo cargar: " + err.message; }).estado();
+  google.script.run.withSuccessHandler(function (e) { estado = e; dibujar(); })
+    .withFailureHandler(function (err) { $("hint").hidden = false; $("hint").textContent = "No se pudo cargar: " + err.message; }).estado();
+}
+function tarjeta(n) {
+  var a = estado.abiertos[n], olv = olvidada(a);
+  var b = el("button", { type: "button", className: "person" + (olv ? " olvido" : a ? " inside" : "") },
+    el("span", { className: "av", textContent: iniciales(n) }),
+    el("span", {}, el("b", { textContent: n }), el("small", { textContent: olv ? "⚠ Falta marcar la salida" : a ? "Adentro hace " + lleva(a) : "Afuera" })));
+  b.onclick = function () { abrir(n); };
+  return b;
 }
 function dibujar() {
-  $("hint").textContent = "Tocá tu nombre para marcar entrada o salida.";
-  const box = $("people"); box.textContent = "";
-  for (const n of estado.personas) {
-    const a = estado.abiertos[n];
-    const olv = olvidada(a);
-    const b = el("button", { className: "person" + (olv ? " olvido" : a ? " inside" : ""), type: "button" }, n,
-      el("small", { textContent: olv ? "⚠ Falta marcar la salida" : a ? "Adentro desde las " + a.entrada : "Afuera" }));
-    b.onclick = () => abrir(n); box.append(b);
-  }
+  $("hint").hidden = true;
+  var ad = $("adentro"), to = $("todos"); ad.textContent = ""; to.textContent = "";
+  var dentro = estado.personas.filter(function (n) { return estado.abiertos[n]; })
+    .sort(function (x, y) { return desde(estado.abiertos[x]) - desde(estado.abiertos[y]); });
+  if (!dentro.length) ad.append(el("p", { className: "empty", textContent: "Nadie marcó entrada todavía." }));
+  dentro.forEach(function (n) { ad.append(tarjeta(n)); });
+  estado.personas.filter(function (n) { return !estado.abiertos[n]; }).forEach(function (n) { to.append(tarjeta(n)); });
 }
 function cerrar() { $("sheet").hidden = true; $("box").textContent = ""; cargar(); }
-$("sheet").addEventListener("click", e => { if (e.target.id === "sheet") cerrar(); });
+$("sheet").addEventListener("click", function (e) { if (e.target.id === "sheet") cerrar(); });
+document.addEventListener("keydown", function (e) { if (e.key === "Escape") cerrar(); });
 
-function abrir(nombre) {
-  const a = estado.abiertos[nombre], box = $("box"); box.textContent = "";
-  const pin = el("input", { type: "password", inputMode: "numeric", maxLength: 4, autocomplete: "off", id: "pin", placeholder: "PIN" });
-  const msg = el("div", { className: "msg", hidden: true });
-  const bin = el("button", { className: "btn in", type: "button", textContent: "Entré", disabled: !!a });
-  const bout = el("button", { className: "btn out", type: "button", textContent: "Salí", disabled: !a });
-  const ver = el("button", { className: "plain", type: "button", textContent: "Ver mis horas de la semana" });
-  const volver = el("button", { className: "plain", type: "button", textContent: "Cerrar" });
-  const tabla = el("div");
-  function enviar(tipo, btn) {
-    if (pin.value.length !== 4) { mostrar("Poné tu PIN de 4 números.", true); return; }
-    btn.disabled = true; mostrar("Buscando tu ubicación…", false);
-    ubicacion(pos => {
-      google.script.run.withSuccessHandler(r => { mostrar(r.texto, !r.ok); if (r.ok) setTimeout(cerrar, /Ojo|PIN/.test(r.texto) ? 6000 : 1800); else btn.disabled = false; })
-        .withFailureHandler(err => { mostrar(err.message, true); btn.disabled = false; }).marcar(nombre, pin.value, tipo, pos);
-    });
-  }
-  if (olvidada(a)) {
-    const hora = el("input", { type: "time", id: "horaOlvido" });
-    const guardar = el("button", { className: "btn out", type: "button", textContent: "Guardar salida" });
-    guardar.onclick = () => {
-      if (pin.value.length !== 4) { mostrar("Poné tu PIN de 4 números.", true); return; }
+function exito(texto, detalle) {
+  vibrar();
+  var box = $("box"); box.textContent = "";
+  box.append(el("div", { className: "ok" }, el("div", { className: "tick", textContent: "✓" }), el("p", { textContent: texto }), detalle ? el("small", { textContent: detalle }) : ""));
+  setTimeout(cerrar, detalle ? 6000 : 2200);
+}
+
+function abrir(n) {
+  var a = estado.abiertos[n], olv = olvidada(a), nuevo = (estado.sinPin || []).indexOf(n) >= 0;
+  var box = $("box"); box.textContent = "";
+  var pin = "";
+  var dots = el("div", { className: "pin" }, el("span"), el("span"), el("span"), el("span"));
+  function pintar() { Array.prototype.forEach.call(dots.children, function (s, i) { s.className = i < pin.length ? "on" : ""; }); }
+  var teclas = el("div", { className: "pad" });
+  ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "←"].forEach(function (k) {
+    var b = el("button", { type: "button", textContent: k, disabled: !k });
+    if (!k) b.style.visibility = "hidden";
+    b.onclick = function () { if (k === "←") pin = pin.slice(0, -1); else if (pin.length < 4) pin += k; pintar(); };
+    teclas.append(b);
+  });
+  var msg = el("div", { className: "msg", hidden: true });
+  var zona = el("div");
+  function mostrar(t, err) { msg.textContent = t; msg.className = "msg" + (err ? " err" : ""); msg.hidden = false; }
+  function pinOk() { if (pin.length !== 4) { mostrar("Poné tus 4 números.", true); return false; } return true; }
+  var hint = el("p", { className: "hint", textContent: nuevo
+    ? "Primera vez: elegí 4 números que te acuerdes. Ese va a ser tu PIN."
+    : a ? "Entraste a las " + a.entrada + ". Poné tu PIN y tocá Salí." : "Poné tu PIN y tocá Entré." });
+
+  var acciones;
+  if (olv) {
+    var hora = el("input", { type: "time", id: "horaOlvido" });
+    var guardar = el("button", { type: "button", className: "solo b-out", textContent: "Guardar salida" });
+    guardar.onclick = function () {
+      if (!pinOk()) return;
       if (!hora.value) { mostrar("Poné la hora en que saliste.", true); return; }
       guardar.disabled = true;
-      google.script.run.withSuccessHandler(r => { mostrar(r.texto, !r.ok); if (r.ok) setTimeout(cerrar, 4000); else guardar.disabled = false; })
-        .withFailureHandler(err => { mostrar(err.message, true); guardar.disabled = false; }).marcar(nombre, pin.value, "olvido", null, hora.value);
+      google.script.run.withSuccessHandler(function (r) { if (r.ok) exito("Salida guardada a las " + hora.value, "Matías la va a revisar."); else { mostrar(r.texto, true); guardar.disabled = false; } })
+        .withFailureHandler(function (err) { mostrar(err.message, true); guardar.disabled = false; }).marcar(n, pin, "olvido", null, hora.value);
     };
-    box.append(el("h2", { textContent: nombre }),
-      el("p", { className: "warn", textContent: "Te olvidaste de marcar la salida del " + diaTxt(a.fecha) + " (entraste a las " + a.entrada + "). Poné tu PIN y la hora en que saliste." }),
-      pin, el("label", { className: "hint", htmlFor: "horaOlvido", textContent: "Hora de salida" }), hora, guardar, msg, volver);
-    $("sheet").hidden = false; pin.focus();
-    return;
+    hint = el("p", { className: "warn", textContent: "Te olvidaste de marcar la salida del " + diaTxt(a.fecha) + " (entraste a las " + a.entrada + "). Poné tu PIN y la hora en que saliste." });
+    acciones = el("div", { style: "display:grid;gap:10px" }, el("label", { className: "hint", htmlFor: "horaOlvido", textContent: "Hora de salida" }), hora, guardar);
+  } else {
+    var bin = el("button", { type: "button", className: "b-in", textContent: "Entré", disabled: !!a });
+    var bout = el("button", { type: "button", className: "b-out", textContent: "Salí", disabled: !a });
+    var enviar = function (tipo, btn) {
+      if (!pinOk()) return;
+      btn.disabled = true; mostrar("Guardando… (buscando tu ubicación)", false);
+      ubicacion(function (pos) {
+        google.script.run.withSuccessHandler(function (r) {
+          if (!r.ok) { mostrar(r.texto, true); btn.disabled = false; return; }
+          var partes = r.texto.split(". ");
+          exito(partes[0].replace("¡Listo " + n + "! ", ""), partes.slice(1).join(". "));
+        }).withFailureHandler(function (err) { mostrar(err.message, true); btn.disabled = false; }).marcar(n, pin, tipo, pos);
+      });
+    };
+    bin.onclick = function () { enviar("in", bin); };
+    bout.onclick = function () { enviar("out", bout); };
+    acciones = el("div", { className: "big" }, bin, bout);
   }
-  function mostrar(t, err) { msg.textContent = t; msg.className = "msg" + (err ? " err" : ""); msg.hidden = false; }
-  bin.onclick = () => enviar("in", bin);
-  bout.onclick = () => enviar("out", bout);
-  volver.onclick = cerrar;
-  ver.onclick = () => {
-    if (pin.value.length !== 4) { mostrar("Poné tu PIN de 4 números.", true); return; }
-    google.script.run.withSuccessHandler(r => {
-      tabla.textContent = "";
-      const t = el("table");
-      r.dias.forEach((d, i) => { const tr = t.insertRow(); tr.insertCell().textContent = DIAS[i] + " " + d.fecha.slice(8) + "/" + d.fecha.slice(5, 7);
-        tr.insertCell().textContent = d.turnos.join(", ") || "—"; tr.insertCell().textContent = d.horas ? hs(d.horas) : ""; });
-      const tr = t.insertRow(); tr.insertCell().textContent = "Total"; tr.insertCell(); tr.insertCell().textContent = hs(r.total);
-      tabla.append(t);
-    }).withFailureHandler(err => mostrar(err.message, true)).misHoras(nombre, pin.value);
+
+  var verHoras = el("button", { type: "button", className: "ghost", textContent: "Mis horas" });
+  var verAdel = el("button", { type: "button", className: "ghost", textContent: "Mis adelantos" });
+  verHoras.onclick = function () {
+    if (!pinOk()) return;
+    verHoras.disabled = true;
+    google.script.run.withSuccessHandler(function (r) {
+      verHoras.disabled = false; msg.hidden = true;
+      var t = el("table");
+      r.dias.forEach(function (d, i) {
+        var tr = t.insertRow();
+        tr.append(el("td", { className: "f", textContent: DIAS[i] + " " + d.fecha.slice(8) }), el("td", { textContent: d.turnos.join(", ") || "—" }), el("td", { className: "m", textContent: d.horas ? horasTxt(d.horas) : "" }));
+      });
+      var tr = t.insertRow(); tr.className = "tot";
+      tr.append(el("td"), el("td", { textContent: "Total de la semana" }), el("td", { className: "m", textContent: horasTxt(r.total) }));
+      zona.textContent = ""; zona.append(el("div", { className: "panel" }, el("h4", { textContent: "Mis horas · semana de sábado a viernes" }), t));
+    }).withFailureHandler(function (err) { verHoras.disabled = false; mostrar(err.message, true); }).misHoras(n, pin);
   };
-  box.append(el("h2", { textContent: nombre }),
-    el("p", { className: "hint", textContent: (estado.sinPin || []).includes(nombre)
-      ? "Primera vez: elegí 4 números que te acuerdes. Ese va a ser tu PIN de ahora en adelante."
-      : a ? "Entraste a las " + a.entrada + ". Poné tu PIN y tocá Salí." : "Poné tu PIN y tocá Entré." }),
-    pin, el("div", { className: "two" }, bin, bout), msg, ver, tabla, volver);
-  $("sheet").hidden = false; pin.focus();
+  verAdel.onclick = function () {
+    if (!pinOk()) return;
+    verAdel.disabled = true;
+    google.script.run.withSuccessHandler(function (r) {
+      verAdel.disabled = false; msg.hidden = true; zona.textContent = "";
+      if (!r.visible) { zona.append(el("div", { className: "panel" }, el("h4", { textContent: "Mis adelantos" }), el("p", { className: "hint", textContent: "Los adelantos de la semana todavía no están listos. Se publican los jueves a la noche." }))); return; }
+      if (r.error) { zona.append(el("div", { className: "panel" }, el("p", { className: "hint", textContent: r.error }))); return; }
+      var p = el("div", { className: "panel" }, el("h4", { textContent: r.semana }));
+      var bloque = function (titulo, filas) {
+        if (!filas.length) return;
+        p.append(el("h4", { textContent: titulo }));
+        var t = el("table");
+        filas.forEach(function (x) { var tr = t.insertRow(); tr.append(el("td", { className: "f", textContent: x.fecha }), el("td", { textContent: x.concepto }), el("td", { className: "m", textContent: plata(x.monto) })); });
+        p.append(t);
+      };
+      bloque("Efectivo", r.efectivo);
+      bloque("Consumos", r.consumos);
+      bloque("A favor", r.aFavor);
+      p.append(el("div", { className: "total" }, el("span", { textContent: "Total de la semana" }), el("b", { textContent: plata(r.total) })));
+      p.append(el("p", { className: "hint" }, "Precios completos en PDF: ", el("a", { href: r.listas, target: "_blank", rel: "noopener", textContent: "abrir carpeta" })));
+      zona.append(p);
+    }).withFailureHandler(function (err) { verAdel.disabled = false; mostrar(err.message, true); }).misAdelantos(n, pin);
+  };
+
+  var cerrarB = el("button", { type: "button", className: "close", textContent: "Cerrar" }); cerrarB.onclick = cerrar;
+  box.append(el("h3", { textContent: n }), hint, dots, teclas, acciones, msg, el("div", { className: "two" }, verHoras, verAdel), zona, cerrarB);
+  $("sheet").hidden = false;
 }
+
 /* Pide la ubicación solo al marcar. Si no hay permiso o tarda, marca igual sin ubicación. */
 function ubicacion(listo) {
-  let hecho = false; const fin = p => { if (!hecho) { hecho = true; listo(p); } };
-  setTimeout(() => fin(null), 9000);
+  var hecho = false;
+  function fin(p) { if (!hecho) { hecho = true; listo(p); } }
+  setTimeout(function () { fin(null); }, 9000);
   try {
     navigator.geolocation.getCurrentPosition(
-      p => fin({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }),
-      () => fin(null), { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+      function (p) { fin({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }); },
+      function () { fin(null); }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
   } catch (e) { fin(null); }
 }
+
+/* ---------- precios ---------- */
+function cargarPrecios() {
+  google.script.run.withSuccessHandler(function (r) { PRECIOS = r; $("linkPdf").href = r.listas; dibujarPrecios(); })
+    .withFailureHandler(function (err) { $("notaPrecios").textContent = "No se pudieron cargar los precios: " + err.message; }).precios();
+}
+function sinTildes(s) { return s.toLowerCase().replace(/[áä]/g, "a").replace(/[éë]/g, "e").replace(/[íï]/g, "i").replace(/[óö]/g, "o").replace(/[úü]/g, "u"); }
+function dibujarPrecios() {
+  if (!PRECIOS) return;
+  var lista = PRECIOS[vistaPrecio], q = sinTildes($("buscar").value.trim());
+  $("notaPrecios").textContent = lista.nota;
+  var box = $("listaPrecios"); box.textContent = "";
+  var ultimo = null, cuantos = 0;
+  lista.filas.forEach(function (f) {
+    if (q && sinTildes(f[0] + " " + f[1]).indexOf(q) < 0) return;
+    if (f[0] !== ultimo) { box.append(el("p", { className: "rubro", textContent: f[0] })); ultimo = f[0]; }
+    box.append(el("div", { className: "precio" }, el("span", { textContent: f[1] }), el("span", { textContent: f[2] })));
+    cuantos++;
+  });
+  if (!cuantos) box.append(el("p", { className: "hint", textContent: "No encontré nada con esa palabra." }));
+}
+$("segMerc").onclick = function () { vistaPrecio = "mercaderia"; $("segMerc").className = "on"; $("segPlatos").className = ""; dibujarPrecios(); };
+$("segPlatos").onclick = function () { vistaPrecio = "platos"; $("segPlatos").className = "on"; $("segMerc").className = ""; dibujarPrecios(); };
+$("buscar").addEventListener("input", dibujarPrecios);
+
 cargar(); setInterval(cargar, 60000);
 </script>
 </body>
