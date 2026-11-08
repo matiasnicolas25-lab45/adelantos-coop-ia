@@ -33,13 +33,33 @@ const PERSONAL_INICIAL = [
 
 /* ---------------- web app ---------------- */
 
-function doGet() {
+/** Funciones que la pantalla puede pedir desde afuera de Google (página de La Caleta). Son las mismas que usa google.script.run. */
+const API = { estado: estado, marcar: marcar, guardarCelular: guardarCelular, misHoras: misHoras, misAdelantos: misAdelantos, precios: precios };
+
+function doGet(e) {
+  if (e && e.parameter && e.parameter.pantalla) {   // la página de La Caleta pide la pantalla y la muestra ella misma
+    return ContentService.createTextOutput(PANTALLA).setMimeType(ContentService.MimeType.TEXT);
+  }
   const pagina = HtmlService.createHtmlOutput(PANTALLA)
     .setTitle("La Caleta")
     .addMetaTag("viewport", "width=device-width, initial-scale=1, maximum-scale=1")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   try { pagina.setFaviconUrl(ICONO); } catch (e) {}   // el ícono del celular; si falla, la app anda igual
   return pagina;
+}
+
+/** La pantalla, cuando vive en la página de La Caleta, manda acá cada pedido: {fn, args} → {ok, valor} o {ok:false, error}. */
+function doPost(e) {
+  let r;
+  try {
+    const q = JSON.parse(e.postData.contents);
+    const f = Object.prototype.hasOwnProperty.call(API, q.fn) ? API[q.fn] : null;
+    if (!f) throw new Error("Pedido desconocido.");
+    r = { ok: true, valor: f.apply(null, Array.isArray(q.args) ? q.args : []) };
+  } catch (err) {
+    r = { ok: false, error: String((err && err.message) || err) };
+  }
+  return ContentService.createTextOutput(JSON.stringify(r)).setMimeType(ContentService.MimeType.JSON);
 }
 
 /** Nombres y quién está adentro ahora (sin PIN ni valores). Se guarda 60 s; marcar lo borra. */
