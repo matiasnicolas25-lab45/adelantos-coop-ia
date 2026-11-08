@@ -179,7 +179,7 @@ function num(x) {
   return Number(s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s) || 0;
 }
 
-/** Listas de precios para socios (mercadería al costo y platos con el 25%). Se guarda 30 minutos. */
+/** Listas de precios para socios (mercadería al costo y platos con el 25%). Se guarda 5 minutos. */
 function precios() {
   const cache = CacheService.getScriptCache(), guardado = cache.get("precios");
   if (guardado) return JSON.parse(guardado);
@@ -189,7 +189,7 @@ function precios() {
     return { nota: String(d[1] && d[1][0] || ""), filas: d.slice(4).filter(r => r[1] && r[2]).map(r => [r[0], r[1], r[2]]) };
   };
   const out = { mercaderia: leer("Mercadería"), platos: leer("Platos"), listas: LISTAS_PDF };
-  try { cache.put("precios", JSON.stringify(out), 1800); } catch (e) {}
+  try { cache.put("precios", JSON.stringify(out), 300); } catch (e) {}
   return out;
 }
 
