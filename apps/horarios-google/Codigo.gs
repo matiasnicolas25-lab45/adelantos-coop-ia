@@ -226,8 +226,8 @@ function instalar() {
 
   const cfg = hoja("CONFIG");
   if (cfg.getLastRow() < 1) {
-    cfg.getRange(1, 1, 4, 2).setValues([["Dato", "Valor"], ["Latitud del club", -32.9508], ["Longitud del club", -60.6253], ["Radio en metros", 300]]);
-    cfg.getRange("D1").setValue("Ubicación de Av. Carlos Colombres 1296 (esquina Washington), aproximada. Para afinarla: marcar desde el club y copiar acá la 'Ubicación entrada' de esa fila de MARCAS.");
+    cfg.getRange(1, 1, 4, 2).setValues([["Dato", "Valor"], ["Latitud del club", -32.900235], ["Longitud del club", -60.681259], ["Radio en metros", 300]]);
+    cfg.getRange("D1").setValue("Ubicación tomada por Matías desde adentro del restaurante (08/11/2026), Av. Carlos Colombres 1296. Para cambiarla, poner acá otra latitud y longitud.");
   }
 
   const fer = hoja("FERIADOS");
