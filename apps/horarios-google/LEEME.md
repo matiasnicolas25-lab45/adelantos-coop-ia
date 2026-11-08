@@ -38,8 +38,10 @@ Planilla: "Horarios La Caleta" en la carpeta "La Caleta — Sistema" de Drive
 
 ## Página lacaleta.ycr.com.ar/app (WordPress)
 
-La página "App" está en el editor clásico: todo su contenido es el texto de `wordpress-app.html` (arregla el
-zoom y muestra el botón "¿No carga? Tocá acá para abrir la app" si Google falla a los 9 segundos).
+La página "App" (editor clásico, pestaña Código, plantilla "Lienzo de Elementor") tiene el texto de
+`wordpress-app.html`. La pantalla vive en la página de La Caleta: la pide a Google (`?pantalla=1`), la guarda en
+el celular y cada pedido (marcar, horas, precios…) va por `doPost`. Así el celular nunca entra a Google y no
+aparece el error de Drive de los que tienen varias cuentas de Google.
 
 ## Cambios en el código
 
