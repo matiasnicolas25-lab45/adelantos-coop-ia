@@ -181,7 +181,7 @@ function num(x) {
 
 /** Listas de precios para socios (mercadería al costo y platos con el 25%). Se guarda 5 minutos. */
 function precios() {
-  const cache = CacheService.getScriptCache(), guardado = cache.get("precios");
+  const cache = CacheService.getScriptCache(), guardado = cache.get("precios2");
   if (guardado) return JSON.parse(guardado);
   const ss = SpreadsheetApp.openById(PRECIOS_ID);
   const leer = nombre => {
@@ -189,7 +189,7 @@ function precios() {
     return { nota: String(d[1] && d[1][0] || ""), filas: d.slice(4).filter(r => r[1] && r[2]).map(r => [r[0], r[1], r[2]]) };
   };
   const out = { mercaderia: leer("Mercadería"), platos: leer("Platos"), listas: LISTAS_PDF };
-  try { cache.put("precios", JSON.stringify(out), 300); } catch (e) {}
+  try { cache.put("precios2", JSON.stringify(out), 300); } catch (e) {}
   return out;
 }
 
@@ -272,9 +272,15 @@ function activarAvisos() {
   const cfg = libro().getSheetByName("CONFIG");
   if (!cfg.getRange("B6").getValue()) cfg.getRange("A6:B6").setValues([["Hora del mail de avisos (0 a 23)", 7]]);
   const horaMail = Math.min(23, Math.max(0, Math.round(Number(cfg.getRange("B6").getValue()) || 7)));
-  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === "avisoDiario").forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.getProjectTriggers().filter(t => ["avisoDiario", "mantenerDespierta"].indexOf(t.getHandlerFunction()) >= 0).forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger("avisoDiario").timeBased().everyDays(1).atHour(horaMail).inTimezone(ZONA).create();
+  ScriptApp.newTrigger("mantenerDespierta").timeBased().everyMinutes(10).create();
   avisoDiario(true);
+}
+
+/** Cada 10 minutos: deja calientes la app y sus memorias, así abre más rápido. */
+function mantenerDespierta() {
+  try { CacheService.getScriptCache().remove("estado"); estado(); precios(); } catch (e) {}
 }
 
 /** Una entrada sin salida es un olvido si es de un día anterior y ya pasó la hora de corte, o si lleva más de 20 horas. */
@@ -579,8 +585,7 @@ const PANTALLA = `<!DOCTYPE html>
   .precio .nom b { background: var(--warn-bg); color: var(--ink); border-radius: 3px; }
   .precio .tag { grid-column: 1; font-size: 12px; color: var(--muted); }
   .precio { cursor: pointer; border-radius: 10px; }
-  .precio.elegido { background: var(--card); outline: 2px solid var(--ink); padding: 12px 10px; margin: 4px -10px; }
-  .precio.elegido .val { font-size: 22px; }
+  .precio.elegido { box-shadow: inset 4px 0 0 var(--ink); background: var(--card); padding-left: 10px; }
   .busca.escribiendo #rubros { display: none; }
   .busca.compacta #tipos, .busca.compacta #rubros, .busca.compacta .cuenta { display: none; }
   #listaPrecios { scroll-margin-top: 80px; }
@@ -856,9 +861,9 @@ function usarPrecios(r) {
   PRECIOS = r; $("linkPdf").href = r.listas; armarIndice(); dibujarRubros(); dibujarPrecios();
 }
 function cargarPrecios() {
-  var guardado = leerLocal("lc_precios");
+  var guardado = leerLocal("lc_precios2");
   if (guardado && !PRECIOS) usarPrecios(guardado);
-  google.script.run.withSuccessHandler(function (r) { guardarLocal("lc_precios", r); usarPrecios(r); })
+  google.script.run.withSuccessHandler(function (r) { guardarLocal("lc_precios2", r); usarPrecios(r); })
     .withFailureHandler(function (err) { if (!PRECIOS) $("notaPrecios").textContent = "No se pudieron cargar los precios: " + err.message; }).precios();
 }
 function dibujarRubros() {
@@ -911,7 +916,7 @@ function dibujarPrecios() {
       $("buscar").blur();
       Array.prototype.forEach.call(box.querySelectorAll(".elegido"), function (o) { o.classList.remove("elegido"); });
       fila.classList.add("elegido");
-      setTimeout(function () { fila.scrollIntoView({ behavior: "smooth", block: "center" }); }, 250);
+      setTimeout(function () { fila.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, 300);
     };
     box.append(fila);
   });
@@ -941,6 +946,7 @@ Array.prototype.forEach.call($("tipos").children, function (b) {
 });
 
 /* Arranque: se muestra al instante lo último guardado en este celular y después se actualiza. */
+try { localStorage.removeItem("lc_precios"); } catch (e) {}
 (function () { var e = leerLocal("lc_estado"); if (e && e.personas) { estado = e; dibujar(); } })();
 cargar(); setInterval(cargar, 60000);
 </script>

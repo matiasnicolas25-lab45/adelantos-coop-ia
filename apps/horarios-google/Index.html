@@ -100,8 +100,7 @@
   .precio .nom b { background: var(--warn-bg); color: var(--ink); border-radius: 3px; }
   .precio .tag { grid-column: 1; font-size: 12px; color: var(--muted); }
   .precio { cursor: pointer; border-radius: 10px; }
-  .precio.elegido { background: var(--card); outline: 2px solid var(--ink); padding: 12px 10px; margin: 4px -10px; }
-  .precio.elegido .val { font-size: 22px; }
+  .precio.elegido { box-shadow: inset 4px 0 0 var(--ink); background: var(--card); padding-left: 10px; }
   .busca.escribiendo #rubros { display: none; }
   .busca.compacta #tipos, .busca.compacta #rubros, .busca.compacta .cuenta { display: none; }
   #listaPrecios { scroll-margin-top: 80px; }
@@ -377,9 +376,9 @@ function usarPrecios(r) {
   PRECIOS = r; $("linkPdf").href = r.listas; armarIndice(); dibujarRubros(); dibujarPrecios();
 }
 function cargarPrecios() {
-  var guardado = leerLocal("lc_precios");
+  var guardado = leerLocal("lc_precios2");
   if (guardado && !PRECIOS) usarPrecios(guardado);
-  google.script.run.withSuccessHandler(function (r) { guardarLocal("lc_precios", r); usarPrecios(r); })
+  google.script.run.withSuccessHandler(function (r) { guardarLocal("lc_precios2", r); usarPrecios(r); })
     .withFailureHandler(function (err) { if (!PRECIOS) $("notaPrecios").textContent = "No se pudieron cargar los precios: " + err.message; }).precios();
 }
 function dibujarRubros() {
@@ -432,7 +431,7 @@ function dibujarPrecios() {
       $("buscar").blur();
       Array.prototype.forEach.call(box.querySelectorAll(".elegido"), function (o) { o.classList.remove("elegido"); });
       fila.classList.add("elegido");
-      setTimeout(function () { fila.scrollIntoView({ behavior: "smooth", block: "center" }); }, 250);
+      setTimeout(function () { fila.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, 300);
     };
     box.append(fila);
   });
@@ -462,6 +461,7 @@ Array.prototype.forEach.call($("tipos").children, function (b) {
 });
 
 /* Arranque: se muestra al instante lo último guardado en este celular y después se actualiza. */
+try { localStorage.removeItem("lc_precios"); } catch (e) {}
 (function () { var e = leerLocal("lc_estado"); if (e && e.personas) { estado = e; dibujar(); } })();
 cargar(); setInterval(cargar, 60000);
 </script>
