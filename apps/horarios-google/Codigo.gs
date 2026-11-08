@@ -93,7 +93,7 @@ function donde(pos) {
   const [lat, lon, radio] = c;
   const m = metros(lat, lon, pos.lat, pos.lon);
   const dist = m < 1000 ? Math.round(m) + " m" : (m / 1000).toFixed(1).replace(".", ",") + " km";
-  const adentro = m <= radio + Math.min(pos.acc || 0, 500);
+  const adentro = m <= radio + Math.min(pos.acc || 0, 50);
   return { texto: (adentro ? "SÍ" : "NO") + " (" + dist + ")", coord: pos.lat.toFixed(6) + ", " + pos.lon.toFixed(6),
     aviso: adentro ? "" : " Ojo: no parece que estés en el club (" + dist + "). La marca quedó guardada para que Matías la revise." };
 }
@@ -226,7 +226,7 @@ function instalar() {
 
   const cfg = hoja("CONFIG");
   if (cfg.getLastRow() < 1) {
-    cfg.getRange(1, 1, 4, 2).setValues([["Dato", "Valor"], ["Latitud del club", -32.900235], ["Longitud del club", -60.681259], ["Radio en metros", 300]]);
+    cfg.getRange(1, 1, 4, 2).setValues([["Dato", "Valor"], ["Latitud del club", -32.900235], ["Longitud del club", -60.681259], ["Radio en metros", 150]]);
     cfg.getRange("D1").setValue("Ubicación tomada por Matías desde adentro del restaurante (08/11/2026), Av. Carlos Colombres 1296. Para cambiarla, poner acá otra latitud y longitud.");
   }
 
