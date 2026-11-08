@@ -6,6 +6,7 @@
  * a viernes con horas, valor hora, feriados y propina proporcional a las horas.
  *
  * Instalación (una sola vez): ver LEEME.md en esta misma carpeta.
+ * La pantalla (Index.html) va adentro de este archivo, en PANTALLA, al final: no hace falta otro archivo.
  */
 
 const ZONA = "America/Argentina/Buenos_Aires";
@@ -20,7 +21,7 @@ const PERSONAL_INICIAL = [
 /* ---------------- web app ---------------- */
 
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile("Index")
+  return HtmlService.createHtmlOutput(PANTALLA)
     .setTitle("Horarios La Caleta")
     .addMetaTag("viewport", "width=device-width, initial-scale=1")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -301,3 +302,135 @@ function armarSemana(sh) {
   sh.setFrozenRows(3);
   sh.setFrozenColumns(1);
 }
+
+/* ---------------- pantalla (copia de Index.html) ---------------- */
+
+const PANTALLA = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horarios La Caleta</title>
+<style>
+  :root { --paper:#f3f5f7; --card:#fff; --ink:#14213a; --muted:#5b6577; --line:#d5dbe3; --navy:#1d3a66; --in:#1f7a4d; --in-bg:#e3f3ea; --out:#a33a2c; --ochre:#b8741a; }
+  @media (prefers-color-scheme: dark) { :root { --paper:#0f1522; --card:#172033; --ink:#e8edf5; --muted:#9aa6b8; --line:#2a3550; --navy:#7fa6e0; --in:#5fd39a; --in-bg:#16342a; --out:#ef8c7d; --ochre:#e0a24f; color-scheme: dark; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.4 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 18px 16px 40px; display: grid; gap: 16px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h1 { margin: 0; font-size: 24px; }
+  .clock { font-size: 30px; font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; }
+  .hint { color: var(--muted); margin: 0; }
+  .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .person { text-align: left; font: 600 16px inherit; font-family: inherit; padding: 12px; min-height: 60px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); cursor: pointer; }
+  .person small { display: block; font-weight: 500; font-size: 12px; color: var(--muted); }
+  .person.inside { border-color: var(--in); background: var(--in-bg); }
+  .person.inside small { color: var(--in); }
+  .sheet { position: fixed; inset: 0; background: rgba(10,15,25,.5); display: grid; place-items: end center; }
+  .box { background: var(--card); width: min(480px, 100%); border-radius: 16px 16px 0 0; padding: 20px 16px 28px; display: grid; gap: 14px; max-height: 92vh; overflow: auto; }
+  @media (min-width: 600px) { .sheet { place-items: center; } .box { border-radius: 16px; } }
+  .box h2 { margin: 0; font-size: 22px; }
+  input { font-size: 28px; letter-spacing: .4em; text-align: center; padding: 10px; border: 1px solid var(--line); border-radius: 10px; width: 100%; background: var(--paper); color: var(--ink); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn { font: 700 18px inherit; font-family: inherit; padding: 16px; border: 0; border-radius: 12px; cursor: pointer; color: #fff; }
+  .in { background: var(--in); } .out { background: var(--out); }
+  .plain { font: 600 15px inherit; font-family: inherit; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--ink); cursor: pointer; }
+  .btn:disabled, .plain:disabled { opacity: .4; }
+  .msg { padding: 12px; border-radius: 10px; background: var(--in-bg); font-weight: 600; }
+  .msg.err { background: #fbe4e1; color: #7a1f14; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  td { padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td:last-child { text-align: right; font-weight: 700; }
+  :focus-visible { outline: 3px solid var(--ochre); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>Horarios La Caleta</h1><div class="clock" id="clock">--:--</div></header>
+  <p class="hint" id="hint">Cargando…</p>
+  <div class="people" id="people"></div>
+</div>
+<div class="sheet" id="sheet" hidden><div class="box" id="box"></div></div>
+
+<script>
+const DIAS = ["Sáb", "Dom", "Lun", "Mar", "Mié", "Jue", "Vie"];
+let estado = { personas: [], abiertos: {} };
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, "0");
+function tick() { const d = new Date(); $("clock").textContent = pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+tick(); setInterval(tick, 15000);
+function hs(h) { const m = Math.round(h * 60); return Math.floor(m / 60) + ":" + pad(m % 60); }
+function el(tag, props, ...kids) { const e = document.createElement(tag); Object.assign(e, props || {}); e.append(...kids); return e; }
+
+function cargar() {
+  google.script.run.withSuccessHandler(e => { estado = e; dibujar(); })
+    .withFailureHandler(err => { $("hint").textContent = "No se pudo cargar: " + err.message; }).estado();
+}
+function dibujar() {
+  $("hint").textContent = "Tocá tu nombre para marcar entrada o salida.";
+  const box = $("people"); box.textContent = "";
+  for (const n of estado.personas) {
+    const a = estado.abiertos[n];
+    const b = el("button", { className: "person" + (a ? " inside" : ""), type: "button" }, n,
+      el("small", { textContent: a ? "Adentro desde las " + a.entrada : "Afuera" }));
+    b.onclick = () => abrir(n); box.append(b);
+  }
+}
+function cerrar() { $("sheet").hidden = true; $("box").textContent = ""; cargar(); }
+$("sheet").addEventListener("click", e => { if (e.target.id === "sheet") cerrar(); });
+
+function abrir(nombre) {
+  const a = estado.abiertos[nombre], box = $("box"); box.textContent = "";
+  const pin = el("input", { type: "password", inputMode: "numeric", maxLength: 4, autocomplete: "off", id: "pin", placeholder: "PIN" });
+  const msg = el("div", { className: "msg", hidden: true });
+  const bin = el("button", { className: "btn in", type: "button", textContent: "Entré", disabled: !!a });
+  const bout = el("button", { className: "btn out", type: "button", textContent: "Salí", disabled: !a });
+  const ver = el("button", { className: "plain", type: "button", textContent: "Ver mis horas de la semana" });
+  const volver = el("button", { className: "plain", type: "button", textContent: "Cerrar" });
+  const tabla = el("div");
+  function enviar(tipo, btn) {
+    if (pin.value.length !== 4) { mostrar("Poné tu PIN de 4 números.", true); return; }
+    btn.disabled = true; mostrar("Buscando tu ubicación…", false);
+    ubicacion(pos => {
+      google.script.run.withSuccessHandler(r => { mostrar(r.texto, !r.ok); if (r.ok) setTimeout(cerrar, /Ojo|PIN/.test(r.texto) ? 6000 : 1800); else btn.disabled = false; })
+        .withFailureHandler(err => { mostrar(err.message, true); btn.disabled = false; }).marcar(nombre, pin.value, tipo, pos);
+    });
+  }
+  function mostrar(t, err) { msg.textContent = t; msg.className = "msg" + (err ? " err" : ""); msg.hidden = false; }
+  bin.onclick = () => enviar("in", bin);
+  bout.onclick = () => enviar("out", bout);
+  volver.onclick = cerrar;
+  ver.onclick = () => {
+    if (pin.value.length !== 4) { mostrar("Poné tu PIN de 4 números.", true); return; }
+    google.script.run.withSuccessHandler(r => {
+      tabla.textContent = "";
+      const t = el("table");
+      r.dias.forEach((d, i) => { const tr = t.insertRow(); tr.insertCell().textContent = DIAS[i] + " " + d.fecha.slice(8) + "/" + d.fecha.slice(5, 7);
+        tr.insertCell().textContent = d.turnos.join(", ") || "—"; tr.insertCell().textContent = d.horas ? hs(d.horas) : ""; });
+      const tr = t.insertRow(); tr.insertCell().textContent = "Total"; tr.insertCell(); tr.insertCell().textContent = hs(r.total);
+      tabla.append(t);
+    }).withFailureHandler(err => mostrar(err.message, true)).misHoras(nombre, pin.value);
+  };
+  box.append(el("h2", { textContent: nombre }),
+    el("p", { className: "hint", textContent: (estado.sinPin || []).includes(nombre)
+      ? "Primera vez: elegí 4 números que te acuerdes. Ese va a ser tu PIN de ahora en adelante."
+      : a ? "Entraste a las " + a.entrada + ". Poné tu PIN y tocá Salí." : "Poné tu PIN y tocá Entré." }),
+    pin, el("div", { className: "two" }, bin, bout), msg, ver, tabla, volver);
+  $("sheet").hidden = false; pin.focus();
+}
+/* Pide la ubicación solo al marcar. Si no hay permiso o tarda, marca igual sin ubicación. */
+function ubicacion(listo) {
+  let hecho = false; const fin = p => { if (!hecho) { hecho = true; listo(p); } };
+  setTimeout(() => fin(null), 9000);
+  try {
+    navigator.geolocation.getCurrentPosition(
+      p => fin({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }),
+      () => fin(null), { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+  } catch (e) { fin(null); }
+}
+cargar(); setInterval(cargar, 60000);
+</script>
+</body>
+</html>
+`;
