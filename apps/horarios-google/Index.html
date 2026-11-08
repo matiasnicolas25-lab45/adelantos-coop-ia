@@ -234,13 +234,26 @@ function abrir(n) {
     acciones = el("div", { style: "display:grid;gap:10px" }, el("label", { className: "hint", htmlFor: "horaOlvido", textContent: "Hora de salida" }), hora, guardar);
   } else {
     var pideCel = (estado.sinCel || []).indexOf(n) >= 0;
-    var cel = el("input", { type: "tel", id: "cel", placeholder: "Ej: 341 5123456", inputMode: "numeric", autocomplete: "tel" });
+    var cel = el("input", { type: "tel", id: "cel", placeholder: "Ej: 341 5123456", inputMode: "numeric", autocomplete: "tel", enterKeyHint: "done" });
+    var guardarCel = el("button", { type: "button", className: "solo", textContent: "Guardar celular", style: "background:var(--info);color:var(--info-ink)" });
+    guardarCel.onclick = function () {
+      if (!pinOk()) return;
+      var numero = cel.value.replace(/[^0-9]/g, "");
+      if (numero.length !== 10) { mostrar("Tienen que ser 10 números: código de área sin 0 y el número sin 15 (ej. 341 5123456).", true); return; }
+      guardarCel.disabled = true;
+      google.script.run.withSuccessHandler(function (r) {
+        mostrar(r.texto, !r.ok);
+        if (r.ok) { pideCel = false; cajaCel.hidden = true; estado.sinCel = (estado.sinCel || []).filter(function (x) { return x !== n; }); estado.sinPin = (estado.sinPin || []).filter(function (x) { return x !== n; }); }
+        else guardarCel.disabled = false;
+      }).withFailureHandler(function (err) { mostrar(err.message, true); guardarCel.disabled = false; }).guardarCelular(n, pin, numero);
+    };
+    cel.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); cel.blur(); guardarCel.click(); } });
     var bin = el("button", { type: "button", className: "b-in", textContent: "Entré", disabled: !!a });
     var bout = el("button", { type: "button", className: "b-out", textContent: "Salí", disabled: !a });
     var enviar = function (tipo, btn) {
       if (!pinOk()) return;
       var numero = cel.value.replace(/[^0-9]/g, "");
-      if (pideCel && numero.length !== 10) { mostrar("Poné tu celular: código de área sin 0 y el número sin 15 (10 números en total, ej. 341 5123456).", true); return; }
+      if (pideCel && numero.length !== 10) { mostrar("Primero poné tu celular y tocá Guardar celular.", true); return; }
       btn.disabled = true; mostrar("Guardando… (buscando tu ubicación)", false);
       ubicacion(function (pos) {
         google.script.run.withSuccessHandler(function (r) {
@@ -253,8 +266,9 @@ function abrir(n) {
     bin.onclick = function () { enviar("in", bin); };
     bout.onclick = function () { enviar("out", bout); };
     acciones = el("div", { className: "big" }, bin, bout);
-    if (pideCel) acciones = el("div", { style: "display:grid;gap:10px" },
-      el("label", { className: "hint", htmlFor: "cel", textContent: "Tu celular (una sola vez), para avisarte por WhatsApp si te olvidás de marcar:" }), cel, acciones);
+    var cajaCel = el("div", { style: "display:grid;gap:10px" },
+      el("label", { className: "hint", htmlFor: "cel", textContent: "Primero poné tu PIN y tu celular (una sola vez), para avisarte por WhatsApp si te olvidás de marcar:" }), cel, guardarCel);
+    if (pideCel) acciones = el("div", { style: "display:grid;gap:14px" }, cajaCel, acciones);
   }
 
   var verHoras = el("button", { type: "button", textContent: "🕒 Mis horas" });
