@@ -582,6 +582,8 @@ const PANTALLA = `<!DOCTYPE html>
   .precio.elegido { background: var(--card); outline: 2px solid var(--ink); padding: 12px 10px; margin: 4px -10px; }
   .precio.elegido .val { font-size: 22px; }
   .busca.escribiendo #rubros { display: none; }
+  .busca.compacta #tipos, .busca.compacta #rubros, .busca.compacta .cuenta { display: none; }
+  #listaPrecios { scroll-margin-top: 80px; }
   .precio .val { grid-row: 1 / span 2; grid-column: 2; white-space: nowrap; font: 600 17px var(--f-body); font-variant-numeric: tabular-nums; }
 </style>
 </head>
@@ -919,11 +921,17 @@ function dibujarPrecios() {
 var esperaBusqueda = null;
 $("buscar").addEventListener("input", function () { clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(dibujarPrecios, 120); });
 /* El teclado del celular tapa los resultados: se esconde al tocar Buscar o al deslizar la lista. */
-$("buscar").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("buscar").blur(); } });
-$("buscar").addEventListener("focus", function () { $("vistaPrecios").querySelector(".busca").classList.add("escribiendo"); });
-$("buscar").addEventListener("blur", function () { $("vistaPrecios").querySelector(".busca").classList.remove("escribiendo"); });
+function caja() { return $("vistaPrecios").querySelector(".busca"); }
+function irAResultados() {
+  clearTimeout(esperaBusqueda); dibujarPrecios(); $("buscar").blur();
+  setTimeout(function () { $("listaPrecios").scrollIntoView({ behavior: "smooth", block: "start" }); }, 300);
+}
+$("buscar").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); irAResultados(); } });
+$("buscar").addEventListener("search", irAResultados);
+$("buscar").addEventListener("focus", function () { caja().classList.add("escribiendo"); caja().classList.remove("compacta"); });
+$("buscar").addEventListener("blur", function () { caja().classList.remove("escribiendo"); caja().classList.toggle("compacta", !!$("buscar").value.trim()); });
 $("listaPrecios").addEventListener("touchstart", function () { if (document.activeElement === $("buscar")) $("buscar").blur(); }, { passive: true });
-$("limpiar").onclick = function () { $("buscar").value = ""; dibujarPrecios(); $("buscar").focus(); };
+$("limpiar").onclick = function () { caja().classList.remove("compacta"); $("buscar").value = ""; dibujarPrecios(); $("buscar").focus(); };
 Array.prototype.forEach.call($("tipos").children, function (b) {
   b.onclick = function () {
     tipoPrecio = b.getAttribute("data-tipo"); rubroPrecio = "";
