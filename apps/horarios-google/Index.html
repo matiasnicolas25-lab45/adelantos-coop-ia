@@ -68,7 +68,7 @@
   .msg { padding: 12px; border-radius: 12px; background: var(--in-bg); font-weight: 600; }
   .msg.err { background: var(--warn-bg); color: var(--ink); border: 1px solid var(--warn); }
   .warn { padding: 12px; border-radius: 12px; border: 1px solid var(--warn); background: var(--warn-bg); margin: 0; }
-  input[type=time], input[type=search] { font: 500 18px var(--f-body); padding: 12px; border: 1px solid var(--line); border-radius: 12px; width: 100%; background: var(--paper); color: var(--ink); }
+  input[type=time], input[type=search], input[type=tel] { font: 500 18px var(--f-body); padding: 12px; border: 1px solid var(--line); border-radius: 12px; width: 100%; background: var(--paper); color: var(--ink); }
   .ok { display: grid; justify-items: center; gap: 10px; padding: 18px 0 6px; text-align: center; }
   .ok .tick { width: 84px; height: 84px; border-radius: 50%; background: var(--in); color: #fff; display: grid; place-items: center; font-size: 46px; }
   .ok p { margin: 0; font: 21px var(--f-display); }
@@ -132,7 +132,7 @@
 
 <script>
 var DIAS = ["Sáb", "Dom", "Lun", "Mar", "Mié", "Jue", "Vie"];
-var estado = { personas: [], abiertos: {}, sinPin: [] };
+var estado = { personas: [], abiertos: {}, sinPin: [], sinCel: [] };
 var PRECIOS = null, vistaPrecio = "mercaderia";
 function $(id) { return document.getElementById(id); }
 function pad2(n) { return String(n).padStart(2, "0"); }
@@ -233,22 +233,28 @@ function abrir(n) {
     hint = el("p", { className: "warn", textContent: "Te olvidaste de marcar la salida del " + diaTxt(a.fecha) + " (entraste a las " + a.entrada + "). Poné tu PIN y la hora en que saliste." });
     acciones = el("div", { style: "display:grid;gap:10px" }, el("label", { className: "hint", htmlFor: "horaOlvido", textContent: "Hora de salida" }), hora, guardar);
   } else {
+    var pideCel = (estado.sinCel || []).indexOf(n) >= 0;
+    var cel = el("input", { type: "tel", id: "cel", placeholder: "Ej: 341 5123456", inputMode: "numeric", autocomplete: "tel" });
     var bin = el("button", { type: "button", className: "b-in", textContent: "Entré", disabled: !!a });
     var bout = el("button", { type: "button", className: "b-out", textContent: "Salí", disabled: !a });
     var enviar = function (tipo, btn) {
       if (!pinOk()) return;
+      var numero = cel.value.replace(/[^0-9]/g, "");
+      if (pideCel && numero.length !== 10) { mostrar("Poné tu celular: código de área sin 0 y el número sin 15 (10 números en total, ej. 341 5123456).", true); return; }
       btn.disabled = true; mostrar("Guardando… (buscando tu ubicación)", false);
       ubicacion(function (pos) {
         google.script.run.withSuccessHandler(function (r) {
           if (!r.ok) { mostrar(r.texto, true); btn.disabled = false; return; }
           var partes = r.texto.split(". ");
           exito(partes[0].replace("¡Listo " + n + "! ", ""), partes.slice(1).join(". "));
-        }).withFailureHandler(function (err) { mostrar(err.message, true); btn.disabled = false; }).marcar(n, pin, tipo, pos);
+        }).withFailureHandler(function (err) { mostrar(err.message, true); btn.disabled = false; }).marcar(n, pin, tipo, pos, null, pideCel ? numero : "");
       });
     };
     bin.onclick = function () { enviar("in", bin); };
     bout.onclick = function () { enviar("out", bout); };
     acciones = el("div", { className: "big" }, bin, bout);
+    if (pideCel) acciones = el("div", { style: "display:grid;gap:10px" },
+      el("label", { className: "hint", htmlFor: "cel", textContent: "Tu celular (una sola vez), para avisarte por WhatsApp si te olvidás de marcar:" }), cel, acciones);
   }
 
   var verHoras = el("button", { type: "button", textContent: "🕒 Mis horas" });

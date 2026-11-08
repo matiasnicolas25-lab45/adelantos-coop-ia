@@ -45,15 +45,20 @@ function doGet() {
 function estado() {
   const activos = leerPersonal().filter(p => p.activo);
   const personas = activos.map(p => p.nombre), sinPin = activos.filter(p => !p.pin).map(p => p.nombre);
+  const sinCel = activos.filter(p => !p.cel).map(p => p.nombre);
   const abiertos = {};
   for (const m of leerMarcas()) if (!m.salida) abiertos[m.nombre] = { fecha: m.fecha, entrada: m.entrada };
-  return { personas, sinPin, abiertos, ahora: hora(new Date()), hoy: fecha(new Date()) };
+  return { personas, sinPin, sinCel, abiertos, ahora: hora(new Date()), hoy: fecha(new Date()) };
 }
 
 /** Marca entrada ("in"), salida ("out") o una salida olvidada ("olvido", con `horaOlvido` = "HH:MM").
  * `pos` = {lat, lon, acc} del celular o null. */
-function marcar(nombre, pin, tipo, pos, horaOlvido) {
+function marcar(nombre, pin, tipo, pos, horaOlvido, cel) {
   const p = validar(nombre, pin);
+  if (cel && !p.cel) {
+    const n = String(cel).replace(/\D/g, "");
+    if (n.length === 10) libro().getSheetByName("PERSONAL").getRange(p.fila, 5).setValue("'" + n);
+  }
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
@@ -187,7 +192,8 @@ function libro() { return SpreadsheetApp.getActiveSpreadsheet(); }
 
 function leerPersonal() {
   const v = libro().getSheetByName("PERSONAL").getDataRange().getDisplayValues().slice(1);
-  return v.map((r, i) => ({ fila: i + 2, nombre: r[0].trim(), pin: String(r[1]).trim(), activo: r[3].trim().toUpperCase() !== "NO" }))
+  return v.map((r, i) => ({ fila: i + 2, nombre: r[0].trim(), pin: String(r[1]).trim(), activo: r[3].trim().toUpperCase() !== "NO",
+    cel: String(r[4] || "").replace(/\D/g, "") }))
     .filter(p => p.nombre);
 }
 
@@ -227,6 +233,59 @@ function duracion(a, b) {
   let x = m(b) - m(a);
   if (x < 0) x += 1440;
   return x / 60;
+}
+
+/* ---------------- aviso diario por mail ---------------- */
+
+/** Correr una sola vez (Ejecutar → activarAvisos): manda avisoDiario todos los días entre las 9 y las 10. */
+function activarAvisos() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === "avisoDiario").forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger("avisoDiario").timeBased().everyDays(1).atHour(9).inTimezone(ZONA).create();
+  avisoDiario(true);
+}
+
+/** Mail a Matías con olvidos de salida y marcas de afuera del club, con botones de WhatsApp para avisar a cada socio. */
+function avisoDiario(prueba) {
+  const personal = {};
+  leerPersonal().forEach(p => personal[p.nombre] = p);
+  const v = libro().getSheetByName("MARCAS").getDataRange().getDisplayValues();
+  const ayer = fecha(new Date(Date.now() - 86400000)), ahora = Date.now();
+  const olvidos = [], afuera = [], cargadas = [];
+  for (let i = 1; i < v.length; i++) {
+    const [f, nombre, entrada, salida, , origen, , lugarIn, lugarOut] = v[i];
+    if (!nombre) continue;
+    const inicio = new Date(f + "T" + entrada + ":00-03:00").getTime();
+    if (!salida && ahora - inicio > 14 * 3600000) olvidos.push({ nombre, f, entrada });
+    if (f === ayer && (/^NO/.test(lugarIn) || /^NO/.test(lugarOut))) afuera.push({ nombre, f, entrada, salida, lugar: /^NO/.test(lugarIn) ? lugarIn : lugarOut });
+    if (/^olvido/.test(origen) && origen.indexOf(Utilities.formatDate(new Date(Date.now() - 86400000), ZONA, "dd/MM")) >= 0) cargadas.push({ nombre, f, entrada, salida });
+  }
+  if (!olvidos.length && !afuera.length && !cargadas.length && !prueba) return;
+  const dia = f => f.slice(8) + "/" + f.slice(5, 7);
+  const wa = (nombre, texto) => {
+    const c = (personal[nombre] || {}).cel;
+    return c ? ' <a href="https://wa.me/549' + c + '?text=' + encodeURIComponent(texto) + '" style="background:#25d366;color:#fff;padding:4px 10px;border-radius:6px;text-decoration:none">Avisar por WhatsApp</a>'
+             : ' <span style="color:#888">(sin celular cargado)</span>';
+  };
+  let html = "<div style='font-family:Arial,sans-serif;font-size:15px'><h2 style='font-weight:normal'>La Caleta · Horarios</h2>";
+  if (olvidos.length) {
+    html += "<h3>Se olvidaron de marcar la salida</h3><ul>";
+    olvidos.forEach(o => html += "<li style='margin:8px 0'><b>" + o.nombre + "</b>: entró el " + dia(o.f) + " a las " + o.entrada + "." +
+      wa(o.nombre, "Hola " + o.nombre + " 👋 el " + dia(o.f) + " te olvidaste de marcar la salida en la app de La Caleta. Entrá a lacaleta.ycr.com.ar/app, tocá tu nombre y cargá a qué hora saliste 🙏") + "</li>");
+    html += "</ul>";
+  }
+  if (cargadas.length) {
+    html += "<h3>Salidas olvidadas que cargaron ellos (revisar)</h3><ul>";
+    cargadas.forEach(o => html += "<li><b>" + o.nombre + "</b>: " + dia(o.f) + " de " + o.entrada + " a " + o.salida + "</li>");
+    html += "</ul>";
+  }
+  if (afuera.length) {
+    html += "<h3>Marcaron desde afuera del club (ayer)</h3><ul>";
+    afuera.forEach(o => html += "<li><b>" + o.nombre + "</b>: " + o.entrada + " a " + (o.salida || "…") + " · " + o.lugar + "</li>");
+    html += "</ul>";
+  }
+  if (!olvidos.length && !afuera.length && !cargadas.length) html += "<p>Prueba: los avisos quedaron activados. Todos los días a las 9 te llega este mail si hay algo para revisar.</p>";
+  html += "<p style='color:#888;font-size:13px'>Planilla: " + libro().getUrl() + "</p></div>";
+  MailApp.sendEmail(Session.getEffectiveUser().getEmail(), (prueba ? "Prueba · " : "") + "La Caleta · avisos de horarios", "Abrí este mail en un programa que muestre HTML.", { htmlBody: html, name: "La Caleta" });
 }
 
 /* ---------------- liquidación ---------------- */
@@ -295,7 +354,7 @@ function instalar() {
 
   const per = hoja("PERSONAL");
   if (per.getLastRow() < 2) {
-    per.getRange(1, 1, 1, 4).setValues([["Nombre", "PIN", "Valor hora", "Activo"]]);
+    per.getRange(1, 1, 1, 5).setValues([["Nombre", "PIN", "Valor hora", "Activo", "Celular"]]);
     per.getRange(2, 1, PERSONAL_INICIAL.length, 4).setValues(PERSONAL_INICIAL.map(([n, v]) => [n, "", v, "SÍ"]));
     per.getRange("F1").setValue("Valores de la hora: básica + antigüedad 09/26. Para dar de baja a alguien, poné NO en Activo. PIN vacío = la persona lo elige la primera vez que usa la app; para que elija uno nuevo, borrá su PIN.");
   }
@@ -449,7 +508,7 @@ const PANTALLA = `<!DOCTYPE html>
   .msg { padding: 12px; border-radius: 12px; background: var(--in-bg); font-weight: 600; }
   .msg.err { background: var(--warn-bg); color: var(--ink); border: 1px solid var(--warn); }
   .warn { padding: 12px; border-radius: 12px; border: 1px solid var(--warn); background: var(--warn-bg); margin: 0; }
-  input[type=time], input[type=search] { font: 500 18px var(--f-body); padding: 12px; border: 1px solid var(--line); border-radius: 12px; width: 100%; background: var(--paper); color: var(--ink); }
+  input[type=time], input[type=search], input[type=tel] { font: 500 18px var(--f-body); padding: 12px; border: 1px solid var(--line); border-radius: 12px; width: 100%; background: var(--paper); color: var(--ink); }
   .ok { display: grid; justify-items: center; gap: 10px; padding: 18px 0 6px; text-align: center; }
   .ok .tick { width: 84px; height: 84px; border-radius: 50%; background: var(--in); color: #fff; display: grid; place-items: center; font-size: 46px; }
   .ok p { margin: 0; font: 21px var(--f-display); }
@@ -513,7 +572,7 @@ const PANTALLA = `<!DOCTYPE html>
 
 <script>
 var DIAS = ["Sáb", "Dom", "Lun", "Mar", "Mié", "Jue", "Vie"];
-var estado = { personas: [], abiertos: {}, sinPin: [] };
+var estado = { personas: [], abiertos: {}, sinPin: [], sinCel: [] };
 var PRECIOS = null, vistaPrecio = "mercaderia";
 function $(id) { return document.getElementById(id); }
 function pad2(n) { return String(n).padStart(2, "0"); }
@@ -614,22 +673,28 @@ function abrir(n) {
     hint = el("p", { className: "warn", textContent: "Te olvidaste de marcar la salida del " + diaTxt(a.fecha) + " (entraste a las " + a.entrada + "). Poné tu PIN y la hora en que saliste." });
     acciones = el("div", { style: "display:grid;gap:10px" }, el("label", { className: "hint", htmlFor: "horaOlvido", textContent: "Hora de salida" }), hora, guardar);
   } else {
+    var pideCel = (estado.sinCel || []).indexOf(n) >= 0;
+    var cel = el("input", { type: "tel", id: "cel", placeholder: "Ej: 341 5123456", inputMode: "numeric", autocomplete: "tel" });
     var bin = el("button", { type: "button", className: "b-in", textContent: "Entré", disabled: !!a });
     var bout = el("button", { type: "button", className: "b-out", textContent: "Salí", disabled: !a });
     var enviar = function (tipo, btn) {
       if (!pinOk()) return;
+      var numero = cel.value.replace(/[^0-9]/g, "");
+      if (pideCel && numero.length !== 10) { mostrar("Poné tu celular: código de área sin 0 y el número sin 15 (10 números en total, ej. 341 5123456).", true); return; }
       btn.disabled = true; mostrar("Guardando… (buscando tu ubicación)", false);
       ubicacion(function (pos) {
         google.script.run.withSuccessHandler(function (r) {
           if (!r.ok) { mostrar(r.texto, true); btn.disabled = false; return; }
           var partes = r.texto.split(". ");
           exito(partes[0].replace("¡Listo " + n + "! ", ""), partes.slice(1).join(". "));
-        }).withFailureHandler(function (err) { mostrar(err.message, true); btn.disabled = false; }).marcar(n, pin, tipo, pos);
+        }).withFailureHandler(function (err) { mostrar(err.message, true); btn.disabled = false; }).marcar(n, pin, tipo, pos, null, pideCel ? numero : "");
       });
     };
     bin.onclick = function () { enviar("in", bin); };
     bout.onclick = function () { enviar("out", bout); };
     acciones = el("div", { className: "big" }, bin, bout);
+    if (pideCel) acciones = el("div", { style: "display:grid;gap:10px" },
+      el("label", { className: "hint", htmlFor: "cel", textContent: "Tu celular (una sola vez), para avisarte por WhatsApp si te olvidás de marcar:" }), cel, acciones);
   }
 
   var verHoras = el("button", { type: "button", textContent: "🕒 Mis horas" });
