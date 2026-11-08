@@ -390,13 +390,13 @@ const PANTALLA = `<!DOCTYPE html>
 <style>
   :root {
     --paper: #f6f4ef; --card: #ffffff; --ink: #161616; --muted: #6b6760; --line: #e3dfd6;
-    --in: #2f6b4f; --in-bg: #e7f0ea; --out: #9b3b2e; --warn: #a8661b; --warn-bg: #fbf1e3;
+    --in: #2f6b4f; --in-bg: #e7f0ea; --out: #9b3b2e; --warn: #a8661b; --warn-bg: #fbf1e3; --info: #2c4a73; --info-ink: #ffffff;
     --f-display: "Marcellus", "Optima", "Candara", Georgia, serif;
     --f-body: "Figtree", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   }
   @media (prefers-color-scheme: dark) { :root {
     --paper: #121211; --card: #1c1c1a; --ink: #f2efe8; --muted: #a39f96; --line: #2e2d2a;
-    --in: #7cc59f; --in-bg: #1b2b22; --out: #ec8f80; --warn: #e6a659; --warn-bg: #2c2216; color-scheme: dark; }
+    --in: #7cc59f; --in-bg: #1b2b22; --out: #ec8f80; --warn: #e6a659; --warn-bg: #2c2216; --info: #9dbbe3; --info-ink: #121211; color-scheme: dark; }
     .logo { filter: invert(1); } }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -441,6 +441,9 @@ const PANTALLA = `<!DOCTYPE html>
   .b-in { background: var(--in); } .b-out { background: var(--out); }
   .big button:disabled, .solo:disabled, .ghost:disabled { opacity: .3; cursor: default; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .consultas { display: grid; gap: 8px; margin-top: 10px; padding-top: 14px; border-top: 1px dashed var(--line); }
+  .consultas .two button { font: 600 15px var(--f-body); padding: 14px 8px; border: 0; border-radius: 14px; background: var(--info); color: var(--info-ink); cursor: pointer; }
+  .consultas .two button:disabled { opacity: .4; }
   .ghost { font: 600 14px var(--f-body); padding: 12px 8px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
   .close { font: 600 15px var(--f-body); background: none; border: 0; color: var(--muted); cursor: pointer; padding: 6px; }
   .msg { padding: 12px; border-radius: 12px; background: var(--in-bg); font-weight: 600; }
@@ -629,8 +632,8 @@ function abrir(n) {
     acciones = el("div", { className: "big" }, bin, bout);
   }
 
-  var verHoras = el("button", { type: "button", className: "ghost", textContent: "Mis horas" });
-  var verAdel = el("button", { type: "button", className: "ghost", textContent: "Mis adelantos" });
+  var verHoras = el("button", { type: "button", textContent: "🕒 Mis horas" });
+  var verAdel = el("button", { type: "button", textContent: "💵 Mis adelantos" });
   verHoras.onclick = function () {
     if (!pinOk()) return;
     verHoras.disabled = true;
@@ -673,7 +676,8 @@ function abrir(n) {
   };
 
   var cerrarB = el("button", { type: "button", className: "close", textContent: "Cerrar" }); cerrarB.onclick = cerrar;
-  box.append(el("h3", { textContent: n }), hint, dots, teclas, acciones, msg, el("div", { className: "two" }, verHoras, verAdel), zona, cerrarB);
+  box.append(el("h3", { textContent: n }), hint, dots, teclas, acciones, msg,
+    el("div", { className: "consultas" }, el("h2", { textContent: "Consultar (no marca nada)" }), el("div", { className: "two" }, verHoras, verAdel)), zona, cerrarB);
   $("sheet").hidden = false;
 }
 
