@@ -36,7 +36,7 @@ const PERSONAL_INICIAL = [
 function doGet() {
   const pagina = HtmlService.createHtmlOutput(PANTALLA)
     .setTitle("La Caleta")
-    .addMetaTag("viewport", "width=device-width, initial-scale=1")
+    .addMetaTag("viewport", "width=device-width, initial-scale=1, maximum-scale=1")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   try { pagina.setFaviconUrl(ICONO); } catch (e) {}   // el ícono del celular; si falla, la app anda igual
   return pagina;
@@ -482,7 +482,7 @@ const PANTALLA = `<!DOCTYPE html>
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>La Caleta</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
@@ -578,6 +578,10 @@ const PANTALLA = `<!DOCTYPE html>
   .precio .nom { font-weight: 500; }
   .precio .nom b { background: var(--warn-bg); color: var(--ink); border-radius: 3px; }
   .precio .tag { grid-column: 1; font-size: 12px; color: var(--muted); }
+  .precio { cursor: pointer; border-radius: 10px; }
+  .precio.elegido { background: var(--card); outline: 2px solid var(--ink); padding: 12px 10px; margin: 4px -10px; }
+  .precio.elegido .val { font-size: 22px; }
+  .busca.escribiendo #rubros { display: none; }
   .precio .val { grid-row: 1 / span 2; grid-column: 2; white-space: nowrap; font: 600 17px var(--f-body); font-variant-numeric: tabular-nums; }
 </style>
 </head>
@@ -900,13 +904,25 @@ function dibujarPrecios() {
   var ultimo = null, max = 150;
   lista.slice(0, max).forEach(function (x) {
     if (!palabras.length && x.rubro !== ultimo) { box.append(el("p", { className: "rubro", textContent: x.rubro })); ultimo = x.rubro; }
-    box.append(el("div", { className: "precio" }, resaltar(x.nombre, palabras), el("span", { className: "tag", textContent: x.etiqueta + " · " + x.rubro }), el("span", { className: "val", textContent: x.precio })));
+    var fila = el("div", { className: "precio" }, resaltar(x.nombre, palabras), el("span", { className: "tag", textContent: x.etiqueta + " · " + x.rubro }), el("span", { className: "val", textContent: x.precio }));
+    fila.onclick = function () {
+      $("buscar").blur();
+      Array.prototype.forEach.call(box.querySelectorAll(".elegido"), function (o) { o.classList.remove("elegido"); });
+      fila.classList.add("elegido");
+      setTimeout(function () { fila.scrollIntoView({ behavior: "smooth", block: "center" }); }, 250);
+    };
+    box.append(fila);
   });
   if (lista.length > max) box.append(el("p", { className: "hint", textContent: "Hay más resultados: escribí una palabra más para achicar la lista." }));
   if (!lista.length) box.append(el("p", { className: "hint", textContent: "No encontré nada. Probá con otra palabra (ej. “mila” en vez de “milanesa napolitana”)." }));
 }
 var esperaBusqueda = null;
 $("buscar").addEventListener("input", function () { clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(dibujarPrecios, 120); });
+/* El teclado del celular tapa los resultados: se esconde al tocar Buscar o al deslizar la lista. */
+$("buscar").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("buscar").blur(); } });
+$("buscar").addEventListener("focus", function () { $("vistaPrecios").querySelector(".busca").classList.add("escribiendo"); });
+$("buscar").addEventListener("blur", function () { $("vistaPrecios").querySelector(".busca").classList.remove("escribiendo"); });
+$("listaPrecios").addEventListener("touchstart", function () { if (document.activeElement === $("buscar")) $("buscar").blur(); }, { passive: true });
 $("limpiar").onclick = function () { $("buscar").value = ""; dibujarPrecios(); $("buscar").focus(); };
 Array.prototype.forEach.call($("tipos").children, function (b) {
   b.onclick = function () {
