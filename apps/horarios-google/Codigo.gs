@@ -678,6 +678,8 @@ $("tabPrecios").onclick = function () { mostrarVista("precios"); };
 
 /* ---------- horarios ---------- */
 var primeraVez = true;
+/* Le avisa a la página de La Caleta (WordPress) que la app cargó bien, para que no muestre el botón de "¿No carga?". */
+try { window.top.postMessage("lacaleta-app-ok", "*"); } catch (e) {}
 function cargar() {
   google.script.run.withSuccessHandler(function (e) {
     estado = e; dibujar(); guardarLocal("lc_estado", e);
