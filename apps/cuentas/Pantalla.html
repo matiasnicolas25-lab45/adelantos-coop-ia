@@ -237,7 +237,9 @@ function porDia(movs) {
   });
   return orden.sort().map(function (f) {
     var x = d[f], suma = 0;
-    var renglones = x.lista.map(function (n) { suma += x.cosas[n].imp; return cant(x.cosas[n].c) + " " + n + " — " + pesos(x.cosas[n].imp); });
+    x.lista.forEach(function (n) { suma += x.cosas[n].imp; });
+    if (suma < 1) return { fecha: f, importe: x.importe, renglones: x.lista.map(function (n) { return cant(x.cosas[n].c) + " " + n; }) };   // sin precios: solo la lista
+    var renglones = x.lista.map(function (n) { return cant(x.cosas[n].c) + " " + n + " — " + pesos(x.cosas[n].imp); });
     var dif = x.importe - suma;
     if (x.lista.length && dif <= -1) renglones.push("Descuento — -" + pesos(-dif));
     if (x.lista.length && dif >= 1) renglones.push("Otros — " + pesos(dif));
@@ -426,7 +428,9 @@ function dibujarMesas() {
 function ticketMesa(m) {
   var L = [], suma = 0, cosas = {}, lista = [];
   items(m.detalle).forEach(function (i) { if (!(i.n in cosas)) { cosas[i.n] = { c: 0, imp: 0 }; lista.push(i.n); } cosas[i.n].c += i.c; cosas[i.n].imp += i.imp; });
-  lista.forEach(function (n) { suma += cosas[n].imp; L.push(cant(cosas[n].c) + " " + n + " — " + pesos(cosas[n].imp)); });
+  lista.forEach(function (n) { suma += cosas[n].imp; });
+  if (suma < 1) return lista.map(function (n) { return cant(cosas[n].c) + " " + n; });
+  lista.forEach(function (n) { L.push(cant(cosas[n].c) + " " + n + " — " + pesos(cosas[n].imp)); });
   var dif = m.total - suma;
   if (dif <= -1) L.push("Descuento — -" + pesos(-dif));
   if (dif >= 1) L.push("Otros — " + pesos(dif));
