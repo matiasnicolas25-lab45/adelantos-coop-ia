@@ -214,7 +214,6 @@ function mensaje(c) {
   if (Math.abs(c.anterior) >= 1) L.push("*Saldo anterior:* " + pesos(c.anterior), "");
   var cons = consumos(c), act = c.movs.filter(function (m) { return m.tipo === "Actualización"; }), pag = c.movs.filter(function (m) { return m.tipo === "Pago"; });
   if (cons.length) { L.push("*Consumos*"); cons.forEach(function (m) { L.push("▪️ " + dia(m.fecha) + " — " + pesos(m.importe)); if (m.detalle) L.push("_" + cap(cosas(m.detalle)) + "_"); }); L.push(""); }
-  if (act.length) { L.push("*Actualización semanal (" + String(D.recargo * 100).replace(".", ",") + "%)*"); act.forEach(function (m) { L.push("▪️ " + dia(m.fecha) + " — " + pesos(m.importe)); }); L.push(""); }
   if (pag.length) { L.push("*Pagos recibidos*"); pag.forEach(function (m) { L.push("▪️ " + dia(m.fecha) + " — " + pesos(m.importe)); }); L.push(""); }
   if (c.actual <= 0) L.push("✅ *Tu cuenta está al día.* ¡Gracias!");
   else {

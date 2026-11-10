@@ -31,6 +31,9 @@ function hoja(nombre) {
   }
   return sh;
 }
+/** Las fechas que se guardan como texto la planilla las vuelve fecha: acá se leen siempre como "aaaa-mm-dd". */
+function fTxt(v) { return v instanceof Date ? Utilities.formatDate(v, ZONA, "yyyy-MM-dd") : String(v == null ? "" : v); }
+function hTxt(v) { return v instanceof Date ? Utilities.formatDate(v, ZONA, "dd/MM/yyyy HH:mm") : String(v == null ? "" : v); }
 function filas(nombre) { const v = hoja(nombre).getDataRange().getValues(); v.shift(); return v; }
 function ahoraTxt() { return Utilities.formatDate(new Date(), ZONA, "dd/MM/yyyy HH:mm"); }
 function registrar(quien, accion, cliente, detalle) { hoja("REGISTRO").appendRow([ahoraTxt(), quien, accion, cliente || "", detalle || ""]); }
@@ -200,7 +203,7 @@ function importar(token) {
     const saldos = hoja("SALDOS"), movs = hoja("MOVIMIENTOS");
     [saldos, movs].forEach(function (sh) {
       const v = sh.getDataRange().getValues();
-      for (let i = v.length - 1; i >= 1; i--) if (String(v[i][0]) === periodo) sh.deleteRow(i + 1);
+      for (let i = v.length - 1; i >= 1; i--) if (fTxt(v[i][0]) === periodo) sh.deleteRow(i + 1);
     });
     const fs = [], fm = [];
     datos.clientes.forEach(function (c) {
@@ -234,22 +237,22 @@ function datos(token) {
   const yo = quien(token);
   const s = filas("SALDOS");
   if (!s.length) return { yo: yo, periodo: null, clientes: [] };
-  const periodo = s.map(r => String(r[0])).sort().pop();
+  const periodo = s.map(r => fTxt(r[0])).sort().pop();
   const cli = {}; filas("CLIENTES").forEach(r => cli[String(r[0])] = r);
-  const est = {}; filas("ESTADO").forEach(r => { if (String(r[0]) === periodo) est[String(r[1])] = r; });
+  const est = {}; filas("ESTADO").forEach(r => { if (fTxt(r[0]) === periodo) est[String(r[1])] = r; });
   const fac = {}; filas("FACTURAS").forEach(r => { const k = String(r[5]); if (k) (fac[k] = fac[k] || []).push({ fecha: r[0], tipo: r[2], numero: r[4], total: r[11] }); });
-  const mv = {}; filas("MOVIMIENTOS").forEach(r => { if (String(r[0]) === periodo) (mv[String(r[1])] = mv[String(r[1])] || []).push(r); });
-  const todos = {}; filas("MOVIMIENTOS").forEach(r => { if (r[4] === "Pago") { const k = String(r[1]); if (!todos[k] || r[2] > todos[k]) todos[k] = String(r[2]); } });
+  const mv = {}; filas("MOVIMIENTOS").forEach(r => { if (fTxt(r[0]) === periodo) (mv[String(r[1])] = mv[String(r[1])] || []).push(r); });
+  const todos = {}; filas("MOVIMIENTOS").forEach(r => { if (r[4] === "Pago") { const k = String(r[1]), f = fTxt(r[2]); if (!todos[k] || f > todos[k]) todos[k] = f; } });
   let desde = "", hasta = periodo;
-  const lista = s.filter(r => String(r[0]) === periodo).map(function (r) {
-    desde = String(r[6]);
+  const lista = s.filter(r => fTxt(r[0]) === periodo).map(function (r) {
+    desde = fTxt(r[6]);
     const k = String(r[1]), c = cli[k] || [], e = est[k] || [], m = mv[k] || [];
-    const conDetalle = m.map(x => ({ fecha: String(x[2]), tipo: x[4], importe: x[4] === "Pago" ? Number(x[6]) : Number(x[5]), detalle: String(x[8] || "") }));
+    const conDetalle = m.map(x => ({ fecha: fTxt(x[2]), tipo: x[4], importe: x[4] === "Pago" ? Number(x[6]) : Number(x[5]), detalle: String(x[8] || "") }));
     return {
       codigo: Number(k), nombre: String(r[2]), saludo: String(c[2] || ""), wa: String(c[3] || ""), cuit: String(c[4] || ""),
       cond: String(c[5] || ""), revisado: String(c[6] || "") === "SÍ", tel: String(r[3] || ""),
       anterior: Number(r[4]), actual: Number(r[5]), movs: conDetalle, ultimoPago: todos[k] || "",
-      enviado: String(e[2] || ""), enviadoPor: String(e[3] || ""), pago: String(e[4] || ""), pagoPor: String(e[5] || ""),
+      enviado: hTxt(e[2] || ""), enviadoPor: String(e[3] || ""), pago: hTxt(e[4] || ""), pagoPor: String(e[5] || ""),
       facturas: fac[k] || [],
     };
   });
@@ -271,10 +274,10 @@ function guardarCliente(token, codigo, d) {
 }
 
 function marcar(token, codigo, nombre, que, valor) {
-  const yo = quien(token), periodo = filas("SALDOS").map(r => String(r[0])).sort().pop() || "";
+  const yo = quien(token), periodo = filas("SALDOS").map(r => fTxt(r[0])).sort().pop() || "";
   if (!periodo) throw new Error("Primero cargá el Excel de Resto Soft.");
   const sh = hoja("ESTADO"), v = sh.getDataRange().getValues();
-  let fila = 0; for (let i = 1; i < v.length; i++) if (String(v[i][0]) === periodo && String(v[i][1]) === String(codigo)) fila = i + 1;
+  let fila = 0; for (let i = 1; i < v.length; i++) if (fTxt(v[i][0]) === periodo && String(v[i][1]) === String(codigo)) fila = i + 1;
   if (!fila) { sh.appendRow([periodo, codigo, "", "", "", ""]); fila = sh.getLastRow(); }
   const col = que === "enviado" ? 3 : 5;
   sh.getRange(fila, col, 1, 2).setValues([[valor ? ahoraTxt() : "", valor ? yo.nombre : ""]]);
@@ -378,5 +381,5 @@ function facturar(token, f) {
 
 function ultimasFacturas(token) {
   quien(token);
-  return filas("FACTURAS").slice(-15).reverse().map(r => ({ fecha: String(r[0]), quien: String(r[1]), tipo: String(r[2]), numero: String(r[4]), receptor: String(r[6]), total: Number(r[11]), cae: String(r[12]), pdf: String(r[15] || "") }));
+  return filas("FACTURAS").slice(-15).reverse().map(r => ({ fecha: hTxt(r[0]), quien: String(r[1]), tipo: String(r[2]), numero: String(r[4]), receptor: String(r[6]), total: Number(r[11]), cae: String(r[12]), pdf: String(r[15] || "") }));
 }
