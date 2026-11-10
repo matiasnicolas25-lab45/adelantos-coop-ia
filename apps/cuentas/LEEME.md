@@ -14,3 +14,6 @@ certificado, ya copiado adentro de `Codigo.gs` (constante CSR_CODIGO). `vista-pr
    representante: el alias `lacaleta`.
 
 Datos fijos: CUIT 33712205569, Responsable Inscripto, IVA 21 %, punto de venta 5 (RECE para aplicativo y web services).
+
+Estado 10/11/2026: conexión con ARCA probada OK (menú ARCA → 3). Certificado vigente: serie 21256ca90125c9ce
+(vence 11/9/2028). No volver a tocar "1. Crear pedido": hace una llave nueva y borra el certificado guardado.
