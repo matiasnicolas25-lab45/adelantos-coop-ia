@@ -108,7 +108,7 @@ function convertirAPlanilla(archivo) {
     headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() },
     payload: JSON.stringify({ name: "temporal cuentas (se borra solo)", mimeType: "application/vnd.google-apps.spreadsheet", parents: [carpeta] }),
   });
-  if (r.getResponseCode() !== 200) throw new Error("No se pudo abrir el Excel de Resto Soft (" + r.getResponseCode() + ").");
+  if (r.getResponseCode() !== 200) throw new Error("No se pudo leer el Excel de Resto Soft. Exportalo de nuevo desde Resto Soft y subilo a la carpeta RESTOSOFT.");
   return JSON.parse(r.getContentText()).id;
 }
 
@@ -187,10 +187,13 @@ function importar(token) {
       if (f.getName().toUpperCase().indexOf(ARCHIVO_CUENTAS) === 0 && (!ultimo || f.getLastUpdated() > ultimo.getLastUpdated())) ultimo = f;
     }
     if (!ultimo) throw new Error("No encontré el Excel '" + ARCHIVO_CUENTAS + "' en la carpeta RESTOSOFT.");
-    const tmp = convertirAPlanilla(ultimo);
     let datos;
-    try { datos = leerCuentas(SpreadsheetApp.openById(tmp).getSheets()[0].getDataRange().getValues()); }
-    finally { DriveApp.getFileById(tmp).setTrashed(true); }
+    try { datos = leerCuentas(leerXls(ultimo.getBlob().getBytes())); }   // el .xls de Resto Soft es de un Excel viejo que Google no convierte
+    catch (e) {
+      const tmp = convertirAPlanilla(ultimo);
+      try { datos = leerCuentas(SpreadsheetApp.openById(tmp).getSheets()[0].getDataRange().getValues()); }
+      finally { DriveApp.getFileById(tmp).setTrashed(true); }
+    }
     if (!datos.hasta || !datos.clientes.length) throw new Error("El Excel no tiene el formato de cuentas corrientes de Resto Soft.");
     const periodo = datos.hasta;
 

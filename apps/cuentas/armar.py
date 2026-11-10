@@ -6,7 +6,7 @@ i = s.index("/* ---------------- app de cuentas")
 j = s.index("/* ---------------- diálogos")
 pantalla = open("Pantalla.html").read()
 assert "`" not in pantalla and "${" not in pantalla and "\\" not in pantalla
-medio = (open("app.gs").read().rstrip() + "\n\n" + open("pdf.gs").read().rstrip() +
+medio = (open("app.gs").read().rstrip() + "\n\n" + open("xls.gs").read().rstrip() + "\n\n" + open("pdf.gs").read().rstrip() +
          "\n\n/* ---------------- librería de QR (qrcode-generator 1.4.4, MIT, Kazuhiko Arase) ---------------- */\n\n" +
          open("qrcode.js").read().rstrip() +
          "\n\n/* ---------------- pantalla de la app (copia de Pantalla.html) ---------------- */\n\nconst PANTALLA = `" +
