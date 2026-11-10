@@ -306,7 +306,8 @@ function formFactura(tipo, c) {
     if (t === "A") {
       k.innerHTML = '<label>Nombre o razón social<input id="fNom" value="' + esc(c ? c.nombre : "") + '"></label>' +
         '<label>CUIT<input id="fDoc" inputmode="numeric" value="' + esc(c ? c.cuit : "") + '"></label><div class="chips" id="sugF"></div>' +
-        '<label>Condición frente al IVA<select id="fCond"><option value="1">Responsable inscripto</option><option value="6">Monotributista</option></select></label>';
+        '<label>Condición frente al IVA<select id="fCond"><option value="1">Responsable inscripto</option><option value="6">Monotributista</option></select></label>' +
+        '<label>Domicilio <small>Opcional, sale en la factura</small><input id="fDom"></label>';
       if (c && c.cond === "6") $("fCond").value = "6";
       if (c && !c.cuit) run("sugerirCuit", TOKEN, c.nombre).then(function (s) {
         var d = $("sugF"); if (!d) return;
@@ -329,7 +330,8 @@ function formFactura(tipo, c) {
   $("fTot").oninput = desg; desg();
   $("bRev").onclick = function () {
     var f = { codigo: c ? c.codigo : "", tipo: tipo, total: numTot(), cond: $("fCond").value, detalle: $("fDet").value,
-      nombre: $("fNom") ? $("fNom").value : "", docTipo: tipo === "A" ? "80" : $("fDocTipo").value, docNro: $("fDoc") ? $("fDoc").value : "", domicilio: $("fDom") ? $("fDom").value : "" };
+      nombre: $("fNom") ? $("fNom").value : "", docTipo: tipo === "A" ? "80" : $("fDocTipo").value, docNro: $("fDoc") ? $("fDoc").value : "", domicilio: $("fDom") ? $("fDom").value : "",
+      desde: c && D.periodo ? D.periodo.desde : "", hasta: c && D.periodo ? D.periodo.hasta : "" };
     if (tipo === "B" && f.docTipo === "99") { f.nombre = "Consumidor final"; f.docNro = ""; }
     if (!f.total) return alerta("Poné el importe total.");
     confirmar(f, c);

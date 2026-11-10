@@ -1,7 +1,7 @@
 /* ---------------- PDF de la factura (con el QR que pide ARCA, RG 4892) ---------------- */
 
 const FACTURAS_CARPETA = "1WdQ4WsPJ-flGAzBGDfU_mN0T1S67RJNk";   // carpeta "Facturas La Caleta" en Drive
-const DOMICILIO = "Av. Carlos Colombres 1296 - (2000) Rosario, Santa Fe";
+const DOMICILIO = "Carlos Colombres 1296 - Rosario Norte, Santa Fe";
 
 function dato(nombre) {
   const f = filas("CONFIG").filter(r => String(r[0]) === nombre)[0];
@@ -60,6 +60,7 @@ function facturaPdf(x) {
   const iibb = dato("Ingresos Brutos"), inicio = dato("Inicio de actividades");
   const vto = x.vto.slice(6, 8) + "/" + x.vto.slice(4, 6) + "/" + x.vto.slice(0, 4);
   const precio = x.tipo === "A" ? x.neto : x.total;
+  const dmy = t => String(t || "").length === 8 ? t.slice(6, 8) + "/" + t.slice(4, 6) + "/" + t.slice(0, 4) : fecha;
   const filasTot = x.tipo === "A"
     ? "<tr><td>Importe neto gravado</td><td class='n'>" + plataPdf(x.neto) + "</td></tr><tr><td>IVA 21%</td><td class='n'>" + plataPdf(x.iva) + "</td></tr>"
     : "";
@@ -71,6 +72,7 @@ function facturaPdf(x) {
     ".n{text-align:right;white-space:nowrap}.items th{background:#eee;border:1px solid #111;padding:6px;text-align:left}.items td{border:1px solid #111;padding:6px}" +
     ".tot td{padding:4px 6px}.tot .g td{font-size:15px;font-weight:bold;border-top:1px solid #111}.chico{font-size:9px;color:#444}" +
     "</style></head><body>" +
+    "<div style='text-align:center;font-weight:bold;font-size:13px;border:1px solid #111;padding:4px'>ORIGINAL</div>" +
     "<table class='caja'><tr>" +
     "<td class='p' style='width:45%'><div class='t'>LA CALETA</div><div>COOPERATIVA DE TRABAJO LA CALETA LIMITADA</div><div>" + escH(DOMICILIO) + "</div>" +
     "<div>Restaurante del Yacht Club Rosario</div><div><b>IVA Responsable Inscripto</b></div></td>" +
@@ -78,10 +80,11 @@ function facturaPdf(x) {
     "<td class='p' style='width:45%'><div class='t'>FACTURA</div><div>Punto de venta: <b>" + numero.slice(0, 5) + "</b> &nbsp; Comp. Nro: <b>" + numero.slice(6) + "</b></div>" +
     "<div>Fecha de emisión: <b>" + fecha + "</b></div><div>CUIT: " + cuitGuiones(CUIT) + "</div>" +
     (iibb ? "<div>Ingresos Brutos: " + escH(iibb) + "</div>" : "") + (inicio ? "<div>Inicio de actividades: " + escH(inicio) + "</div>" : "") + "</td>" +
-    "</tr></table><br>" +
+    "</tr></table>" +
+    "<table class='caja'><tr><td class='p'>Período facturado desde: <b>" + dmy(x.desde) + "</b> &nbsp; hasta: <b>" + dmy(x.hasta) + "</b> &nbsp; Fecha de vto. para el pago: <b>" + dmy(x.vtoPago) + "</b></td></tr></table><br>" +
     "<table class='caja'><tr><td class='p'><div><b>" + escH(doc) + "</b></div><div>Nombre / Razón social: <b>" + escH(x.nombre || "Consumidor final") + "</b></div>" +
     "<div>Condición frente al IVA: " + escH(COND_IVA[x.cond] || "") + "</div>" + (x.domicilio ? "<div>Domicilio: " + escH(x.domicilio) + "</div>" : "") +
-    "<div>Condición de venta: Cuenta corriente</div></td></tr></table><br>" +
+    "<div>Condición de venta: " + escH(x.venta || "Cuenta corriente") + "</div></td></tr></table><br>" +
     "<table class='items'><tr><th>Detalle</th><th class='n'>Cantidad</th><th class='n'>Precio unitario</th><th class='n'>Subtotal</th></tr>" +
     "<tr><td>" + escH(x.detalle || "Consumos en el restaurante") + "</td><td class='n'>1</td><td class='n'>" + plataPdf(precio) + "</td><td class='n'>" + plataPdf(precio) + "</td></tr></table><br>" +
     "<table><tr><td style='width:55%'></td><td><table class='tot'>" + filasTot +

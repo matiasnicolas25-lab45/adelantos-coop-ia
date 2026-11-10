@@ -336,10 +336,15 @@ function facturar(token, f) {
   try {
     const ult = Number(xmlTag(wsfe("FECompUltimoAutorizado", "<ar:PtoVta>" + PUNTO_VENTA + "</ar:PtoVta><ar:CbteTipo>" + tipo + "</ar:CbteTipo>"), "CbteNro"));
     const n = ult + 1, hoy = Utilities.formatDate(new Date(), ZONA, "yyyyMMdd");
-    const det = "<ar:FECAEDetRequest><ar:Concepto>1</ar:Concepto><ar:DocTipo>" + docTipo + "</ar:DocTipo><ar:DocNro>" + docNro + "</ar:DocNro>" +
+    // Se factura como servicio (concepto 2), igual que en Comprobantes en línea: período facturado y vencimiento del pago.
+    const fechaOk = t => /^\d{4}-\d{2}-\d{2}$/.test(String(t || "")) ? String(t).replace(/-/g, "") : hoy;
+    let desde = fechaOk(f.desde), hasta = fechaOk(f.hasta);
+    if (desde > hoy) desde = hoy; if (hasta > hoy) hasta = hoy; if (desde > hasta) desde = hasta;
+    const det = "<ar:FECAEDetRequest><ar:Concepto>2</ar:Concepto><ar:DocTipo>" + docTipo + "</ar:DocTipo><ar:DocNro>" + docNro + "</ar:DocNro>" +
       "<ar:CbteDesde>" + n + "</ar:CbteDesde><ar:CbteHasta>" + n + "</ar:CbteHasta><ar:CbteFch>" + hoy + "</ar:CbteFch>" +
       "<ar:ImpTotal>" + fmt(total) + "</ar:ImpTotal><ar:ImpTotConc>0</ar:ImpTotConc><ar:ImpNeto>" + fmt(neto) + "</ar:ImpNeto>" +
       "<ar:ImpOpEx>0</ar:ImpOpEx><ar:ImpTrib>0</ar:ImpTrib><ar:ImpIVA>" + fmt(iva) + "</ar:ImpIVA>" +
+      "<ar:FchServDesde>" + desde + "</ar:FchServDesde><ar:FchServHasta>" + hasta + "</ar:FchServHasta><ar:FchVtoPago>" + hoy + "</ar:FchVtoPago>" +
       "<ar:MonId>PES</ar:MonId><ar:MonCotiz>1</ar:MonCotiz><ar:CondicionIVAReceptorId>" + cond + "</ar:CondicionIVAReceptorId>" +
       "<ar:Iva><ar:AlicIva><ar:Id>5</ar:Id><ar:BaseImp>" + fmt(neto) + "</ar:BaseImp><ar:Importe>" + fmt(iva) + "</ar:Importe></ar:AlicIva></ar:Iva>" +
       "</ar:FECAEDetRequest>";
@@ -362,7 +367,8 @@ function facturar(token, f) {
     let pdf = "", errPdf = "";
     try {
       pdf = facturaPdf({ tipo: f.tipo, n: n, fecha: new Date(), docTipo: docTipo, docNro: docNro, nombre: receptor, domicilio: f.domicilio || "",
-        cond: cond, neto: neto, iva: iva, total: total, cae: cae, vto: vto, detalle: f.detalle });
+        cond: cond, neto: neto, iva: iva, total: total, cae: cae, vto: vto, detalle: f.detalle, desde: desde, hasta: hasta, vtoPago: hoy,
+        venta: f.codigo ? "Cuenta corriente" : "Contado" });
       sh.getRange(filaFac, 16).setValue(pdf);
     } catch (e) { errPdf = "La factura está hecha en ARCA, pero no se pudo armar el PDF: " + e.message; }
     return { numero: numero, cae: cae, vence: vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), total: total, neto: neto, iva: iva, tipo: f.tipo, pdf: pdf, errPdf: errPdf };

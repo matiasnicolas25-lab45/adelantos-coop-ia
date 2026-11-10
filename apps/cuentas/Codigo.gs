@@ -517,10 +517,15 @@ function facturar(token, f) {
   try {
     const ult = Number(xmlTag(wsfe("FECompUltimoAutorizado", "<ar:PtoVta>" + PUNTO_VENTA + "</ar:PtoVta><ar:CbteTipo>" + tipo + "</ar:CbteTipo>"), "CbteNro"));
     const n = ult + 1, hoy = Utilities.formatDate(new Date(), ZONA, "yyyyMMdd");
-    const det = "<ar:FECAEDetRequest><ar:Concepto>1</ar:Concepto><ar:DocTipo>" + docTipo + "</ar:DocTipo><ar:DocNro>" + docNro + "</ar:DocNro>" +
+    // Se factura como servicio (concepto 2), igual que en Comprobantes en línea: período facturado y vencimiento del pago.
+    const fechaOk = t => /^\d{4}-\d{2}-\d{2}$/.test(String(t || "")) ? String(t).replace(/-/g, "") : hoy;
+    let desde = fechaOk(f.desde), hasta = fechaOk(f.hasta);
+    if (desde > hoy) desde = hoy; if (hasta > hoy) hasta = hoy; if (desde > hasta) desde = hasta;
+    const det = "<ar:FECAEDetRequest><ar:Concepto>2</ar:Concepto><ar:DocTipo>" + docTipo + "</ar:DocTipo><ar:DocNro>" + docNro + "</ar:DocNro>" +
       "<ar:CbteDesde>" + n + "</ar:CbteDesde><ar:CbteHasta>" + n + "</ar:CbteHasta><ar:CbteFch>" + hoy + "</ar:CbteFch>" +
       "<ar:ImpTotal>" + fmt(total) + "</ar:ImpTotal><ar:ImpTotConc>0</ar:ImpTotConc><ar:ImpNeto>" + fmt(neto) + "</ar:ImpNeto>" +
       "<ar:ImpOpEx>0</ar:ImpOpEx><ar:ImpTrib>0</ar:ImpTrib><ar:ImpIVA>" + fmt(iva) + "</ar:ImpIVA>" +
+      "<ar:FchServDesde>" + desde + "</ar:FchServDesde><ar:FchServHasta>" + hasta + "</ar:FchServHasta><ar:FchVtoPago>" + hoy + "</ar:FchVtoPago>" +
       "<ar:MonId>PES</ar:MonId><ar:MonCotiz>1</ar:MonCotiz><ar:CondicionIVAReceptorId>" + cond + "</ar:CondicionIVAReceptorId>" +
       "<ar:Iva><ar:AlicIva><ar:Id>5</ar:Id><ar:BaseImp>" + fmt(neto) + "</ar:BaseImp><ar:Importe>" + fmt(iva) + "</ar:Importe></ar:AlicIva></ar:Iva>" +
       "</ar:FECAEDetRequest>";
@@ -543,7 +548,8 @@ function facturar(token, f) {
     let pdf = "", errPdf = "";
     try {
       pdf = facturaPdf({ tipo: f.tipo, n: n, fecha: new Date(), docTipo: docTipo, docNro: docNro, nombre: receptor, domicilio: f.domicilio || "",
-        cond: cond, neto: neto, iva: iva, total: total, cae: cae, vto: vto, detalle: f.detalle });
+        cond: cond, neto: neto, iva: iva, total: total, cae: cae, vto: vto, detalle: f.detalle, desde: desde, hasta: hasta, vtoPago: hoy,
+        venta: f.codigo ? "Cuenta corriente" : "Contado" });
       sh.getRange(filaFac, 16).setValue(pdf);
     } catch (e) { errPdf = "La factura está hecha en ARCA, pero no se pudo armar el PDF: " + e.message; }
     return { numero: numero, cae: cae, vence: vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), total: total, neto: neto, iva: iva, tipo: f.tipo, pdf: pdf, errPdf: errPdf };
@@ -558,7 +564,7 @@ function ultimasFacturas(token) {
 /* ---------------- PDF de la factura (con el QR que pide ARCA, RG 4892) ---------------- */
 
 const FACTURAS_CARPETA = "1WdQ4WsPJ-flGAzBGDfU_mN0T1S67RJNk";   // carpeta "Facturas La Caleta" en Drive
-const DOMICILIO = "Av. Carlos Colombres 1296 - (2000) Rosario, Santa Fe";
+const DOMICILIO = "Carlos Colombres 1296 - Rosario Norte, Santa Fe";
 
 function dato(nombre) {
   const f = filas("CONFIG").filter(r => String(r[0]) === nombre)[0];
@@ -617,6 +623,7 @@ function facturaPdf(x) {
   const iibb = dato("Ingresos Brutos"), inicio = dato("Inicio de actividades");
   const vto = x.vto.slice(6, 8) + "/" + x.vto.slice(4, 6) + "/" + x.vto.slice(0, 4);
   const precio = x.tipo === "A" ? x.neto : x.total;
+  const dmy = t => String(t || "").length === 8 ? t.slice(6, 8) + "/" + t.slice(4, 6) + "/" + t.slice(0, 4) : fecha;
   const filasTot = x.tipo === "A"
     ? "<tr><td>Importe neto gravado</td><td class='n'>" + plataPdf(x.neto) + "</td></tr><tr><td>IVA 21%</td><td class='n'>" + plataPdf(x.iva) + "</td></tr>"
     : "";
@@ -628,6 +635,7 @@ function facturaPdf(x) {
     ".n{text-align:right;white-space:nowrap}.items th{background:#eee;border:1px solid #111;padding:6px;text-align:left}.items td{border:1px solid #111;padding:6px}" +
     ".tot td{padding:4px 6px}.tot .g td{font-size:15px;font-weight:bold;border-top:1px solid #111}.chico{font-size:9px;color:#444}" +
     "</style></head><body>" +
+    "<div style='text-align:center;font-weight:bold;font-size:13px;border:1px solid #111;padding:4px'>ORIGINAL</div>" +
     "<table class='caja'><tr>" +
     "<td class='p' style='width:45%'><div class='t'>LA CALETA</div><div>COOPERATIVA DE TRABAJO LA CALETA LIMITADA</div><div>" + escH(DOMICILIO) + "</div>" +
     "<div>Restaurante del Yacht Club Rosario</div><div><b>IVA Responsable Inscripto</b></div></td>" +
@@ -635,10 +643,11 @@ function facturaPdf(x) {
     "<td class='p' style='width:45%'><div class='t'>FACTURA</div><div>Punto de venta: <b>" + numero.slice(0, 5) + "</b> &nbsp; Comp. Nro: <b>" + numero.slice(6) + "</b></div>" +
     "<div>Fecha de emisión: <b>" + fecha + "</b></div><div>CUIT: " + cuitGuiones(CUIT) + "</div>" +
     (iibb ? "<div>Ingresos Brutos: " + escH(iibb) + "</div>" : "") + (inicio ? "<div>Inicio de actividades: " + escH(inicio) + "</div>" : "") + "</td>" +
-    "</tr></table><br>" +
+    "</tr></table>" +
+    "<table class='caja'><tr><td class='p'>Período facturado desde: <b>" + dmy(x.desde) + "</b> &nbsp; hasta: <b>" + dmy(x.hasta) + "</b> &nbsp; Fecha de vto. para el pago: <b>" + dmy(x.vtoPago) + "</b></td></tr></table><br>" +
     "<table class='caja'><tr><td class='p'><div><b>" + escH(doc) + "</b></div><div>Nombre / Razón social: <b>" + escH(x.nombre || "Consumidor final") + "</b></div>" +
     "<div>Condición frente al IVA: " + escH(COND_IVA[x.cond] || "") + "</div>" + (x.domicilio ? "<div>Domicilio: " + escH(x.domicilio) + "</div>" : "") +
-    "<div>Condición de venta: Cuenta corriente</div></td></tr></table><br>" +
+    "<div>Condición de venta: " + escH(x.venta || "Cuenta corriente") + "</div></td></tr></table><br>" +
     "<table class='items'><tr><th>Detalle</th><th class='n'>Cantidad</th><th class='n'>Precio unitario</th><th class='n'>Subtotal</th></tr>" +
     "<tr><td>" + escH(x.detalle || "Consumos en el restaurante") + "</td><td class='n'>1</td><td class='n'>" + plataPdf(precio) + "</td><td class='n'>" + plataPdf(precio) + "</td></tr></table><br>" +
     "<table><tr><td style='width:55%'></td><td><table class='tot'>" + filasTot +
@@ -3264,7 +3273,8 @@ function formFactura(tipo, c) {
     if (t === "A") {
       k.innerHTML = '<label>Nombre o razón social<input id="fNom" value="' + esc(c ? c.nombre : "") + '"></label>' +
         '<label>CUIT<input id="fDoc" inputmode="numeric" value="' + esc(c ? c.cuit : "") + '"></label><div class="chips" id="sugF"></div>' +
-        '<label>Condición frente al IVA<select id="fCond"><option value="1">Responsable inscripto</option><option value="6">Monotributista</option></select></label>';
+        '<label>Condición frente al IVA<select id="fCond"><option value="1">Responsable inscripto</option><option value="6">Monotributista</option></select></label>' +
+        '<label>Domicilio <small>Opcional, sale en la factura</small><input id="fDom"></label>';
       if (c && c.cond === "6") $("fCond").value = "6";
       if (c && !c.cuit) run("sugerirCuit", TOKEN, c.nombre).then(function (s) {
         var d = $("sugF"); if (!d) return;
@@ -3287,7 +3297,8 @@ function formFactura(tipo, c) {
   $("fTot").oninput = desg; desg();
   $("bRev").onclick = function () {
     var f = { codigo: c ? c.codigo : "", tipo: tipo, total: numTot(), cond: $("fCond").value, detalle: $("fDet").value,
-      nombre: $("fNom") ? $("fNom").value : "", docTipo: tipo === "A" ? "80" : $("fDocTipo").value, docNro: $("fDoc") ? $("fDoc").value : "", domicilio: $("fDom") ? $("fDom").value : "" };
+      nombre: $("fNom") ? $("fNom").value : "", docTipo: tipo === "A" ? "80" : $("fDocTipo").value, docNro: $("fDoc") ? $("fDoc").value : "", domicilio: $("fDom") ? $("fDom").value : "",
+      desde: c && D.periodo ? D.periodo.desde : "", hasta: c && D.periodo ? D.periodo.hasta : "" };
     if (tipo === "B" && f.docTipo === "99") { f.nombre = "Consumidor final"; f.docNro = ""; }
     if (!f.total) return alerta("Poné el importe total.");
     confirmar(f, c);
