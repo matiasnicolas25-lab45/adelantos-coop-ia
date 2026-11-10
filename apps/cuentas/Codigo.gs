@@ -562,7 +562,7 @@ function ultimasFacturas(token) {
   return filas("FACTURAS").slice(-15).reverse().map(r => ({ fecha: String(r[0]), quien: String(r[1]), tipo: String(r[2]), numero: String(r[4]), receptor: String(r[6]), total: Number(r[11]), cae: String(r[12]), pdf: String(r[15] || "") }));
 }
 
-/* ---------------- lector de Excel viejo (.xls, BIFF5/BIFF8) para el informe de Resto Soft ---------------- */
+/* ---------------- lector de Excel viejo (.xls, BIFF2/BIFF5/BIFF8) para el informe de Resto Soft ---------------- */
 
 const CP1252 = { 128: 8364, 130: 8218, 131: 402, 132: 8222, 133: 8230, 134: 8224, 135: 8225, 136: 710, 137: 8240, 138: 352, 139: 8249, 140: 338,
   142: 381, 145: 8216, 146: 8217, 147: 8220, 148: 8221, 149: 8226, 150: 8211, 151: 8212, 152: 732, 153: 8482, 154: 353, 155: 8250, 156: 339, 158: 382, 159: 376 };
@@ -614,10 +614,13 @@ function leerXls(bytes) {
   let p = 0, ultimoTipo = 0, sstBuf = null;
   while (p + 4 <= b.length) {
     const tipo = u16(b, p), largo = u16(b, p + 2), d = p + 4;
-    if (tipo === 0x0809) { if (u16(b, d + 2) === 0x10) hoja++; biff8 = u16(b, d) === 0x0600; }
+    if (tipo === 0x0809 || tipo === 0x0009) { if (tipo === 0x0009 || u16(b, d + 2) === 0x10) hoja++; biff8 = tipo === 0x0809 && u16(b, d) === 0x0600; }
     else if (tipo === 0x000a && hoja >= 1) { if (hoja === 1) break; }
     else if (tipo === 0x00fc) { sstBuf = b.slice(d, d + largo); }
     else if (tipo === 0x003c && ultimoTipo === 0x00fc && sstBuf) { sstBuf = sstBuf.concat(["CONT"], b.slice(d, d + largo)); }
+    else if (tipo === 0x0003) poner(u16(b, d), u16(b, d + 2), f64(b, d + 7));                 // NUMBER de Excel 2 (así exporta Resto Soft)
+    else if (tipo === 0x0002) poner(u16(b, d), u16(b, d + 2), u16(b, d + 7));                 // INTEGER de Excel 2
+    else if (tipo === 0x0004) poner(u16(b, d), u16(b, d + 2), texto8(b, d + 8, b[d + 7]));    // LABEL de Excel 2
     else if (tipo === 0x0203) poner(u16(b, d), u16(b, d + 2), f64(b, d + 6));
     else if (tipo === 0x027e) poner(u16(b, d), u16(b, d + 2), rk(u32le(b, d + 6)));
     else if (tipo === 0x00bd) { const f = u16(b, d); let c = u16(b, d + 2); for (let q = d + 4; q + 6 <= d + largo - 2; q += 6) poner(f, c++, rk(u32le(b, q + 2))); }
