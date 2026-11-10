@@ -374,10 +374,21 @@ function limpiarNombre(t) {
 function claveNombre(t) { return String(t || "").replace(/\s+/g, " ").trim().toUpperCase(); }
 function mapaNombres() { const m = {}; filas("NOMBRES").forEach(r => { if (r[0] && r[1]) m[claveNombre(r[0])] = String(r[1]).trim(); }); return m; }
 
+/** Cambia los renglones de un período por los nuevos, en una sola escritura. colsTexto: columnas (1 = A) que van como texto. */
+function reemplazarPeriodo(sh, periodo, nuevas, colsTexto) {
+  const v = sh.getDataRange().getValues(), ancho = HOJAS[sh.getName()].length;
+  const quedan = v.slice(1).filter(r => r.join("") !== "" && fTxt(r[0]) !== periodo).map(r => r.slice(0, ancho).map(x => (x instanceof Date ? fTxt(x) : x)));
+  const todas = quedan.concat(nuevas);
+  if (v.length > 1) sh.getRange(2, 1, v.length - 1, Math.max(ancho, v[0].length)).clearContent();
+  colsTexto.forEach(c => sh.getRange(2, c, Math.max(todas.length, 1), 1).setNumberFormat("@"));
+  if (todas.length) sh.getRange(2, 1, todas.length, ancho).setValues(todas);
+}
+
 /** Busca el último Excel de cuentas corrientes en la carpeta RESTOSOFT y lo carga. */
 function importar(token) {
   const yo = quien(token);
-  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) throw new Error("Ya se está cargando un Excel. Esperá un minuto y volvé a tocar Cargar Excel nuevo.");
   try {
     const it = DriveApp.getFolderById(RESTOSOFT_ID).getFiles(); let ultimo = null;
     while (it.hasNext()) {
@@ -395,11 +406,7 @@ function importar(token) {
     if (!datos.hasta || !datos.clientes.length) throw new Error("El Excel no tiene el formato de cuentas corrientes de Resto Soft.");
     const periodo = datos.hasta;
 
-    const saldos = hoja("SALDOS"), movs = hoja("MOVIMIENTOS");
-    [saldos, movs].forEach(function (sh) {
-      const v = sh.getDataRange().getValues();
-      for (let i = v.length - 1; i >= 1; i--) if (fTxt(v[i][0]) === periodo) sh.deleteRow(i + 1);
-    });
+    // Todo de una vez (borrar renglón por renglón tardaba tanto que Google cortaba la carga).
     const fs = [], fm = [];
     datos.clientes.forEach(function (c) {
       if (!c.movs.length && Math.abs(c.actual) < 1) return;
@@ -407,17 +414,18 @@ function importar(token) {
       c.movs.forEach(m => fm.push([periodo, c.codigo, m.fecha, m.comp, m.tipo, m.debe, m.haber, m.saldo,
         m.items.map(i => i.cant + "× " + i.desc + " = " + i.importe).join(" | ")]));
     });
-    if (fs.length) saldos.getRange(saldos.getLastRow() + 1, 1, fs.length, fs[0].length).setValues(fs);
-    if (fm.length) movs.getRange(movs.getLastRow() + 1, 1, fm.length, fm[0].length).setValues(fm);
+    reemplazarPeriodo(hoja("SALDOS"), periodo, fs, [1, 7, 8]);
+    reemplazarPeriodo(hoja("MOVIMIENTOS"), periodo, fm, [1, 3]);
 
     const cs = hoja("CLIENTES"), cv = cs.getDataRange().getValues(), ya = {};
-    for (let i = 1; i < cv.length; i++) ya[String(cv[i][0])] = i + 1;
+    for (let i = 1; i < cv.length; i++) ya[String(cv[i][0])] = i;
     const nuevos = [];
     datos.clientes.forEach(function (c) {
-      if (ya[String(c.codigo)]) { cs.getRange(ya[String(c.codigo)], 2).setValue(c.nombre); cs.getRange(ya[String(c.codigo)], 8).setValue(c.tel); return; }
+      if (ya[String(c.codigo)]) { const f = cv[ya[String(c.codigo)]]; f[1] = c.nombre; f[7] = c.tel; return; }
       if (!c.movs.length && Math.abs(c.actual) < 1) return;
       nuevos.push([c.codigo, c.nombre, adivinarSaludo(c.nombre), normalizarWa(c.tel), "", "", "", c.tel]);
     });
+    if (cv.length > 1) cs.getRange(2, 1, cv.length - 1, cv[0].length).setValues(cv.slice(1));
     if (nuevos.length) cs.getRange(cs.getLastRow() + 1, 1, nuevos.length, nuevos[0].length).setValues(nuevos);
     // productos nuevos: se agregan a NOMBRES con un nombre sugerido, para revisar
     const conocidos = mapaNombres(), nuevosNombres = {};
