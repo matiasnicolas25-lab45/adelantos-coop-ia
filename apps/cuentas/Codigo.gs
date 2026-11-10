@@ -108,21 +108,13 @@ function emisorYSerie(cert) {
   return dTlv(0x30, dCat(partes[i + 2].total, partes[i].total));   // issuer, serialNumber
 }
 
-function utcTime(d) { return Utilities.formatDate(d, "UTC", "yyMMddHHmmss") + "Z"; }
-
-/** Firma el pedido de acceso (TRA) en formato CMS, como pide ARCA. */
+/** Firma el pedido de acceso (TRA) en formato CMS, como pide ARCA. Sin atributos firmados: la firma va
+ *  directo sobre el texto del pedido (que es todo ASCII), así Google lo firma como texto común. */
 function firmarCms(texto, certPem, clavePem) {
   const cert = pemABytes(certPem), contenido = utf8b(texto);
   const sha = dTlv(0x30, dCat(dOid("2.16.840.1.101.3.4.2.1"), [5, 0]));
-  const digest = sinSigno(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, conSigno(contenido)));
-  const attrs = [
-    dTlv(0x30, dCat(dOid("1.2.840.113549.1.9.3"), dTlv(0x31, dOid("1.2.840.113549.1.7.1")))),
-    dTlv(0x30, dCat(dOid("1.2.840.113549.1.9.5"), dTlv(0x31, dTlv(0x17, utf8b(utcTime(new Date())))))),
-    dTlv(0x30, dCat(dOid("1.2.840.113549.1.9.4"), dTlv(0x31, dTlv(0x04, digest)))),
-  ].sort((a, b) => { for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) return a[i] - b[i]; return a.length - b.length; });
-  const attrsCuerpo = dCat.apply(null, attrs);
-  const firma = sinSigno(Utilities.computeRsaSha256Signature(conSigno(dTlv(0x31, attrsCuerpo)), clavePem));
-  const signer = dTlv(0x30, dCat([2, 1, 1], emisorYSerie(cert), sha, dTlv(0xa0, attrsCuerpo),
+  const firma = sinSigno(Utilities.computeRsaSha256Signature(texto, clavePem));
+  const signer = dTlv(0x30, dCat([2, 1, 1], emisorYSerie(cert), sha,
     dTlv(0x30, dCat(dOid("1.2.840.113549.1.1.1"), [5, 0])), dTlv(0x04, firma)));
   const signed = dTlv(0x30, dCat([2, 1, 1], dTlv(0x31, sha),
     dTlv(0x30, dCat(dOid("1.2.840.113549.1.7.1"), dTlv(0xa0, dTlv(0x04, contenido)))),
