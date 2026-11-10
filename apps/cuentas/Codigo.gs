@@ -16,6 +16,7 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu("ARCA")
     .addItem("1. Crear pedido de certificado", "abrirPedido")
     .addItem("2. Guardar el certificado de ARCA", "abrirCertificado")
+    .addItem("3. Probar conexión con ARCA", "probarArca")
     .addItem("Ver estado del certificado", "verEstado")
     .addToUi();
 }
@@ -45,6 +46,7 @@ function guardarPedido(clave, csr, pisar) {
   p.setProperty("ARCA_CLAVE", clave);
   p.setProperty("ARCA_PEDIDO", csr);
   p.deleteProperty("ARCA_CERT");
+  p.deleteProperty("ARCA_TA");
   const carpeta = DriveApp.getFileById(SpreadsheetApp.getActiveSpreadsheet().getId()).getParents().next();
   const nombre = "pedido-certificado-" + ALIAS + ".csr";
   const viejos = carpeta.getFilesByName(nombre);
@@ -60,6 +62,7 @@ function guardarCertificado(texto) {
   const t = String(texto || "").trim();
   if (!/^-----BEGIN CERTIFICATE-----[\s\S]+-----END CERTIFICATE-----$/.test(t)) throw new Error("Ese archivo no es un certificado. Elegí el archivo que bajaste de ARCA (termina en .crt o .pem).");
   p.setProperty("ARCA_CERT", t + "\n");
+  p.deleteProperty("ARCA_TA");
   return "Certificado guardado.";
 }
 
@@ -69,6 +72,115 @@ function verEstado() {
     "Llave: " + (d.hayClave ? "creada" : "falta (paso 1)") + "\n" +
     "Certificado de ARCA: " + (d.hayCert ? "guardado" : "falta (paso 2)") + "\n" +
     "Punto de venta: " + PUNTO_VENTA);
+}
+
+/* ---------------- ARCA: login (WSAA) y factura electrónica (WSFE) ---------------- */
+
+const WSAA_URL = "https://wsaa.afip.gov.ar/ws/services/LoginCms";
+const WSFE_URL = "https://servicios1.afip.gov.ar/wsfev1/service.asmx";
+
+// DER mínimo (bytes sin signo 0..255)
+function dLen(n) { if (n < 128) return [n]; const b = []; while (n > 0) { b.unshift(n & 255); n = Math.floor(n / 256); } return [128 | b.length].concat(b); }
+function dTlv(tag, bytes) { return [tag].concat(dLen(bytes.length), bytes); }
+function dCat() { let r = []; for (let i = 0; i < arguments.length; i++) r = r.concat(arguments[i]); return r; }
+function dOid(txt) {
+  const p = txt.split(".").map(Number), out = [40 * p[0] + p[1]];
+  for (let i = 2; i < p.length; i++) { let v = p[i]; const t = [v & 127]; while ((v = Math.floor(v / 128)) > 0) t.unshift(128 | (v & 127)); out.push.apply(out, t); }
+  return dTlv(6, out);
+}
+function sinSigno(b) { return b.map(x => x & 255); }
+function conSigno(b) { return b.map(x => (x > 127 ? x - 256 : x)); }
+function utf8b(s) { return sinSigno(Utilities.newBlob(s).getBytes()); }
+function pemABytes(pem) { return sinSigno(Utilities.base64Decode(pem.replace(/-----[^-]+-----/g, "").replace(/\s+/g, ""))); }
+
+/** Lee un elemento DER: devuelve {tag, ini (donde empieza el contenido), fin, total (bytes del elemento entero)}. */
+function dLeer(b, pos) {
+  const tag = b[pos]; let l = b[pos + 1], ini = pos + 2;
+  if (l & 128) { const n = l & 127; l = 0; for (let i = 0; i < n; i++) l = l * 256 + b[ini + i]; ini += n; }
+  return { tag: tag, ini: ini, fin: ini + l, total: b.slice(pos, ini + l) };
+}
+function dHijos(b, el) { const r = []; let p = el.ini; while (p < el.fin) { const h = dLeer(b, p); r.push(h); p = h.fin; } return r; }
+
+/** Emisor y número de serie del certificado (para la firma). */
+function emisorYSerie(cert) {
+  const tbs = dHijos(cert, dLeer(cert, 0))[0], partes = dHijos(cert, tbs);
+  const i = partes[0].tag === 0xa0 ? 1 : 0;   // [0] versión
+  return dTlv(0x30, dCat(partes[i + 2].total, partes[i].total));   // issuer, serialNumber
+}
+
+function utcTime(d) { return Utilities.formatDate(d, "UTC", "yyMMddHHmmss") + "Z"; }
+
+/** Firma el pedido de acceso (TRA) en formato CMS, como pide ARCA. */
+function firmarCms(texto, certPem, clavePem) {
+  const cert = pemABytes(certPem), contenido = utf8b(texto);
+  const sha = dTlv(0x30, dCat(dOid("2.16.840.1.101.3.4.2.1"), [5, 0]));
+  const digest = sinSigno(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, conSigno(contenido)));
+  const attrs = [
+    dTlv(0x30, dCat(dOid("1.2.840.113549.1.9.3"), dTlv(0x31, dOid("1.2.840.113549.1.7.1")))),
+    dTlv(0x30, dCat(dOid("1.2.840.113549.1.9.5"), dTlv(0x31, dTlv(0x17, utf8b(utcTime(new Date())))))),
+    dTlv(0x30, dCat(dOid("1.2.840.113549.1.9.4"), dTlv(0x31, dTlv(0x04, digest)))),
+  ].sort((a, b) => { for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) return a[i] - b[i]; return a.length - b.length; });
+  const attrsCuerpo = dCat.apply(null, attrs);
+  const firma = sinSigno(Utilities.computeRsaSha256Signature(conSigno(dTlv(0x31, attrsCuerpo)), clavePem));
+  const signer = dTlv(0x30, dCat([2, 1, 1], emisorYSerie(cert), sha, dTlv(0xa0, attrsCuerpo),
+    dTlv(0x30, dCat(dOid("1.2.840.113549.1.1.1"), [5, 0])), dTlv(0x04, firma)));
+  const signed = dTlv(0x30, dCat([2, 1, 1], dTlv(0x31, sha),
+    dTlv(0x30, dCat(dOid("1.2.840.113549.1.7.1"), dTlv(0xa0, dTlv(0x04, contenido)))),
+    dTlv(0xa0, cert), dTlv(0x31, signer)));
+  return Utilities.base64Encode(conSigno(dTlv(0x30, dCat(dOid("1.2.840.113549.1.7.2"), dTlv(0xa0, signed)))));
+}
+
+function isoArg(d) { return Utilities.formatDate(d, "America/Argentina/Buenos_Aires", "yyyy-MM-dd'T'HH:mm:ss") + "-03:00"; }
+function xmlTag(xml, tag) { const m = xml.match(new RegExp("<(?:\\w+:)?" + tag + ">([\\s\\S]*?)</(?:\\w+:)?" + tag + ">")); return m ? m[1] : ""; }
+function desescapar(t) { return t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&"); }
+
+/** Token y firma de ARCA para wsfe. Se guardan hasta que vencen (ARCA no da otro mientras el anterior sirve). */
+function acceso() {
+  const p = props(), guardado = JSON.parse(p.getProperty("ARCA_TA") || "null");
+  if (guardado && new Date(guardado.vence).getTime() - Date.now() > 10 * 60 * 1000) return guardado;
+  const clave = p.getProperty("ARCA_CLAVE"), cert = p.getProperty("ARCA_CERT");
+  if (!clave || !cert) throw new Error("Falta el certificado. Hacé los pasos 1 y 2 del menú ARCA.");
+  const ahora = new Date();
+  const tra = '<?xml version="1.0" encoding="UTF-8"?><loginTicketRequest version="1.0"><header><uniqueId>' +
+    Math.floor(ahora.getTime() / 1000) + "</uniqueId><generationTime>" + isoArg(new Date(ahora.getTime() - 10 * 60000)) +
+    "</generationTime><expirationTime>" + isoArg(new Date(ahora.getTime() + 10 * 60000)) +
+    "</expirationTime></header><service>wsfe</service></loginTicketRequest>";
+  const sobre = '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:wsaa="http://wsaa.view.sua.dvadac.desein.afip.gov">' +
+    "<soapenv:Header/><soapenv:Body><wsaa:loginCms><wsaa:in0>" + firmarCms(tra, cert, clave) + "</wsaa:in0></wsaa:loginCms></soapenv:Body></soapenv:Envelope>";
+  const r = UrlFetchApp.fetch(WSAA_URL, { method: "post", contentType: "text/xml; charset=utf-8", headers: { SOAPAction: '""' }, payload: sobre, muteHttpExceptions: true });
+  const txt = r.getContentText();
+  if (r.getResponseCode() !== 200) throw new Error("ARCA no aceptó el ingreso: " + (desescapar(xmlTag(txt, "faultstring")) || ("error " + r.getResponseCode())));
+  const ta = desescapar(xmlTag(txt, "loginCmsReturn"));
+  const dato = { token: xmlTag(ta, "token"), sign: xmlTag(ta, "sign"), vence: xmlTag(ta, "expirationTime") };
+  if (!dato.token) throw new Error("ARCA respondió sin permiso de acceso.");
+  p.setProperty("ARCA_TA", JSON.stringify(dato));
+  return dato;
+}
+
+function wsfe(metodo, cuerpo) {
+  const a = acceso();
+  const sobre = '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ar="http://ar.gov.afip.dif.FEV1/"><soap:Body><ar:' + metodo + ">" +
+    "<ar:Auth><ar:Token>" + a.token + "</ar:Token><ar:Sign>" + a.sign + "</ar:Sign><ar:Cuit>" + CUIT + "</ar:Cuit></ar:Auth>" + cuerpo +
+    "</ar:" + metodo + "></soap:Body></soap:Envelope>";
+  const r = UrlFetchApp.fetch(WSFE_URL, { method: "post", contentType: "text/xml; charset=utf-8", headers: { SOAPAction: "http://ar.gov.afip.dif.FEV1/" + metodo }, payload: sobre, muteHttpExceptions: true });
+  const txt = r.getContentText();
+  const err = xmlTag(txt, "Errors");
+  if (err) throw new Error("ARCA: " + desescapar(xmlTag(err, "Msg")) + " (código " + xmlTag(err, "Code") + ")");
+  if (r.getResponseCode() !== 200) throw new Error("ARCA: " + (xmlTag(txt, "faultstring") || ("error " + r.getResponseCode())));
+  return txt;
+}
+
+/** Número de la última factura A hecha en el punto de venta 5 (0 si nunca se hizo ninguna). */
+function ultimaFacturaA() { return Number(xmlTag(wsfe("FECompUltimoAutorizado", "<ar:PtoVta>" + PUNTO_VENTA + "</ar:PtoVta><ar:CbteTipo>1</ar:CbteTipo>"), "CbteNro")); }
+
+function probarArca() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    const n = ultimaFacturaA();
+    ui.alert("Conexión con ARCA: OK", "El programa entró a ARCA con el certificado.\nÚltima factura A del punto de venta " + PUNTO_VENTA + ": " + (n || "ninguna todavía") + ".", ui.ButtonSet.OK);
+  } catch (e) {
+    ui.alert("Conexión con ARCA: no anduvo", e.message, ui.ButtonSet.OK);
+  }
 }
 
 /* ---------------- diálogos (sin comillas invertidas ni barras invertidas adentro) ---------------- */
