@@ -74,7 +74,7 @@ function nombre(c){return c.n.split(" ")[0]}
 function cosas(it){return it.map(function(i){return(i[0]>1?i[0]+"× ":"")+i[1]}).join(", ")}
 function cap(t){return t.charAt(0).toUpperCase()+t.slice(1)}
 function mensaje(c){var L=[];
-L.push("Hola, "+nombre(c)+" 👋");
+L.push("Hola "+nombre(c)+" 👋");
 L.push("Te escribimos de *La Caleta* con el resumen de tu cuenta corriente del 04/11 al 10/11.");
 L.push("");
 if(c.ant)L.push("*Saldo anterior:* "+pesos(c.ant),"");
@@ -84,7 +84,7 @@ if(c.pag.length){L.push("*Pagos recibidos*");c.pag.forEach(function(x){L.push("�
 var s=saldo(c);
 if(s<=0){L.push("✅ *Tu cuenta está al día.* ¡Gracias!")}else{
 L.push("*Total a pagar: "+pesos(s)+"*","");
-L.push("Podés pagarlo en el salón o por transferencia al alias *ALIAS.DE.LA.CALETA*.");
+L.push("Podés pagarlo en el salón o por transferencia al alias *caleta.ycr*.");
 L.push("El saldo que quede sin pagar el miércoles se actualiza un 2,5%.")}
 L.push("","¡Gracias! La Caleta · Yacht Club Rosario");
 return L.join("\n")}
