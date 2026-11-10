@@ -1,0 +1,365 @@
+/* ---------------- app de cuentas (web): datos, acceso con PIN, mensajes, pagos y facturas ---------------- */
+
+const LIBRO_ID = "1o9hwDQ5Yww8bs38ue48hwM-nSSsrh-vwcL2f0c_32oM";
+const RESTOSOFT_ID = "1wO-WdCuwm0PtuFtz_MdcFj-uZwXlMsmZ";   // carpeta donde se suben los Excel de Resto Soft
+const ARCHIVO_CUENTAS = "DETALLE DE CONSUMOS DE CUENTAS CORRIENTES";
+const ALIAS_PAGO = "caleta.ycr";
+const RECARGO = 0.025;
+const ZONA = "America/Argentina/Buenos_Aires";
+const USUARIOS = [["Matías", "admin"], ["Raquel", "usuario"], ["Yoana", "usuario"], ["Belén", "usuario"]];
+
+const HOJAS = {
+  ACCESO: ["Nombre", "PIN", "Rol"],
+  CONFIG: ["Dato", "Valor"],
+  CLIENTES: ["Código", "Nombre en Resto Soft", "Saludo", "WhatsApp", "CUIT", "Condición IVA", "Revisado", "Teléfono en Resto Soft"],
+  SALDOS: ["Período", "Código", "Nombre", "Teléfono", "Saldo anterior", "Saldo actual", "Desde", "Hasta"],
+  MOVIMIENTOS: ["Período", "Código", "Fecha", "Comprobante", "Tipo", "Debe", "Haber", "Saldo", "Detalle"],
+  ESTADO: ["Período", "Código", "Mensaje enviado", "Enviado por", "Pagó", "Marcado por"],
+  FACTURAS: ["Fecha", "Quién", "Tipo", "Punto de venta", "Número", "Código cliente", "Receptor", "Documento", "Condición IVA",
+    "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle"],
+  REGISTRO: ["Fecha", "Quién", "Acción", "Cliente", "Detalle"],
+};
+
+function libro() { return SpreadsheetApp.openById(LIBRO_ID); }
+function hoja(nombre) {
+  const lib = libro();
+  let sh = lib.getSheetByName(nombre);
+  if (!sh) {
+    sh = lib.insertSheet(nombre);
+    sh.getRange(1, 1, 1, HOJAS[nombre].length).setValues([HOJAS[nombre]]).setFontWeight("bold");
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+function filas(nombre) { const v = hoja(nombre).getDataRange().getValues(); v.shift(); return v; }
+function ahoraTxt() { return Utilities.formatDate(new Date(), ZONA, "dd/MM/yyyy HH:mm"); }
+function registrar(quien, accion, cliente, detalle) { hoja("REGISTRO").appendRow([ahoraTxt(), quien, accion, cliente || "", detalle || ""]); }
+
+/** Crea las hojas y los usuarios. Se corre una vez desde el menú. */
+function instalarApp() {
+  Object.keys(HOJAS).forEach(hoja);
+  const acc = hoja("ACCESO");
+  if (acc.getLastRow() < 2) acc.getRange(2, 1, USUARIOS.length, 3).setValues(USUARIOS.map(u => [u[0], "", u[1]]));
+  acc.getRange("B:B").setNumberFormat("@");
+  hoja("CLIENTES").getRange("D:E").setNumberFormat("@");
+  const cfg = hoja("CONFIG");
+  if (cfg.getLastRow() < 2) cfg.getRange(2, 1, 1, 2).setValues([["Cuentas de Google que pueden abrir la app (separadas por coma)", Session.getActiveUser().getEmail()]]);
+  const def = libro().getSheetByName("Hoja 1") || libro().getSheetByName("Sheet1");
+  if (def && def.getLastRow() === 0 && libro().getSheets().length > 1) libro().deleteSheet(def);
+  SpreadsheetApp.getUi().alert("Listo. Agregá en CONFIG la cuenta de La Caleta (separada por coma) y después publicá la app (ver instrucciones).");
+}
+
+/* ---------- acceso ---------- */
+
+function cuentasPermitidas() {
+  const f = filas("CONFIG").filter(r => String(r[0]).indexOf("Cuentas de Google") === 0)[0];
+  return String(f ? f[1] : "").toLowerCase().split(",").map(s => s.trim()).filter(Boolean);
+}
+function cuentaOk() {
+  const mail = String(Session.getActiveUser().getEmail() || "").toLowerCase();
+  return !!mail && cuentasPermitidas().indexOf(mail) >= 0;
+}
+
+function doGet() {
+  if (!cuentaOk()) {
+    return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width, initial-scale=1"><p style="font:17px sans-serif;padding:24px">Esta app solo se abre con la cuenta de Google de La Caleta o la de Matías.</p>').setTitle("Cuentas La Caleta");
+  }
+  return HtmlService.createHtmlOutput(PANTALLA).setTitle("Cuentas La Caleta")
+    .addMetaTag("viewport", "width=device-width, initial-scale=1, maximum-scale=1");
+}
+
+function nombresAcceso() {
+  if (!cuentaOk()) throw new Error("Esta cuenta de Google no tiene permiso.");
+  return filas("ACCESO").filter(r => r[0]).map(r => ({ nombre: String(r[0]), nuevo: !String(r[1]).trim() }));
+}
+
+function entrar(nombre, pin) {
+  if (!cuentaOk()) throw new Error("Esta cuenta de Google no tiene permiso.");
+  pin = String(pin || "");
+  if (!/^\d{4}$/.test(pin)) throw new Error("El PIN son 4 números.");
+  const sh = hoja("ACCESO"), v = sh.getDataRange().getValues();
+  for (let i = 1; i < v.length; i++) {
+    if (String(v[i][0]) !== nombre) continue;
+    const guardado = String(v[i][1]).trim();
+    if (!guardado) { sh.getRange(i + 1, 2).setValue(pin); registrar(nombre, "Eligió su PIN"); }
+    else if (guardado !== pin) { registrar(nombre, "PIN equivocado"); throw new Error("PIN equivocado."); }
+    const token = Utilities.getUuid();
+    CacheService.getScriptCache().put("t_" + token, JSON.stringify({ nombre: nombre, rol: String(v[i][2] || "usuario") }), 6 * 3600);
+    return { token: token, nombre: nombre, rol: String(v[i][2] || "usuario"), nuevo: !guardado };
+  }
+  throw new Error("Ese nombre no está en la lista de acceso.");
+}
+
+function quien(token) {
+  if (!cuentaOk()) throw new Error("Esta cuenta de Google no tiene permiso.");
+  const s = CacheService.getScriptCache().get("t_" + token);
+  if (!s) throw new Error("SESION");
+  return JSON.parse(s);
+}
+
+/* ---------- Resto Soft: leer el Excel de cuentas corrientes ---------- */
+
+function convertirAPlanilla(archivo) {
+  const carpeta = DriveApp.getFileById(LIBRO_ID).getParents().next().getId();
+  const r = UrlFetchApp.fetch("https://www.googleapis.com/drive/v3/files/" + archivo.getId() + "/copy?supportsAllDrives=true", {
+    method: "post", contentType: "application/json", muteHttpExceptions: true,
+    headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() },
+    payload: JSON.stringify({ name: "temporal cuentas (se borra solo)", mimeType: "application/vnd.google-apps.spreadsheet", parents: [carpeta] }),
+  });
+  if (r.getResponseCode() !== 200) throw new Error("No se pudo abrir el Excel de Resto Soft (" + r.getResponseCode() + ").");
+  return JSON.parse(r.getContentText()).id;
+}
+
+function aFecha(x) {
+  if (x instanceof Date) return Utilities.formatDate(x, ZONA, "yyyy-MM-dd");
+  const m = String(x).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  return m ? m[3] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2) : "";
+}
+function aNum(x) { if (typeof x === "number") return x; const t = String(x || "").replace(/\$/g, "").trim(); if (!t) return 0; return Number(t.indexOf(",") >= 0 ? t.replace(/\./g, "").replace(",", ".") : t) || 0; }
+
+/** Misma lectura que scripts/cuentas_corrientes.py, sobre las filas del Excel convertido. */
+function leerCuentas(valores) {
+  const clientes = []; let cli = null, desde = "", hasta = "";
+  valores.forEach(function (fila) {
+    const a = fila[0], b = fila[1], debe = aNum(fila[2]), haber = aNum(fila[3]), saldo = aNum(fila[5]);
+    const ta = typeof a === "string" ? a.trim() : a, tb = typeof b === "string" ? b.trim() : String(b || "");
+    if (typeof ta === "string" && ta.indexOf("Cliente:") === 0) {
+      const m = ta.slice(8).trim().match(/^\((\d+)\)\s*(.*)$/);
+      cli = { codigo: m ? Number(m[1]) : 0, nombre: m ? m[2].trim() : ta.slice(8).trim(), tel: "", anterior: 0, actual: 0, movs: [] };
+      clientes.push(cli);
+    } else if (!cli) {
+      return;
+    } else if (typeof ta === "string" && ta.indexOf("Domicilio:") === 0) {
+      // no se usa
+    } else if (typeof ta === "string" && ta.indexOf("Telefono:") === 0) {
+      cli.tel = ta.slice(9).trim();
+    } else if (tb.indexOf("Saldo Anterior") >= 0) {
+      cli.anterior = saldo; desde = aFecha(a) || desde;
+    } else if (tb.indexOf("Saldo Actual") >= 0) {
+      cli.actual = saldo; hasta = aFecha(a) || hasta;
+    } else if (aFecha(a)) {
+      cli.movs.push({ fecha: aFecha(a), comp: tb, debe: debe, haber: haber, saldo: saldo, items: [] });
+    } else if (typeof a === "number" && tb && cli.movs.length) {
+      cli.movs[cli.movs.length - 1].items.push({ cant: a, desc: tb, importe: haber });
+    }
+  });
+  clientes.forEach(function (c) {
+    c.movs.forEach(function (m) {
+      m.tipo = m.comp.indexOf("RE") === 0 ? "Pago"
+        : (m.items.length && m.items.every(i => i.desc === "ACTUALIZACION")) ? "Actualización" : "Consumo";
+    });
+  });
+  return { clientes: clientes, desde: desde, hasta: hasta };
+}
+
+function normalizarWa(tel) {
+  let d = String(tel || "").replace(/\D/g, "");
+  if (!d) return "";
+  if (d.indexOf("549") === 0 && d.length === 13) return d;
+  if (d.indexOf("54") === 0 && d.length >= 12) d = d.slice(2);
+  if (d.indexOf("9") === 0 && d.length === 11) d = d.slice(1);
+  if (d.indexOf("0") === 0) d = d.slice(1);
+  const m = d.match(/^(\d{2,4})15(\d{6,8})$/);
+  if (m && (m[1] + m[2]).length === 10) d = m[1] + m[2];
+  if (d.length === 10) return "549" + d;
+  if (d.indexOf("15") === 0 && d.length === 9) return "549341" + d.slice(2);
+  return "";
+}
+
+function adivinarSaludo(nombre) {
+  const limpio = String(nombre || "").split("(")[0].replace(/^\d+\s+/, "").trim();
+  if (!limpio || /\b(S\.?A\.?|S\.?R\.?L\.?|SAS|COOP|CLUB|ESTUDIO|EMPRESA)\b/i.test(limpio)) return "";
+  const p = limpio.split(/\s+/);
+  const n = p.length > 1 ? p[p.length - 1] : p[0];
+  return n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
+}
+
+/** Busca el último Excel de cuentas corrientes en la carpeta RESTOSOFT y lo carga. */
+function importar(token) {
+  const yo = quien(token);
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const it = DriveApp.getFolderById(RESTOSOFT_ID).getFiles(); let ultimo = null;
+    while (it.hasNext()) {
+      const f = it.next();
+      if (f.getName().toUpperCase().indexOf(ARCHIVO_CUENTAS) === 0 && (!ultimo || f.getLastUpdated() > ultimo.getLastUpdated())) ultimo = f;
+    }
+    if (!ultimo) throw new Error("No encontré el Excel '" + ARCHIVO_CUENTAS + "' en la carpeta RESTOSOFT.");
+    const tmp = convertirAPlanilla(ultimo);
+    let datos;
+    try { datos = leerCuentas(SpreadsheetApp.openById(tmp).getSheets()[0].getDataRange().getValues()); }
+    finally { DriveApp.getFileById(tmp).setTrashed(true); }
+    if (!datos.hasta || !datos.clientes.length) throw new Error("El Excel no tiene el formato de cuentas corrientes de Resto Soft.");
+    const periodo = datos.hasta;
+
+    const saldos = hoja("SALDOS"), movs = hoja("MOVIMIENTOS");
+    [saldos, movs].forEach(function (sh) {
+      const v = sh.getDataRange().getValues();
+      for (let i = v.length - 1; i >= 1; i--) if (String(v[i][0]) === periodo) sh.deleteRow(i + 1);
+    });
+    const fs = [], fm = [];
+    datos.clientes.forEach(function (c) {
+      if (!c.movs.length && Math.abs(c.actual) < 1) return;
+      fs.push([periodo, c.codigo, c.nombre, c.tel, c.anterior, c.actual, datos.desde, datos.hasta]);
+      c.movs.forEach(m => fm.push([periodo, c.codigo, m.fecha, m.comp, m.tipo, m.debe, m.haber, m.saldo,
+        m.items.map(i => (i.cant !== 1 ? i.cant + "× " : "") + i.desc).join(" | ")]));
+    });
+    if (fs.length) saldos.getRange(saldos.getLastRow() + 1, 1, fs.length, fs[0].length).setValues(fs);
+    if (fm.length) movs.getRange(movs.getLastRow() + 1, 1, fm.length, fm[0].length).setValues(fm);
+
+    const cs = hoja("CLIENTES"), cv = cs.getDataRange().getValues(), ya = {};
+    for (let i = 1; i < cv.length; i++) ya[String(cv[i][0])] = i + 1;
+    const nuevos = [];
+    datos.clientes.forEach(function (c) {
+      if (ya[String(c.codigo)]) { cs.getRange(ya[String(c.codigo)], 2).setValue(c.nombre); cs.getRange(ya[String(c.codigo)], 8).setValue(c.tel); return; }
+      if (!c.movs.length && Math.abs(c.actual) < 1) return;
+      nuevos.push([c.codigo, c.nombre, adivinarSaludo(c.nombre), normalizarWa(c.tel), "", "", "", c.tel]);
+    });
+    if (nuevos.length) cs.getRange(cs.getLastRow() + 1, 1, nuevos.length, nuevos[0].length).setValues(nuevos);
+    hoja("CONFIG").appendRow(["Último Excel cargado", ultimo.getName() + " · " + ahoraTxt() + " · período " + datos.desde + " al " + datos.hasta]);
+    registrar(yo.nombre, "Cargó el Excel de Resto Soft", "", ultimo.getName() + " (" + fs.length + " clientes)");
+    CacheService.getScriptCache().remove("datos");
+    return { clientes: fs.length, nuevos: nuevos.length, desde: datos.desde, hasta: datos.hasta };
+  } finally { lock.releaseLock(); }
+}
+
+/* ---------- datos para la pantalla ---------- */
+
+function datos(token) {
+  const yo = quien(token);
+  const s = filas("SALDOS");
+  if (!s.length) return { yo: yo, periodo: null, clientes: [] };
+  const periodo = s.map(r => String(r[0])).sort().pop();
+  const cli = {}; filas("CLIENTES").forEach(r => cli[String(r[0])] = r);
+  const est = {}; filas("ESTADO").forEach(r => { if (String(r[0]) === periodo) est[String(r[1])] = r; });
+  const fac = {}; filas("FACTURAS").forEach(r => { const k = String(r[5]); if (k) (fac[k] = fac[k] || []).push({ fecha: r[0], tipo: r[2], numero: r[4], total: r[11] }); });
+  const mv = {}; filas("MOVIMIENTOS").forEach(r => { if (String(r[0]) === periodo) (mv[String(r[1])] = mv[String(r[1])] || []).push(r); });
+  const todos = {}; filas("MOVIMIENTOS").forEach(r => { if (r[4] === "Pago") { const k = String(r[1]); if (!todos[k] || r[2] > todos[k]) todos[k] = String(r[2]); } });
+  let desde = "", hasta = periodo;
+  const lista = s.filter(r => String(r[0]) === periodo).map(function (r) {
+    desde = String(r[6]);
+    const k = String(r[1]), c = cli[k] || [], e = est[k] || [], m = mv[k] || [];
+    const conDetalle = m.map(x => ({ fecha: String(x[2]), tipo: x[4], importe: x[4] === "Pago" ? Number(x[6]) : Number(x[5]), detalle: String(x[8] || "") }));
+    return {
+      codigo: Number(k), nombre: String(r[2]), saludo: String(c[2] || ""), wa: String(c[3] || ""), cuit: String(c[4] || ""),
+      cond: String(c[5] || ""), revisado: String(c[6] || "") === "SÍ", tel: String(r[3] || ""),
+      anterior: Number(r[4]), actual: Number(r[5]), movs: conDetalle, ultimoPago: todos[k] || "",
+      enviado: String(e[2] || ""), enviadoPor: String(e[3] || ""), pago: String(e[4] || ""), pagoPor: String(e[5] || ""),
+      facturas: fac[k] || [],
+    };
+  });
+  return { yo: yo, periodo: { desde: desde, hasta: hasta }, clientes: lista, alias: ALIAS_PAGO, recargo: RECARGO };
+}
+
+function guardarCliente(token, codigo, d) {
+  const yo = quien(token);
+  const wa = normalizarWa(d.wa);
+  if (d.wa && !wa) throw new Error("Ese número de WhatsApp no parece válido. Ponelo con característica, por ejemplo 341 5123456.");
+  const cuit = String(d.cuit || "").replace(/\D/g, "");
+  if (cuit && !cuitValido(cuit)) throw new Error("Ese CUIT no es válido. Revisá los 11 números.");
+  const cs = hoja("CLIENTES"), v = cs.getDataRange().getValues();
+  let fila = 0; for (let i = 1; i < v.length; i++) if (String(v[i][0]) === String(codigo)) fila = i + 1;
+  if (!fila) { cs.appendRow([codigo, d.nombre || "", "", "", "", "", "", ""]); fila = cs.getLastRow(); }
+  cs.getRange(fila, 3, 1, 5).setValues([[String(d.saludo || "").trim(), wa, cuit, String(d.cond || ""), "SÍ"]]);
+  registrar(yo.nombre, "Actualizó datos del cliente", d.nombre || codigo, "saludo: " + (d.saludo || "") + ", WhatsApp: " + (wa || "-") + ", CUIT: " + (cuit || "-"));
+  return { wa: wa, cuit: cuit };
+}
+
+function marcar(token, codigo, nombre, que, valor) {
+  const yo = quien(token), periodo = filas("SALDOS").map(r => String(r[0])).sort().pop() || "";
+  if (!periodo) throw new Error("Primero cargá el Excel de Resto Soft.");
+  const sh = hoja("ESTADO"), v = sh.getDataRange().getValues();
+  let fila = 0; for (let i = 1; i < v.length; i++) if (String(v[i][0]) === periodo && String(v[i][1]) === String(codigo)) fila = i + 1;
+  if (!fila) { sh.appendRow([periodo, codigo, "", "", "", ""]); fila = sh.getLastRow(); }
+  const col = que === "enviado" ? 3 : 5;
+  sh.getRange(fila, col, 1, 2).setValues([[valor ? ahoraTxt() : "", valor ? yo.nombre : ""]]);
+  registrar(yo.nombre, que === "enviado" ? "Mandó el WhatsApp" : (valor ? "Marcó que pagó" : "Sacó la marca de pago"), nombre, "período " + periodo);
+  return true;
+}
+
+/* ---------- CUIT ---------- */
+
+function cuitValido(c) {
+  c = String(c || "").replace(/\D/g, "");
+  if (c.length !== 11) return false;
+  const m = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2]; let s = 0;
+  for (let i = 0; i < 10; i++) s += Number(c[i]) * m[i];
+  let v = 11 - (s % 11); v = v === 11 ? 0 : v === 10 ? 9 : v;
+  return v === Number(c[10]);
+}
+
+function sinTildes(t) { return String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
+
+/** CUIT de la lista vieja (hoja CUIT) que coinciden con alguna palabra del nombre del cliente. */
+function sugerirCuit(token, nombre) {
+  quien(token);
+  const palabras = sinTildes(nombre).split(/[^a-z]+/).filter(p => p.length >= 4);
+  if (!palabras.length) return [];
+  return filas("CUIT").filter(r => cuitValido(r[1]) && palabras.some(p => sinTildes(r[0]).indexOf(p) >= 0))
+    .map(r => ({ texto: String(r[0]), cuit: String(r[1]).replace(/\D/g, "") })).slice(0, 6);
+}
+
+/* ---------- facturas A y B ---------- */
+
+const COND_IVA = { "1": "Responsable inscripto", "6": "Monotributista", "4": "Exento", "5": "Consumidor final" };
+const DOC = { "80": "CUIT", "96": "DNI", "99": "Sin identificar" };
+
+function dosDec(n) { return Math.round(n * 100) / 100; }
+function fmt(n) { return dosDec(n).toFixed(2); }
+
+/**
+ * Hace la factura en ARCA. f = {codigo, nombre, tipo: "A"|"B", total, cond, docTipo, docNro, detalle, domicilio}
+ * El total ya tiene el IVA incluido (21 %).
+ */
+function facturar(token, f) {
+  const yo = quien(token);
+  const tipo = f.tipo === "A" ? 1 : f.tipo === "B" ? 6 : 0;
+  if (!tipo) throw new Error("Elegí factura A o B.");
+  const total = dosDec(Number(f.total));
+  if (!(total > 0)) throw new Error("Poné el importe total.");
+  if (total > 50000000) throw new Error("El importe parece muy alto. Revisalo.");
+  let cond = String(f.cond || ""), docTipo = String(f.docTipo || ""), docNro = String(f.docNro || "").replace(/\D/g, "");
+  if (tipo === 1) {
+    if (cond !== "1" && cond !== "6") throw new Error("La factura A es para responsables inscriptos o monotributistas.");
+    docTipo = "80";
+    if (!cuitValido(docNro)) throw new Error("El CUIT no es válido. Revisá los 11 números.");
+  } else {
+    if (cond !== "5" && cond !== "4") cond = "5";
+    if (docTipo === "80" && !cuitValido(docNro)) throw new Error("El CUIT no es válido.");
+    if (docTipo === "96" && !(docNro.length >= 7 && docNro.length <= 8)) throw new Error("El DNI tiene que tener 7 u 8 números.");
+    if (docTipo !== "80" && docTipo !== "96") { docTipo = "99"; docNro = "0"; }
+  }
+  const neto = dosDec(total / 1.21), iva = dosDec(total - neto);
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const ult = Number(xmlTag(wsfe("FECompUltimoAutorizado", "<ar:PtoVta>" + PUNTO_VENTA + "</ar:PtoVta><ar:CbteTipo>" + tipo + "</ar:CbteTipo>"), "CbteNro"));
+    const n = ult + 1, hoy = Utilities.formatDate(new Date(), ZONA, "yyyyMMdd");
+    const det = "<ar:FECAEDetRequest><ar:Concepto>1</ar:Concepto><ar:DocTipo>" + docTipo + "</ar:DocTipo><ar:DocNro>" + docNro + "</ar:DocNro>" +
+      "<ar:CbteDesde>" + n + "</ar:CbteDesde><ar:CbteHasta>" + n + "</ar:CbteHasta><ar:CbteFch>" + hoy + "</ar:CbteFch>" +
+      "<ar:ImpTotal>" + fmt(total) + "</ar:ImpTotal><ar:ImpTotConc>0</ar:ImpTotConc><ar:ImpNeto>" + fmt(neto) + "</ar:ImpNeto>" +
+      "<ar:ImpOpEx>0</ar:ImpOpEx><ar:ImpTrib>0</ar:ImpTrib><ar:ImpIVA>" + fmt(iva) + "</ar:ImpIVA>" +
+      "<ar:MonId>PES</ar:MonId><ar:MonCotiz>1</ar:MonCotiz><ar:CondicionIVAReceptorId>" + cond + "</ar:CondicionIVAReceptorId>" +
+      "<ar:Iva><ar:AlicIva><ar:Id>5</ar:Id><ar:BaseImp>" + fmt(neto) + "</ar:BaseImp><ar:Importe>" + fmt(iva) + "</ar:Importe></ar:AlicIva></ar:Iva>" +
+      "</ar:FECAEDetRequest>";
+    const r = wsfe("FECAESolicitar", "<ar:FeCAEReq><ar:FeCabReq><ar:CantReg>1</ar:CantReg><ar:PtoVta>" + PUNTO_VENTA + "</ar:PtoVta><ar:CbteTipo>" + tipo +
+      "</ar:CbteTipo></ar:FeCabReq><ar:FeDetReq>" + det + "</ar:FeDetReq></ar:FeCAEReq>");
+    const resp = xmlTag(r, "FECAEDetResponse");
+    if (xmlTag(resp, "Resultado") !== "A") {
+      const obs = xmlTag(resp, "Observaciones");
+      throw new Error("ARCA rechazó la factura: " + (desescapar(xmlTag(obs, "Msg")) || "sin detalle") + (obs ? " (código " + xmlTag(obs, "Code") + ")" : ""));
+    }
+    const cae = xmlTag(resp, "CAE"), vto = xmlTag(resp, "CAEFchVto");
+    const numero = ("0000" + PUNTO_VENTA).slice(-5) + "-" + ("0000000" + n).slice(-8);
+    const receptor = String(f.nombre || "").trim() || "Consumidor final";
+    hoja("FACTURAS").appendRow([ahoraTxt(), yo.nombre, "Factura " + f.tipo, PUNTO_VENTA, numero, f.codigo || "", receptor,
+      (DOC[docTipo] || "") + (docTipo !== "99" ? " " + docNro : ""), COND_IVA[cond], neto, iva, total, cae,
+      vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), String(f.detalle || "") + (f.domicilio ? " · Domicilio: " + f.domicilio : "")]);
+    registrar(yo.nombre, "Hizo la factura " + f.tipo + " " + numero, receptor, "$" + fmt(total) + " · CAE " + cae);
+    return { numero: numero, cae: cae, vence: vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), total: total, neto: neto, iva: iva, tipo: f.tipo };
+  } finally { lock.releaseLock(); }
+}
+
+function ultimasFacturas(token) {
+  quien(token);
+  return filas("FACTURAS").slice(-15).reverse().map(r => ({ fecha: String(r[0]), quien: String(r[1]), tipo: String(r[2]), numero: String(r[4]), receptor: String(r[6]), total: Number(r[11]), cae: String(r[12]) }));
+}
