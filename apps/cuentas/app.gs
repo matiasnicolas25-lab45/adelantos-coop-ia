@@ -45,6 +45,7 @@ function instalarApp() {
   const cfg = hoja("CONFIG");
   if (cfg.getLastRow() < 2) cfg.getRange(2, 1, 3, 2).setValues([["Cuentas de Google que pueden abrir la app (separadas por coma)", Session.getActiveUser().getEmail()],
     ["Ingresos Brutos", ""], ["Inicio de actividades", ""]]);
+  cfg.getRange("B:B").setNumberFormat("@");
   const def = libro().getSheetByName("Hoja 1") || libro().getSheetByName("Sheet1");
   if (def && def.getLastRow() === 0 && libro().getSheets().length > 1) libro().deleteSheet(def);
   SpreadsheetApp.getUi().alert("Listo. Agregá en CONFIG la cuenta de La Caleta (separada por coma) y después publicá la app (ver instrucciones).");
