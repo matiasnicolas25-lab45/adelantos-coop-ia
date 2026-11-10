@@ -3301,20 +3301,27 @@ Array.prototype.forEach.call($("filtros").children, function (b) {
 function cosas(detalle) {
   return detalle.split(" | ").filter(Boolean).map(function (x) { return x.replace(/[*]/g, "").trim().toLowerCase(); }).join(", ");
 }
+function porDia(movs) {
+  var d = {}, orden = [];
+  movs.forEach(function (m) { if (!(m.fecha in d)) { d[m.fecha] = 0; orden.push(m.fecha); } d[m.fecha] += m.importe; });
+  return orden.sort().map(function (f) { return { fecha: f, importe: d[f] }; });
+}
 function mensaje(c) {
   var L = [];
+  var cons = porDia(consumos(c)), pag = porDia(c.movs.filter(function (m) { return m.tipo === "Pago"; }));
+  var recargo = c.movs.filter(function (m) { return m.tipo === "Actualización"; }).reduce(function (s, m) { return s + m.importe; }, 0);
   L.push("Hola" + (c.saludo ? " " + c.saludo : "") + " 👋");
   L.push("Te escribimos de *La Caleta* con el resumen de tu cuenta corriente del " + dm(D.periodo.desde) + " al " + dm(D.periodo.hasta) + ".");
   L.push("");
   if (Math.abs(c.anterior) >= 1) L.push("*Saldo anterior:* " + pesos(c.anterior), "");
-  var cons = consumos(c), act = c.movs.filter(function (m) { return m.tipo === "Actualización"; }), pag = c.movs.filter(function (m) { return m.tipo === "Pago"; });
-  if (cons.length) { L.push("*Consumos*"); cons.forEach(function (m) { L.push("▪️ " + dia(m.fecha) + " — " + pesos(m.importe)); if (m.detalle) L.push("_" + cap(cosas(m.detalle)) + "_"); }); L.push(""); }
+  if (cons.length) { L.push("*Consumos*"); cons.forEach(function (m) { L.push("▪️ " + dia(m.fecha) + " — " + pesos(m.importe)); }); L.push(""); }
   if (pag.length) { L.push("*Pagos recibidos*"); pag.forEach(function (m) { L.push("▪️ " + dia(m.fecha) + " — " + pesos(m.importe)); }); L.push(""); }
+  if (recargo >= 1) L.push("*Recargo por saldo impago:* " + pesos(recargo), "");
   if (c.actual <= 0) L.push("✅ *Tu cuenta está al día.* ¡Gracias!");
   else {
     L.push("*Total a pagar: " + pesos(c.actual) + "*", "");
     L.push("Podés pagarlo en el salón o por transferencia al alias *" + D.alias + "*.");
-    L.push("El saldo que quede sin pagar el miércoles se actualiza un " + String(D.recargo * 100).replace(".", ",") + "%.");
+    L.push("Recordá que los miércoles el saldo impago tiene un recargo del " + String(D.recargo * 100).replace(".", ",") + "%.");
   }
   L.push("", "¡Gracias! La Caleta · Yacht Club Rosario");
   return L.join(NL);
