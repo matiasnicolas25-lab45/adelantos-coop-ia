@@ -330,8 +330,7 @@ function formFactura(tipo, c) {
   $("fTot").oninput = desg; desg();
   $("bRev").onclick = function () {
     var f = { codigo: c ? c.codigo : "", tipo: tipo, total: numTot(), cond: $("fCond").value, detalle: $("fDet").value,
-      nombre: $("fNom") ? $("fNom").value : "", docTipo: tipo === "A" ? "80" : $("fDocTipo").value, docNro: $("fDoc") ? $("fDoc").value : "", domicilio: $("fDom") ? $("fDom").value : "",
-      desde: c && D.periodo ? D.periodo.desde : "", hasta: c && D.periodo ? D.periodo.hasta : "" };
+      nombre: $("fNom") ? $("fNom").value : "", docTipo: tipo === "A" ? "80" : $("fDocTipo").value, docNro: $("fDoc") ? $("fDoc").value : "", domicilio: $("fDom") ? $("fDom").value : "" };
     if (tipo === "B" && f.docTipo === "99") { f.nombre = "Consumidor final"; f.docNro = ""; }
     if (!f.total) return alerta("Poné el importe total.");
     confirmar(f, c);

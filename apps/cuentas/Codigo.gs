@@ -517,11 +517,9 @@ function facturar(token, f) {
   try {
     const ult = Number(xmlTag(wsfe("FECompUltimoAutorizado", "<ar:PtoVta>" + PUNTO_VENTA + "</ar:PtoVta><ar:CbteTipo>" + tipo + "</ar:CbteTipo>"), "CbteNro"));
     const n = ult + 1, hoy = Utilities.formatDate(new Date(), ZONA, "yyyyMMdd");
-    // Se factura como servicio (concepto 2), igual que en Comprobantes en línea: período facturado y vencimiento del pago.
-    const fechaOk = t => /^\d{4}-\d{2}-\d{2}$/.test(String(t || "")) ? String(t).replace(/-/g, "") : hoy;
-    let desde = fechaOk(f.desde), hasta = fechaOk(f.hasta);
-    if (desde > hoy) desde = hoy; if (hasta > hoy) hasta = hoy; if (desde > hasta) desde = hasta;
-    const det = "<ar:FECAEDetRequest><ar:Concepto>2</ar:Concepto><ar:DocTipo>" + docTipo + "</ar:DocTipo><ar:DocNro>" + docNro + "</ar:DocNro>" +
+    // Igual que en Comprobantes en línea: "Productos y Servicios" (concepto 3), período facturado y vto. del pago = día de la factura.
+    const desde = hoy, hasta = hoy;
+    const det = "<ar:FECAEDetRequest><ar:Concepto>3</ar:Concepto><ar:DocTipo>" + docTipo + "</ar:DocTipo><ar:DocNro>" + docNro + "</ar:DocNro>" +
       "<ar:CbteDesde>" + n + "</ar:CbteDesde><ar:CbteHasta>" + n + "</ar:CbteHasta><ar:CbteFch>" + hoy + "</ar:CbteFch>" +
       "<ar:ImpTotal>" + fmt(total) + "</ar:ImpTotal><ar:ImpTotConc>0</ar:ImpTotConc><ar:ImpNeto>" + fmt(neto) + "</ar:ImpNeto>" +
       "<ar:ImpOpEx>0</ar:ImpOpEx><ar:ImpTrib>0</ar:ImpTrib><ar:ImpIVA>" + fmt(iva) + "</ar:ImpIVA>" +
@@ -3318,8 +3316,7 @@ function formFactura(tipo, c) {
   $("fTot").oninput = desg; desg();
   $("bRev").onclick = function () {
     var f = { codigo: c ? c.codigo : "", tipo: tipo, total: numTot(), cond: $("fCond").value, detalle: $("fDet").value,
-      nombre: $("fNom") ? $("fNom").value : "", docTipo: tipo === "A" ? "80" : $("fDocTipo").value, docNro: $("fDoc") ? $("fDoc").value : "", domicilio: $("fDom") ? $("fDom").value : "",
-      desde: c && D.periodo ? D.periodo.desde : "", hasta: c && D.periodo ? D.periodo.hasta : "" };
+      nombre: $("fNom") ? $("fNom").value : "", docTipo: tipo === "A" ? "80" : $("fDocTipo").value, docNro: $("fDoc") ? $("fDoc").value : "", domicilio: $("fDom") ? $("fDom").value : "" };
     if (tipo === "B" && f.docTipo === "99") { f.nombre = "Consumidor final"; f.docNro = ""; }
     if (!f.total) return alerta("Poné el importe total.");
     confirmar(f, c);
