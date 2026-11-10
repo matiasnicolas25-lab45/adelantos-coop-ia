@@ -19,6 +19,8 @@ const HOJAS = {
     "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle", "PDF"],
   REGISTRO: ["Fecha", "Quién", "Acción", "Cliente", "Detalle"],
   NOMBRES: ["Nombre en Resto Soft", "Cómo sale en el mensaje", "Revisar"],
+  PENDIENTES: ["ID", "Cargado", "Quién", "Fecha", "Mesa", "Comprobante", "Nombre", "Saludo", "WhatsApp", "Total", "Detalle",
+    "Mensaje enviado", "Enviado por", "Pagó", "Marcado por"],
 };
 
 function libro() { return SpreadsheetApp.openById(LIBRO_ID); }
@@ -402,4 +404,70 @@ function facturar(token, f) {
 function ultimasFacturas(token) {
   quien(token);
   return filas("FACTURAS").slice(-15).reverse().map(r => ({ fecha: hTxt(r[0]), quien: String(r[1]), tipo: String(r[2]), numero: String(r[4]), receptor: String(r[6]), total: Number(r[11]), cae: String(r[12]), pdf: String(r[15] || "") }));
+}
+
+
+/* ---------- mesas que se fueron sin pagar (Excel de un comprobante de Resto Soft) ---------- */
+
+/** Lee la "Consulta de Comprobantes" de Resto Soft: encabezado de cada comprobante y sus productos. */
+function leerComprobantes(valores) {
+  const comps = []; let c = null;
+  valores.forEach(function (f) {
+    const comp = String(f[5] || "").trim();
+    if (String(f[0]) === " " && /^[A-Z]-\d{4}-\d+$/.test(comp)) {
+      c = { fecha: aFecha(f[2]), hora: String(f[3] || "").trim(), comp: comp, cliente: String(f[6] || "").trim(), subtotal: aNum(f[7]),
+        descuento: aNum(f[8]), total: aNum(f[9]), mesa: aNum(f[10]), mozo: String(f[11] || "").trim(), pago: String(f[17] || "").trim(), items: [] };
+      comps.push(c);
+    } else if (c && typeof f[4] === "number" && String(f[6] || "").trim()) {
+      c.items.push({ cant: f[4], desc: String(f[6]).trim(), importe: aNum(f[7]) });
+    } else if (!String(f.join("")).trim()) { c = null; }
+  });
+  return comps;
+}
+
+/** Recibe el Excel (en base64) y devuelve lo que se va a mandar, sin guardar nada todavía. */
+function leerMesa(token, base64) {
+  quien(token);
+  const comps = leerComprobantes(leerXls(Array.from(Utilities.base64Decode(base64))));
+  if (!comps.length) throw new Error("Ese Excel no tiene comprobantes de Resto Soft. Exportá la Consulta de Comprobantes de esa mesa.");
+  if (comps.length > 5) throw new Error("Ese Excel tiene " + comps.length + " comprobantes. Exportá solo el de la mesa que se fue sin pagar.");
+  const conocidos = mapaNombres(), nuevos = {};
+  comps.forEach(c => c.items.forEach(i => { const k = claveNombre(i.desc); if (k && !conocidos[k] && !nuevos[k]) nuevos[k] = [i.desc, limpiarNombre(i.desc), "SÍ"]; }));
+  const fn = Object.keys(nuevos).map(k => nuevos[k]);
+  if (fn.length) { const sn = hoja("NOMBRES"); sn.getRange(sn.getLastRow() + 1, 1, fn.length, 3).setValues(fn); }
+  const items = [];
+  comps.forEach(c => c.items.forEach(i => items.push(i.cant + "× " + i.desc + " = " + i.importe)));
+  const tot = comps.reduce((s, c) => s + c.total, 0);
+  return { fecha: comps[0].fecha, mesa: comps[0].mesa, comp: comps.map(c => c.comp).join(", "), cliente: comps[0].cliente,
+    total: tot, detalle: items.join(" | "), nombres: mapaNombres() };
+}
+
+function guardarMesa(token, m) {
+  const yo = quien(token);
+  const wa = normalizarWa(m.wa);
+  if (!wa) throw new Error("Poné el WhatsApp con característica, por ejemplo 341 5123456.");
+  if (!String(m.nombre || "").trim()) throw new Error("Poné el nombre de la persona.");
+  const id = Utilities.getUuid().slice(0, 8);
+  hoja("PENDIENTES").appendRow([id, ahoraTxt(), yo.nombre, m.fecha, m.mesa, m.comp, String(m.nombre).trim(), String(m.saludo || "").trim(), wa,
+    Number(m.total), m.detalle, "", "", "", ""]);
+  registrar(yo.nombre, "Cargó una mesa sin pagar", m.nombre, "comprobante " + m.comp + " · $" + fmt(m.total));
+  return id;
+}
+
+function pendientes(token) {
+  quien(token);
+  return filas("PENDIENTES").filter(r => r[0]).map(r => ({ id: String(r[0]), cargado: hTxt(r[1]), quien: String(r[2]), fecha: fTxt(r[3]), mesa: r[4],
+    comp: String(r[5]), nombre: String(r[6]), saludo: String(r[7]), wa: String(r[8]), total: Number(r[9]), detalle: String(r[10]),
+    enviado: hTxt(r[11]), enviadoPor: String(r[12]), pago: hTxt(r[13]), pagoPor: String(r[14]) })).reverse();
+}
+
+function marcarMesa(token, id, que, valor) {
+  const yo = quien(token), sh = hoja("PENDIENTES"), v = sh.getDataRange().getValues();
+  for (let i = 1; i < v.length; i++) {
+    if (String(v[i][0]) !== String(id)) continue;
+    sh.getRange(i + 1, que === "enviado" ? 12 : 14, 1, 2).setValues([[valor ? ahoraTxt() : "", valor ? yo.nombre : ""]]);
+    registrar(yo.nombre, que === "enviado" ? "Mandó el WhatsApp de una mesa sin pagar" : (valor ? "Marcó que pagó una mesa" : "Sacó la marca de pago de una mesa"), String(v[i][6]), String(v[i][5]));
+    return true;
+  }
+  throw new Error("No encontré esa mesa.");
 }

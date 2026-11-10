@@ -200,6 +200,8 @@ const HOJAS = {
     "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle", "PDF"],
   REGISTRO: ["Fecha", "Quién", "Acción", "Cliente", "Detalle"],
   NOMBRES: ["Nombre en Resto Soft", "Cómo sale en el mensaje", "Revisar"],
+  PENDIENTES: ["ID", "Cargado", "Quién", "Fecha", "Mesa", "Comprobante", "Nombre", "Saludo", "WhatsApp", "Total", "Detalle",
+    "Mensaje enviado", "Enviado por", "Pagó", "Marcado por"],
 };
 
 function libro() { return SpreadsheetApp.openById(LIBRO_ID); }
@@ -583,6 +585,72 @@ function facturar(token, f) {
 function ultimasFacturas(token) {
   quien(token);
   return filas("FACTURAS").slice(-15).reverse().map(r => ({ fecha: hTxt(r[0]), quien: String(r[1]), tipo: String(r[2]), numero: String(r[4]), receptor: String(r[6]), total: Number(r[11]), cae: String(r[12]), pdf: String(r[15] || "") }));
+}
+
+
+/* ---------- mesas que se fueron sin pagar (Excel de un comprobante de Resto Soft) ---------- */
+
+/** Lee la "Consulta de Comprobantes" de Resto Soft: encabezado de cada comprobante y sus productos. */
+function leerComprobantes(valores) {
+  const comps = []; let c = null;
+  valores.forEach(function (f) {
+    const comp = String(f[5] || "").trim();
+    if (String(f[0]) === " " && /^[A-Z]-\d{4}-\d+$/.test(comp)) {
+      c = { fecha: aFecha(f[2]), hora: String(f[3] || "").trim(), comp: comp, cliente: String(f[6] || "").trim(), subtotal: aNum(f[7]),
+        descuento: aNum(f[8]), total: aNum(f[9]), mesa: aNum(f[10]), mozo: String(f[11] || "").trim(), pago: String(f[17] || "").trim(), items: [] };
+      comps.push(c);
+    } else if (c && typeof f[4] === "number" && String(f[6] || "").trim()) {
+      c.items.push({ cant: f[4], desc: String(f[6]).trim(), importe: aNum(f[7]) });
+    } else if (!String(f.join("")).trim()) { c = null; }
+  });
+  return comps;
+}
+
+/** Recibe el Excel (en base64) y devuelve lo que se va a mandar, sin guardar nada todavía. */
+function leerMesa(token, base64) {
+  quien(token);
+  const comps = leerComprobantes(leerXls(Array.from(Utilities.base64Decode(base64))));
+  if (!comps.length) throw new Error("Ese Excel no tiene comprobantes de Resto Soft. Exportá la Consulta de Comprobantes de esa mesa.");
+  if (comps.length > 5) throw new Error("Ese Excel tiene " + comps.length + " comprobantes. Exportá solo el de la mesa que se fue sin pagar.");
+  const conocidos = mapaNombres(), nuevos = {};
+  comps.forEach(c => c.items.forEach(i => { const k = claveNombre(i.desc); if (k && !conocidos[k] && !nuevos[k]) nuevos[k] = [i.desc, limpiarNombre(i.desc), "SÍ"]; }));
+  const fn = Object.keys(nuevos).map(k => nuevos[k]);
+  if (fn.length) { const sn = hoja("NOMBRES"); sn.getRange(sn.getLastRow() + 1, 1, fn.length, 3).setValues(fn); }
+  const items = [];
+  comps.forEach(c => c.items.forEach(i => items.push(i.cant + "× " + i.desc + " = " + i.importe)));
+  const tot = comps.reduce((s, c) => s + c.total, 0);
+  return { fecha: comps[0].fecha, mesa: comps[0].mesa, comp: comps.map(c => c.comp).join(", "), cliente: comps[0].cliente,
+    total: tot, detalle: items.join(" | "), nombres: mapaNombres() };
+}
+
+function guardarMesa(token, m) {
+  const yo = quien(token);
+  const wa = normalizarWa(m.wa);
+  if (!wa) throw new Error("Poné el WhatsApp con característica, por ejemplo 341 5123456.");
+  if (!String(m.nombre || "").trim()) throw new Error("Poné el nombre de la persona.");
+  const id = Utilities.getUuid().slice(0, 8);
+  hoja("PENDIENTES").appendRow([id, ahoraTxt(), yo.nombre, m.fecha, m.mesa, m.comp, String(m.nombre).trim(), String(m.saludo || "").trim(), wa,
+    Number(m.total), m.detalle, "", "", "", ""]);
+  registrar(yo.nombre, "Cargó una mesa sin pagar", m.nombre, "comprobante " + m.comp + " · $" + fmt(m.total));
+  return id;
+}
+
+function pendientes(token) {
+  quien(token);
+  return filas("PENDIENTES").filter(r => r[0]).map(r => ({ id: String(r[0]), cargado: hTxt(r[1]), quien: String(r[2]), fecha: fTxt(r[3]), mesa: r[4],
+    comp: String(r[5]), nombre: String(r[6]), saludo: String(r[7]), wa: String(r[8]), total: Number(r[9]), detalle: String(r[10]),
+    enviado: hTxt(r[11]), enviadoPor: String(r[12]), pago: hTxt(r[13]), pagoPor: String(r[14]) })).reverse();
+}
+
+function marcarMesa(token, id, que, valor) {
+  const yo = quien(token), sh = hoja("PENDIENTES"), v = sh.getDataRange().getValues();
+  for (let i = 1; i < v.length; i++) {
+    if (String(v[i][0]) !== String(id)) continue;
+    sh.getRange(i + 1, que === "enviado" ? 12 : 14, 1, 2).setValues([[valor ? ahoraTxt() : "", valor ? yo.nombre : ""]]);
+    registrar(yo.nombre, que === "enviado" ? "Mandó el WhatsApp de una mesa sin pagar" : (valor ? "Marcó que pagó una mesa" : "Sacó la marca de pago de una mesa"), String(v[i][6]), String(v[i][5]));
+    return true;
+  }
+  throw new Error("No encontré esa mesa.");
 }
 
 /* ---------------- lector de Excel viejo (.xls, BIFF2/BIFF5/BIFF8) para el informe de Resto Soft ---------------- */
@@ -3142,8 +3210,8 @@ h2{margin:0;font:600 15px var(--f-body);color:var(--muted)}
 input,select,textarea{font:16px var(--f-body);width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink)}
 label{display:grid;gap:4px;font-weight:600;font-size:14px}
 label small{font-weight:400;color:var(--muted)}
-nav{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px}
-nav button{font:600 14px var(--f-body);padding:10px 2px;border:0;border-radius:10px;background:transparent;color:var(--muted);cursor:pointer}
+nav{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px}
+nav button{font:600 13px var(--f-body);padding:10px 2px;border:0;border-radius:10px;background:transparent;color:var(--muted);cursor:pointer}
 nav button.on{background:var(--ink);color:var(--paper)}
 .list{display:grid;gap:8px}
 .cli{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:10px;text-align:left;width:100%;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;cursor:pointer;min-height:62px}
@@ -3205,7 +3273,7 @@ nav button.on{background:var(--ink);color:var(--paper)}
     <div class="total"><span>Para cobrar</span><b id="tot">…</b><span id="totsub"></span></div>
     <div class="acc"><button class="ghost" id="bCargar">Cargar Excel nuevo</button><button class="ghost" id="bNueva">Nueva factura</button></div>
     <input id="busca" type="search" placeholder="Buscar cliente" autocomplete="off">
-    <nav id="filtros"><button class="on" data-f="deben">Deben</button><button data-f="enviados">Enviados</button><button data-f="pagaron">Pagaron</button><button data-f="todos">Todos</button></nav>
+    <nav id="filtros"><button class="on" data-f="deben">Deben</button><button data-f="enviados">Enviados</button><button data-f="pagaron">Pagaron</button><button data-f="todos">Todos</button><button data-f="mesas">Mesas</button></nav>
     <div class="list" id="lista"></div>
     <button class="ghost" id="bFacturas">Ver últimas facturas</button>
   </section>
@@ -3288,6 +3356,7 @@ function diasSinPagar(c) {
   return Math.round((new Date(D.periodo.hasta + "T12:00:00") - new Date(c.ultimoPago + "T12:00:00")) / 86400000);
 }
 function dibujar() {
+  if (filtro === "mesas") return dibujarMesas();
   var L = $("lista"), q = $("busca").value.trim().toLowerCase(), tot = 0, n = 0;
   L.textContent = "";
   if (!D.periodo) { L.innerHTML = '<p class="nota">Todavía no hay datos. Subí el Excel de Resto Soft a la carpeta RESTOSOFT y tocá <b>Cargar Excel nuevo</b>.</p>'; $("tot").textContent = "$0"; $("totsub").textContent = ""; return; }
@@ -3516,6 +3585,100 @@ function confirmar(f, c) {
       $("x").onclick = function () { if (c) abrir(c); else cerrar(); };
     }).catch(function (e) { b.disabled = false; b.textContent = "Confirmar y hacer la factura"; alerta(e.message); });
   };
+}
+/* ---------- mesas que se fueron sin pagar ---------- */
+var MESAS = null;
+function cargarMesas() { run("pendientes", TOKEN).then(function (m) { MESAS = m; if (filtro === "mesas") dibujarMesas(); }).catch(function (e) { $("lista").textContent = e.message; }); }
+function dibujarMesas() {
+  var L = $("lista"); L.textContent = "";
+  var b = document.createElement("button"); b.className = "solo"; b.textContent = "Cargar mesa sin pagar";
+  b.onclick = cargarMesaArchivo; L.appendChild(b);
+  var p = document.createElement("p"); p.className = "nota";
+  p.textContent = "Exportá de Resto Soft la Consulta de Comprobantes solo de esa mesa y elegí el archivo.";
+  L.appendChild(p);
+  if (!MESAS) { var c = document.createElement("p"); c.className = "nota"; c.textContent = "Cargando…"; L.appendChild(c); return cargarMesas(); }
+  var q = $("busca").value.trim().toLowerCase();
+  MESAS.filter(function (m) { return !q || m.nombre.toLowerCase().indexOf(q) >= 0; }).forEach(function (m) {
+    var x = document.createElement("button");
+    x.className = "cli" + (m.pago ? " pago" : m.enviado ? " enviado" : "");
+    x.innerHTML = '<span class="av">' + esc(m.nombre.split(" ").filter(Boolean).map(function (w) { return w[0]; }).join("").slice(0, 2).toUpperCase()) + '</span><span><b>' + esc(m.nombre) + '</b><small>' + dia(m.fecha) + (m.mesa ? " · mesa " + esc(m.mesa) : "") + '</small></span><span class="monto">' + pesos(m.total) + '<small>' + (m.pago ? "Pagó" : m.enviado ? "Mensaje enviado" : "Sin pagar") + '</small></span>';
+    x.onclick = function () { abrirMesa(m); };
+    L.appendChild(x);
+  });
+}
+function ticketMesa(m) {
+  var L = [], suma = 0, cosas = {}, lista = [];
+  items(m.detalle).forEach(function (i) { if (!(i.n in cosas)) { cosas[i.n] = { c: 0, imp: 0 }; lista.push(i.n); } cosas[i.n].c += i.c; cosas[i.n].imp += i.imp; });
+  lista.forEach(function (n) { suma += cosas[n].imp; L.push(cant(cosas[n].c) + " " + n + " — " + pesos(cosas[n].imp)); });
+  var dif = m.total - suma;
+  if (dif <= -1) L.push("Descuento — -" + pesos(-dif));
+  if (dif >= 1) L.push("Otros — " + pesos(dif));
+  return L;
+}
+function mensajeMesa(m) {
+  var L = [];
+  L.push("Hola" + (m.saludo ? " " + m.saludo : "") + " 👋");
+  L.push("Te escribimos de *La Caleta*. Te pasamos el detalle de tu consumo del " + dia(m.fecha) + ", que quedó pendiente de pago:");
+  L.push("");
+  L.push("🧾 *" + dia(m.fecha) + (m.mesa ? " · Mesa " + m.mesa : "") + "*");
+  ticketMesa(m).forEach(function (r) { L.push(r); });
+  L.push("*Total a pagar: " + pesos(m.total) + "*", "");
+  L.push("Podés pagarlo en el salón o por transferencia al alias *" + D.alias + "*.");
+  L.push("¡Gracias! La Caleta · Yacht Club Rosario");
+  return L.join(NL);
+}
+function cargarMesaArchivo() {
+  var inp = document.createElement("input"); inp.type = "file"; inp.accept = ".xls,.xlsx";
+  inp.onchange = function () {
+    var f = inp.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      var bytes = new Uint8Array(r.result), bin = "";
+      for (var i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+      $("sheet").hidden = false; $("box").innerHTML = '<p class="nota">Leyendo el Excel…</p>';
+      run("leerMesa", TOKEN, btoa(bin)).then(function (m) { if (m.nombres) D.nombres = m.nombres; formMesa(m); })
+        .catch(function (e) { $("box").innerHTML = '<p class="aviso">' + esc(e.message) + '</p><button class="ghost" id="x">Cerrar</button>'; $("x").onclick = cerrar; });
+    };
+    r.readAsArrayBuffer(f);
+  };
+  inp.click();
+}
+function formMesa(m) {
+  var B = $("box");
+  B.innerHTML = '<div class="top"><div><h3>Mesa sin pagar</h3><div class="sub">' + dia(m.fecha) + (m.mesa ? " · mesa " + esc(m.mesa) : "") + ' · ' + esc(m.comp) + '</div></div><button class="close" id="x">Cancelar</button></div>' +
+    '<label>Nombre y apellido<input id="mNom" value="' + esc(m.cliente && m.cliente !== "CONSUMIDOR FINAL" ? m.cliente : "") + '"></label>' +
+    '<label>Saludo <small>Cómo arranca el mensaje: "Hola Carlos"</small><input id="mSal"></label>' +
+    '<label>WhatsApp <small>Con característica, ej. 341 5123456</small><input id="mWa" type="tel"></label>' +
+    '<div class="chat"><div class="bubble" id="mPrev"></div></div>' +
+    '<button class="solo" id="mOk">Guardar</button>';
+  function prev() { m.saludo = $("mSal").value.trim(); $("mPrev").innerHTML = burbuja(mensajeMesa(m)); }
+  $("mSal").oninput = prev; prev();
+  $("x").onclick = cerrar;
+  $("mOk").onclick = function () {
+    var b = this; b.disabled = true; b.textContent = "Guardando…";
+    m.nombre = $("mNom").value; m.wa = $("mWa").value;
+    run("guardarMesa", TOKEN, m).then(function (id) {
+      MESAS = null; run("pendientes", TOKEN).then(function (lista) { MESAS = lista; dibujar(); var x = lista.filter(function (p) { return p.id === id; })[0]; if (x) abrirMesa(x); });
+    }).catch(function (e) { b.disabled = false; b.textContent = "Guardar"; alerta(e.message); });
+  };
+}
+function abrirMesa(m) {
+  var t = mensajeMesa(m), B = $("box");
+  B.innerHTML = '<div class="top"><div><h3>' + esc(m.nombre) + '</h3><div class="sub">WhatsApp +' + esc(m.wa) + ' · ' + pesos(m.total) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
+    '<div class="chat"><div class="bubble">' + burbuja(t) + '</div></div>' +
+    '<a class="wa" id="env" href="https://wa.me/' + esc(m.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>' +
+    '<div class="two"><button class="ghost' + (m.pago ? " ok" : "") + '" id="bPago">' + (m.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">Copiar mensaje</button></div>' +
+    (m.enviado ? '<p class="nota">Mensaje enviado el ' + esc(m.enviado) + ' por ' + esc(m.enviadoPor) + '.</p>' : '') +
+    (m.pago ? '<p class="nota">Pago marcado el ' + esc(m.pago) + ' por ' + esc(m.pagoPor) + '.</p>' : '') +
+    '<p class="nota">Cargada por ' + esc(m.quien) + ' el ' + esc(m.cargado) + ' · ' + esc(m.comp) + '</p>';
+  $("sheet").hidden = false; B.scrollTop = 0;
+  $("x").onclick = cerrar;
+  $("env").onclick = function () { m.enviado = "ahora"; m.enviadoPor = D.yo.nombre; run("marcarMesa", TOKEN, m.id, "enviado", true).catch(function () {}); setTimeout(dibujar, 300); };
+  $("bPago").onclick = function () {
+    var nuevo = !m.pago; this.disabled = true;
+    run("marcarMesa", TOKEN, m.id, "pago", nuevo).then(function () { m.pago = nuevo ? "recién" : ""; m.pagoPor = D.yo.nombre; cerrar(); dibujar(); }).catch(function (e) { alerta(e.message); });
+  };
+  $("bCopiar").onclick = function () { var b = this; if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { b.textContent = "Copiado ✓"; }, function () { b.textContent = "No se pudo copiar"; }); };
 }
 $("bNueva").onclick = function () { $("sheet").hidden = false; formFactura("B", null); };
 $("bFacturas").onclick = function () {
