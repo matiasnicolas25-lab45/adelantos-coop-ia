@@ -368,7 +368,7 @@ function facturar(token, f) {
     try {
       pdf = facturaPdf({ tipo: f.tipo, n: n, fecha: new Date(), docTipo: docTipo, docNro: docNro, nombre: receptor, domicilio: f.domicilio || "",
         cond: cond, neto: neto, iva: iva, total: total, cae: cae, vto: vto, detalle: f.detalle, desde: desde, hasta: hasta, vtoPago: hoy,
-        venta: f.codigo ? "Cuenta corriente" : "Contado" });
+        venta: "Otra" });
       sh.getRange(filaFac, 16).setValue(pdf);
     } catch (e) { errPdf = "La factura está hecha en ARCA, pero no se pudo armar el PDF: " + e.message; }
     return { numero: numero, cae: cae, vence: vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), total: total, neto: neto, iva: iva, tipo: f.tipo, pdf: pdf, errPdf: errPdf };
