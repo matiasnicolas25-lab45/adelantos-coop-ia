@@ -206,10 +206,32 @@ Array.prototype.forEach.call($("filtros").children, function (b) {
 function cosas(detalle) {
   return detalle.split(" | ").filter(Boolean).map(function (x) { return x.replace(/[*]/g, "").trim().toLowerCase(); }).join(", ");
 }
+function claveNombre(t) { return String(t || "").replace(/ +/g, " ").trim().toUpperCase(); }
+function nombreLindo(desc) {
+  var k = claveNombre(desc), n = D.nombres && D.nombres[k];
+  if (n) return n;
+  var s = String(desc || "").replace(/[*]+/g, "").replace(/^[(]EJ[)] */i, "").trim().toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+/** "2× CAFE JARRITA | TOSTADO" → [{n: "Café en jarrita", c: 2}, {n: "Tostado", c: 1}] */
+function items(detalle) {
+  return String(detalle || "").split(" | ").filter(Boolean).map(function (x) {
+    var c = 1, p = x.indexOf("× ");
+    if (p > 0 && !isNaN(Number(x.slice(0, p)))) { c = Number(x.slice(0, p)); x = x.slice(p + 2); }
+    return { n: nombreLindo(x), c: c };
+  }).filter(function (i) { return claveNombre(i.n) !== "ACTUALIZACION"; });
+}
 function porDia(movs) {
   var d = {}, orden = [];
-  movs.forEach(function (m) { if (!(m.fecha in d)) { d[m.fecha] = 0; orden.push(m.fecha); } d[m.fecha] += m.importe; });
-  return orden.sort().map(function (f) { return { fecha: f, importe: d[f] }; });
+  movs.forEach(function (m) {
+    if (!(m.fecha in d)) { d[m.fecha] = { importe: 0, cosas: {} , lista: [] }; orden.push(m.fecha); }
+    d[m.fecha].importe += m.importe;
+    items(m.detalle).forEach(function (i) { var x = d[m.fecha]; if (!(i.n in x.cosas)) { x.cosas[i.n] = 0; x.lista.push(i.n); } x.cosas[i.n] += i.c; });
+  });
+  return orden.sort().map(function (f) {
+    var x = d[f];
+    return { fecha: f, importe: x.importe, texto: x.lista.map(function (n) { var c = Math.round(x.cosas[n] * 100) / 100; return c !== 1 ? n + " (x" + String(c).replace(".", ",") + ")" : n; }).join(", ") };
+  });
 }
 function mensaje(c) {
   var L = [];
@@ -219,7 +241,11 @@ function mensaje(c) {
   L.push("Te escribimos de *La Caleta* con el resumen de tu cuenta corriente del " + dm(D.periodo.desde) + " al " + dm(D.periodo.hasta) + ".");
   L.push("");
   if (Math.abs(c.anterior) >= 1) L.push("*Saldo anterior:* " + pesos(c.anterior), "");
-  if (cons.length) { L.push("*Consumos*"); cons.forEach(function (m) { L.push("▪️ " + dia(m.fecha) + " — " + pesos(m.importe)); }); L.push(""); }
+  if (cons.length) {
+    L.push("*Consumos*");
+    cons.forEach(function (m) { L.push("▪️ " + dia(m.fecha) + " — " + pesos(m.importe)); if (m.texto) L.push("      " + m.texto); });
+    L.push("");
+  }
   if (pag.length) { L.push("*Pagos recibidos*"); pag.forEach(function (m) { L.push("▪️ " + dia(m.fecha) + " — " + pesos(m.importe)); }); L.push(""); }
   if (recargo >= 1) L.push("*Recargo por saldo impago:* " + pesos(recargo), "");
   if (c.actual <= 0) L.push("✅ *Tu cuenta está al día.* ¡Gracias!");
@@ -384,7 +410,8 @@ $("bCargar").onclick = function () {
     b.disabled = false; b.textContent = "Cargar Excel nuevo";
     $("sheet").hidden = false;
     $("box").innerHTML = '<div class="top"><h3>Excel cargado</h3><button class="close" id="x">Listo</button></div><p class="bien">Período ' + dm(r.desde) + ' al ' + dm(r.hasta) + ': ' + r.clientes + ' clientes.</p>' +
-      (r.nuevos ? '<p class="nota">' + r.nuevos + ' clientes nuevos: revisales el saludo y el WhatsApp la primera vez.</p>' : '');
+      (r.nuevos ? '<p class="nota">' + r.nuevos + ' clientes nuevos: revisales el saludo y el WhatsApp la primera vez.</p>' : '') +
+      (r.productosNuevos ? '<p class="nota">' + r.productosNuevos + ' productos nuevos de Resto Soft: revisá cómo se escriben en la pestaña NOMBRES de la planilla.</p>' : '');
     $("x").onclick = function () { cerrar(); cargar(); };
   }).catch(function (e) { b.disabled = false; b.textContent = "Cargar Excel nuevo"; $("sheet").hidden = false; $("box").innerHTML = '<p class="aviso">' + esc(e.message) + '</p><button class="ghost" id="x">Cerrar</button>'; $("x").onclick = cerrar; });
 };

@@ -199,6 +199,7 @@ const HOJAS = {
   FACTURAS: ["Fecha", "Quién", "Tipo", "Punto de venta", "Número", "Código cliente", "Receptor", "Documento", "Condición IVA",
     "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle", "PDF"],
   REGISTRO: ["Fecha", "Quién", "Acción", "Cliente", "Detalle"],
+  NOMBRES: ["Nombre en Resto Soft", "Cómo sale en el mensaje", "Revisar"],
 };
 
 function libro() { return SpreadsheetApp.openById(LIBRO_ID); }
@@ -360,6 +361,17 @@ function adivinarSaludo(nombre) {
   return n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
 }
 
+/** Nombre prolijo "de emergencia" para un producto que todavía no está en la hoja NOMBRES. */
+function limpiarNombre(t) {
+  let s = String(t || "").replace(/^\(EJ\)\s*/i, "").replace(/^\*+\s*/, "").replace(/^yachting\s+/i, "").replace(/\s+/g, " ").trim().toLowerCase();
+  s = s.replace(/\bc\/\s*/g, "con ").replace(/\bj\s*y\s*q\b/g, "jamón y queso").replace(/\bgde\b/g, "grande").replace(/\bch\.?(?=\s|$)/g, "chico")
+    .replace(/\bmila\b/g, "milanesa").replace(/\bemp\.?(?=\s|$)/g, "empanada").replace(/\bens\.?(?=\s|$)/g, "ensalada").replace(/\bagreg\.?\s*/g, "agregado de ")
+    .replace(/\btalla\b/g, "tallarines").replace(/\bnoquis\b/g, "ñoquis").replace(/\bcafe\b/g, "café").replace(/\bpure\b/g, "puré");
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function claveNombre(t) { return String(t || "").replace(/\s+/g, " ").trim().toUpperCase(); }
+function mapaNombres() { const m = {}; filas("NOMBRES").forEach(r => { if (r[0] && r[1]) m[claveNombre(r[0])] = String(r[1]).trim(); }); return m; }
+
 /** Busca el último Excel de cuentas corrientes en la carpeta RESTOSOFT y lo carga. */
 function importar(token) {
   const yo = quien(token);
@@ -405,10 +417,18 @@ function importar(token) {
       nuevos.push([c.codigo, c.nombre, adivinarSaludo(c.nombre), normalizarWa(c.tel), "", "", "", c.tel]);
     });
     if (nuevos.length) cs.getRange(cs.getLastRow() + 1, 1, nuevos.length, nuevos[0].length).setValues(nuevos);
+    // productos nuevos: se agregan a NOMBRES con un nombre sugerido, para revisar
+    const conocidos = mapaNombres(), nuevosNombres = {};
+    datos.clientes.forEach(c => c.movs.forEach(m => m.items.forEach(i => {
+      const k = claveNombre(i.desc);
+      if (k && k !== "ACTUALIZACION" && !conocidos[k] && !nuevosNombres[k]) nuevosNombres[k] = [i.desc.trim(), limpiarNombre(i.desc), "SÍ"];
+    })));
+    const filasN = Object.keys(nuevosNombres).map(k => nuevosNombres[k]);
+    if (filasN.length) { const sn = hoja("NOMBRES"); sn.getRange(sn.getLastRow() + 1, 1, filasN.length, 3).setValues(filasN); }
     hoja("CONFIG").appendRow(["Último Excel cargado", ultimo.getName() + " · " + ahoraTxt() + " · período " + datos.desde + " al " + datos.hasta]);
     registrar(yo.nombre, "Cargó el Excel de Resto Soft", "", ultimo.getName() + " (" + fs.length + " clientes)");
     CacheService.getScriptCache().remove("datos");
-    return { clientes: fs.length, nuevos: nuevos.length, desde: datos.desde, hasta: datos.hasta };
+    return { clientes: fs.length, nuevos: nuevos.length, productosNuevos: filasN.length, desde: datos.desde, hasta: datos.hasta };
   } finally { lock.releaseLock(); }
 }
 
@@ -437,7 +457,7 @@ function datos(token) {
       facturas: fac[k] || [],
     };
   });
-  return { yo: yo, periodo: { desde: desde, hasta: hasta }, clientes: lista, alias: ALIAS_PAGO, recargo: RECARGO };
+  return { yo: yo, periodo: { desde: desde, hasta: hasta }, clientes: lista, alias: ALIAS_PAGO, recargo: RECARGO, nombres: mapaNombres() };
 }
 
 function guardarCliente(token, codigo, d) {
@@ -3301,10 +3321,32 @@ Array.prototype.forEach.call($("filtros").children, function (b) {
 function cosas(detalle) {
   return detalle.split(" | ").filter(Boolean).map(function (x) { return x.replace(/[*]/g, "").trim().toLowerCase(); }).join(", ");
 }
+function claveNombre(t) { return String(t || "").replace(/ +/g, " ").trim().toUpperCase(); }
+function nombreLindo(desc) {
+  var k = claveNombre(desc), n = D.nombres && D.nombres[k];
+  if (n) return n;
+  var s = String(desc || "").replace(/[*]+/g, "").replace(/^[(]EJ[)] */i, "").trim().toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+/** "2× CAFE JARRITA | TOSTADO" → [{n: "Café en jarrita", c: 2}, {n: "Tostado", c: 1}] */
+function items(detalle) {
+  return String(detalle || "").split(" | ").filter(Boolean).map(function (x) {
+    var c = 1, p = x.indexOf("× ");
+    if (p > 0 && !isNaN(Number(x.slice(0, p)))) { c = Number(x.slice(0, p)); x = x.slice(p + 2); }
+    return { n: nombreLindo(x), c: c };
+  }).filter(function (i) { return claveNombre(i.n) !== "ACTUALIZACION"; });
+}
 function porDia(movs) {
   var d = {}, orden = [];
-  movs.forEach(function (m) { if (!(m.fecha in d)) { d[m.fecha] = 0; orden.push(m.fecha); } d[m.fecha] += m.importe; });
-  return orden.sort().map(function (f) { return { fecha: f, importe: d[f] }; });
+  movs.forEach(function (m) {
+    if (!(m.fecha in d)) { d[m.fecha] = { importe: 0, cosas: {} , lista: [] }; orden.push(m.fecha); }
+    d[m.fecha].importe += m.importe;
+    items(m.detalle).forEach(function (i) { var x = d[m.fecha]; if (!(i.n in x.cosas)) { x.cosas[i.n] = 0; x.lista.push(i.n); } x.cosas[i.n] += i.c; });
+  });
+  return orden.sort().map(function (f) {
+    var x = d[f];
+    return { fecha: f, importe: x.importe, texto: x.lista.map(function (n) { var c = Math.round(x.cosas[n] * 100) / 100; return c !== 1 ? n + " (x" + String(c).replace(".", ",") + ")" : n; }).join(", ") };
+  });
 }
 function mensaje(c) {
   var L = [];
@@ -3314,7 +3356,11 @@ function mensaje(c) {
   L.push("Te escribimos de *La Caleta* con el resumen de tu cuenta corriente del " + dm(D.periodo.desde) + " al " + dm(D.periodo.hasta) + ".");
   L.push("");
   if (Math.abs(c.anterior) >= 1) L.push("*Saldo anterior:* " + pesos(c.anterior), "");
-  if (cons.length) { L.push("*Consumos*"); cons.forEach(function (m) { L.push("▪️ " + dia(m.fecha) + " — " + pesos(m.importe)); }); L.push(""); }
+  if (cons.length) {
+    L.push("*Consumos*");
+    cons.forEach(function (m) { L.push("▪️ " + dia(m.fecha) + " — " + pesos(m.importe)); if (m.texto) L.push("      " + m.texto); });
+    L.push("");
+  }
   if (pag.length) { L.push("*Pagos recibidos*"); pag.forEach(function (m) { L.push("▪️ " + dia(m.fecha) + " — " + pesos(m.importe)); }); L.push(""); }
   if (recargo >= 1) L.push("*Recargo por saldo impago:* " + pesos(recargo), "");
   if (c.actual <= 0) L.push("✅ *Tu cuenta está al día.* ¡Gracias!");
@@ -3479,7 +3525,8 @@ $("bCargar").onclick = function () {
     b.disabled = false; b.textContent = "Cargar Excel nuevo";
     $("sheet").hidden = false;
     $("box").innerHTML = '<div class="top"><h3>Excel cargado</h3><button class="close" id="x">Listo</button></div><p class="bien">Período ' + dm(r.desde) + ' al ' + dm(r.hasta) + ': ' + r.clientes + ' clientes.</p>' +
-      (r.nuevos ? '<p class="nota">' + r.nuevos + ' clientes nuevos: revisales el saludo y el WhatsApp la primera vez.</p>' : '');
+      (r.nuevos ? '<p class="nota">' + r.nuevos + ' clientes nuevos: revisales el saludo y el WhatsApp la primera vez.</p>' : '') +
+      (r.productosNuevos ? '<p class="nota">' + r.productosNuevos + ' productos nuevos de Resto Soft: revisá cómo se escriben en la pestaña NOMBRES de la planilla.</p>' : '');
     $("x").onclick = function () { cerrar(); cargar(); };
   }).catch(function (e) { b.disabled = false; b.textContent = "Cargar Excel nuevo"; $("sheet").hidden = false; $("box").innerHTML = '<p class="aviso">' + esc(e.message) + '</p><button class="ghost" id="x">Cerrar</button>'; $("x").onclick = cerrar; });
 };

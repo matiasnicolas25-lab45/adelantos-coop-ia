@@ -18,6 +18,7 @@ const HOJAS = {
   FACTURAS: ["Fecha", "Quién", "Tipo", "Punto de venta", "Número", "Código cliente", "Receptor", "Documento", "Condición IVA",
     "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle", "PDF"],
   REGISTRO: ["Fecha", "Quién", "Acción", "Cliente", "Detalle"],
+  NOMBRES: ["Nombre en Resto Soft", "Cómo sale en el mensaje", "Revisar"],
 };
 
 function libro() { return SpreadsheetApp.openById(LIBRO_ID); }
@@ -179,6 +180,17 @@ function adivinarSaludo(nombre) {
   return n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
 }
 
+/** Nombre prolijo "de emergencia" para un producto que todavía no está en la hoja NOMBRES. */
+function limpiarNombre(t) {
+  let s = String(t || "").replace(/^\(EJ\)\s*/i, "").replace(/^\*+\s*/, "").replace(/^yachting\s+/i, "").replace(/\s+/g, " ").trim().toLowerCase();
+  s = s.replace(/\bc\/\s*/g, "con ").replace(/\bj\s*y\s*q\b/g, "jamón y queso").replace(/\bgde\b/g, "grande").replace(/\bch\.?(?=\s|$)/g, "chico")
+    .replace(/\bmila\b/g, "milanesa").replace(/\bemp\.?(?=\s|$)/g, "empanada").replace(/\bens\.?(?=\s|$)/g, "ensalada").replace(/\bagreg\.?\s*/g, "agregado de ")
+    .replace(/\btalla\b/g, "tallarines").replace(/\bnoquis\b/g, "ñoquis").replace(/\bcafe\b/g, "café").replace(/\bpure\b/g, "puré");
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function claveNombre(t) { return String(t || "").replace(/\s+/g, " ").trim().toUpperCase(); }
+function mapaNombres() { const m = {}; filas("NOMBRES").forEach(r => { if (r[0] && r[1]) m[claveNombre(r[0])] = String(r[1]).trim(); }); return m; }
+
 /** Busca el último Excel de cuentas corrientes en la carpeta RESTOSOFT y lo carga. */
 function importar(token) {
   const yo = quien(token);
@@ -224,10 +236,18 @@ function importar(token) {
       nuevos.push([c.codigo, c.nombre, adivinarSaludo(c.nombre), normalizarWa(c.tel), "", "", "", c.tel]);
     });
     if (nuevos.length) cs.getRange(cs.getLastRow() + 1, 1, nuevos.length, nuevos[0].length).setValues(nuevos);
+    // productos nuevos: se agregan a NOMBRES con un nombre sugerido, para revisar
+    const conocidos = mapaNombres(), nuevosNombres = {};
+    datos.clientes.forEach(c => c.movs.forEach(m => m.items.forEach(i => {
+      const k = claveNombre(i.desc);
+      if (k && k !== "ACTUALIZACION" && !conocidos[k] && !nuevosNombres[k]) nuevosNombres[k] = [i.desc.trim(), limpiarNombre(i.desc), "SÍ"];
+    })));
+    const filasN = Object.keys(nuevosNombres).map(k => nuevosNombres[k]);
+    if (filasN.length) { const sn = hoja("NOMBRES"); sn.getRange(sn.getLastRow() + 1, 1, filasN.length, 3).setValues(filasN); }
     hoja("CONFIG").appendRow(["Último Excel cargado", ultimo.getName() + " · " + ahoraTxt() + " · período " + datos.desde + " al " + datos.hasta]);
     registrar(yo.nombre, "Cargó el Excel de Resto Soft", "", ultimo.getName() + " (" + fs.length + " clientes)");
     CacheService.getScriptCache().remove("datos");
-    return { clientes: fs.length, nuevos: nuevos.length, desde: datos.desde, hasta: datos.hasta };
+    return { clientes: fs.length, nuevos: nuevos.length, productosNuevos: filasN.length, desde: datos.desde, hasta: datos.hasta };
   } finally { lock.releaseLock(); }
 }
 
@@ -256,7 +276,7 @@ function datos(token) {
       facturas: fac[k] || [],
     };
   });
-  return { yo: yo, periodo: { desde: desde, hasta: hasta }, clientes: lista, alias: ALIAS_PAGO, recargo: RECARGO };
+  return { yo: yo, periodo: { desde: desde, hasta: hasta }, clientes: lista, alias: ALIAS_PAGO, recargo: RECARGO, nombres: mapaNombres() };
 }
 
 function guardarCliente(token, codigo, d) {
