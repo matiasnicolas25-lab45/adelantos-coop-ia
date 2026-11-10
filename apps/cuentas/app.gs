@@ -16,7 +16,7 @@ const HOJAS = {
   MOVIMIENTOS: ["Período", "Código", "Fecha", "Comprobante", "Tipo", "Debe", "Haber", "Saldo", "Detalle"],
   ESTADO: ["Período", "Código", "Mensaje enviado", "Enviado por", "Pagó", "Marcado por"],
   FACTURAS: ["Fecha", "Quién", "Tipo", "Punto de venta", "Número", "Código cliente", "Receptor", "Documento", "Condición IVA",
-    "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle"],
+    "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle", "PDF"],
   REGISTRO: ["Fecha", "Quién", "Acción", "Cliente", "Detalle"],
 };
 
@@ -43,7 +43,8 @@ function instalarApp() {
   acc.getRange("B:B").setNumberFormat("@");
   hoja("CLIENTES").getRange("D:E").setNumberFormat("@");
   const cfg = hoja("CONFIG");
-  if (cfg.getLastRow() < 2) cfg.getRange(2, 1, 1, 2).setValues([["Cuentas de Google que pueden abrir la app (separadas por coma)", Session.getActiveUser().getEmail()]]);
+  if (cfg.getLastRow() < 2) cfg.getRange(2, 1, 3, 2).setValues([["Cuentas de Google que pueden abrir la app (separadas por coma)", Session.getActiveUser().getEmail()],
+    ["Ingresos Brutos", ""], ["Inicio de actividades", ""]]);
   const def = libro().getSheetByName("Hoja 1") || libro().getSheetByName("Sheet1");
   if (def && def.getLastRow() === 0 && libro().getSheets().length > 1) libro().deleteSheet(def);
   SpreadsheetApp.getUi().alert("Listo. Agregá en CONFIG la cuenta de La Caleta (separada por coma) y después publicá la app (ver instrucciones).");
@@ -351,15 +352,23 @@ function facturar(token, f) {
     const cae = xmlTag(resp, "CAE"), vto = xmlTag(resp, "CAEFchVto");
     const numero = ("0000" + PUNTO_VENTA).slice(-5) + "-" + ("0000000" + n).slice(-8);
     const receptor = String(f.nombre || "").trim() || "Consumidor final";
-    hoja("FACTURAS").appendRow([ahoraTxt(), yo.nombre, "Factura " + f.tipo, PUNTO_VENTA, numero, f.codigo || "", receptor,
+    const sh = hoja("FACTURAS");
+    sh.appendRow([ahoraTxt(), yo.nombre, "Factura " + f.tipo, PUNTO_VENTA, numero, f.codigo || "", receptor,
       (DOC[docTipo] || "") + (docTipo !== "99" ? " " + docNro : ""), COND_IVA[cond], neto, iva, total, cae,
-      vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), String(f.detalle || "") + (f.domicilio ? " · Domicilio: " + f.domicilio : "")]);
+      vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), String(f.detalle || "") + (f.domicilio ? " · Domicilio: " + f.domicilio : ""), ""]);
+    const filaFac = sh.getLastRow();
     registrar(yo.nombre, "Hizo la factura " + f.tipo + " " + numero, receptor, "$" + fmt(total) + " · CAE " + cae);
-    return { numero: numero, cae: cae, vence: vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), total: total, neto: neto, iva: iva, tipo: f.tipo };
+    let pdf = "", errPdf = "";
+    try {
+      pdf = facturaPdf({ tipo: f.tipo, n: n, fecha: new Date(), docTipo: docTipo, docNro: docNro, nombre: receptor, domicilio: f.domicilio || "",
+        cond: cond, neto: neto, iva: iva, total: total, cae: cae, vto: vto, detalle: f.detalle });
+      sh.getRange(filaFac, 16).setValue(pdf);
+    } catch (e) { errPdf = "La factura está hecha en ARCA, pero no se pudo armar el PDF: " + e.message; }
+    return { numero: numero, cae: cae, vence: vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), total: total, neto: neto, iva: iva, tipo: f.tipo, pdf: pdf, errPdf: errPdf };
   } finally { lock.releaseLock(); }
 }
 
 function ultimasFacturas(token) {
   quien(token);
-  return filas("FACTURAS").slice(-15).reverse().map(r => ({ fecha: String(r[0]), quien: String(r[1]), tipo: String(r[2]), numero: String(r[4]), receptor: String(r[6]), total: Number(r[11]), cae: String(r[12]) }));
+  return filas("FACTURAS").slice(-15).reverse().map(r => ({ fecha: String(r[0]), quien: String(r[1]), tipo: String(r[2]), numero: String(r[4]), receptor: String(r[6]), total: Number(r[11]), cae: String(r[12]), pdf: String(r[15] || "") }));
 }

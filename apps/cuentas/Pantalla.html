@@ -352,6 +352,7 @@ function confirmar(f, c) {
       if (c) c.facturas.push({ tipo: "Factura " + r.tipo, numero: r.numero, total: r.total });
       B.innerHTML = '<div class="top"><div><h3>Factura ' + r.tipo + ' hecha</h3><div class="sub">' + esc(f.nombre || "Consumidor final") + '</div></div><button class="close" id="x">Cerrar</button></div>' +
         '<p class="bien">Número ' + esc(r.numero) + ' · ' + pesos2(r.total) + '</p><div class="resumen"><div><span>CAE</span><b>' + esc(r.cae) + '</b></div><div><span>Vence el CAE</span><b>' + esc(r.vence) + '</b></div></div>' +
+        (r.pdf ? '<a class="solo" href="' + esc(r.pdf) + '">Abrir el PDF</a><p class="nota">Desde el PDF tocá Compartir y elegí WhatsApp para mandárselo al cliente.</p>' : '<p class="aviso">' + esc(r.errPdf) + '</p>') +
         '<p class="nota">Quedó anotada en la hoja FACTURAS de la planilla.</p>';
       $("x").onclick = function () { if (c) abrir(c); else cerrar(); };
     }).catch(function (e) { b.disabled = false; b.textContent = "Confirmar y hacer la factura"; alerta(e.message); });
@@ -364,7 +365,8 @@ $("bFacturas").onclick = function () {
   $("x").onclick = cerrar;
   run("ultimasFacturas", TOKEN).then(function (fs) {
     B.innerHTML = '<div class="top"><h3>Últimas facturas</h3><button class="close" id="x">Cerrar</button></div>' + (fs.length ? fs.map(function (f) {
-      return '<div class="resumen"><div><b>' + esc(f.tipo + " " + f.numero) + '</b><b>' + pesos2(f.total) + '</b></div><div><span>' + esc(f.receptor) + '</span><span class="nota">' + esc(f.fecha + " · " + f.quien) + '</span></div></div>';
+      return '<div class="resumen"><div><b>' + esc(f.tipo + " " + f.numero) + '</b><b>' + pesos2(f.total) + '</b></div><div><span>' + esc(f.receptor) + '</span><span class="nota">' + esc(f.fecha + " · " + f.quien) + '</span></div>' +
+        (f.pdf ? '<div><a href="' + esc(f.pdf) + '">Abrir el PDF</a></div>' : '') + '</div>';
     }).join("") : '<p class="nota">Todavía no se hizo ninguna factura.</p>');
     $("x").onclick = cerrar;
   });
