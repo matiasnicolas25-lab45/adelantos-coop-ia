@@ -222,7 +222,7 @@ function importar(token) {
       if (!c.movs.length && Math.abs(c.actual) < 1) return;
       fs.push([periodo, c.codigo, c.nombre, c.tel, c.anterior, c.actual, datos.desde, datos.hasta]);
       c.movs.forEach(m => fm.push([periodo, c.codigo, m.fecha, m.comp, m.tipo, m.debe, m.haber, m.saldo,
-        m.items.map(i => (i.cant !== 1 ? i.cant + "× " : "") + i.desc).join(" | ")]));
+        m.items.map(i => i.cant + "× " + i.desc + " = " + i.importe).join(" | ")]));
     });
     if (fs.length) saldos.getRange(saldos.getLastRow() + 1, 1, fs.length, fs[0].length).setValues(fs);
     if (fm.length) movs.getRange(movs.getLastRow() + 1, 1, fm.length, fm[0].length).setValues(fm);

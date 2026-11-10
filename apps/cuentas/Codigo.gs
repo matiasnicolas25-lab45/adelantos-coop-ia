@@ -403,7 +403,7 @@ function importar(token) {
       if (!c.movs.length && Math.abs(c.actual) < 1) return;
       fs.push([periodo, c.codigo, c.nombre, c.tel, c.anterior, c.actual, datos.desde, datos.hasta]);
       c.movs.forEach(m => fm.push([periodo, c.codigo, m.fecha, m.comp, m.tipo, m.debe, m.haber, m.saldo,
-        m.items.map(i => (i.cant !== 1 ? i.cant + "× " : "") + i.desc).join(" | ")]));
+        m.items.map(i => i.cant + "× " + i.desc + " = " + i.importe).join(" | ")]));
     });
     if (fs.length) saldos.getRange(saldos.getLastRow() + 1, 1, fs.length, fs[0].length).setValues(fs);
     if (fm.length) movs.getRange(movs.getLastRow() + 1, 1, fm.length, fm[0].length).setValues(fm);
@@ -3328,48 +3328,59 @@ function nombreLindo(desc) {
   var s = String(desc || "").replace(/[*]+/g, "").replace(/^[(]EJ[)] */i, "").trim().toLowerCase();
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
-/** "2× CAFE JARRITA | TOSTADO" → [{n: "Café en jarrita", c: 2}, {n: "Tostado", c: 1}] */
+/** "2× CAFE JARRITA = 7400 | 1× TOSTADO = 9000" → [{n: "Café en jarrita", c: 2, $: 7400}, ...] */
 function items(detalle) {
   return String(detalle || "").split(" | ").filter(Boolean).map(function (x) {
-    var c = 1, p = x.indexOf("× ");
+    var c = 1, imp = 0, p = x.indexOf("× "), q = x.lastIndexOf(" = ");
+    if (q > 0) { imp = Number(x.slice(q + 3)) || 0; x = x.slice(0, q); }
     if (p > 0 && !isNaN(Number(x.slice(0, p)))) { c = Number(x.slice(0, p)); x = x.slice(p + 2); }
-    return { n: nombreLindo(x), c: c };
+    return { n: nombreLindo(x), c: c, imp: imp };
   }).filter(function (i) { return claveNombre(i.n) !== "ACTUALIZACION"; });
 }
+function cant(c) { return String(Math.round(c * 100) / 100).replace(".", ","); }
+/** Un "ticket" por día: cada producto con su cantidad y su total, y el total del día. */
 function porDia(movs) {
   var d = {}, orden = [];
   movs.forEach(function (m) {
-    if (!(m.fecha in d)) { d[m.fecha] = { importe: 0, cosas: {} , lista: [] }; orden.push(m.fecha); }
-    d[m.fecha].importe += m.importe;
-    items(m.detalle).forEach(function (i) { var x = d[m.fecha]; if (!(i.n in x.cosas)) { x.cosas[i.n] = 0; x.lista.push(i.n); } x.cosas[i.n] += i.c; });
+    if (!(m.fecha in d)) { d[m.fecha] = { importe: 0, cosas: {}, lista: [] }; orden.push(m.fecha); }
+    var x = d[m.fecha]; x.importe += m.importe;
+    items(m.detalle).forEach(function (i) {
+      if (!(i.n in x.cosas)) { x.cosas[i.n] = { c: 0, imp: 0 }; x.lista.push(i.n); }
+      x.cosas[i.n].c += i.c; x.cosas[i.n].imp += i.imp;
+    });
   });
   return orden.sort().map(function (f) {
-    var x = d[f];
-    return { fecha: f, importe: x.importe, texto: x.lista.map(function (n) { var c = Math.round(x.cosas[n] * 100) / 100; return c !== 1 ? n + " (x" + String(c).replace(".", ",") + ")" : n; }).join(", ") };
+    var x = d[f], suma = 0;
+    var renglones = x.lista.map(function (n) { suma += x.cosas[n].imp; return cant(x.cosas[n].c) + " " + n + " — " + pesos(x.cosas[n].imp); });
+    var dif = x.importe - suma;
+    if (x.lista.length && dif <= -1) renglones.push("Descuento — -" + pesos(-dif));
+    if (x.lista.length && dif >= 1) renglones.push("Otros — " + pesos(dif));
+    return { fecha: f, importe: x.importe, renglones: renglones };
   });
 }
 function mensaje(c) {
   var L = [];
-  var cons = porDia(consumos(c)), pag = porDia(c.movs.filter(function (m) { return m.tipo === "Pago"; }));
+  var cons = porDia(consumos(c));
+  var pagos = c.movs.filter(function (m) { return m.tipo === "Pago"; }).sort(function (a, b) { return a.fecha < b.fecha ? -1 : 1; });
+  var ultimo = pagos.length ? pagos[pagos.length - 1] : null;
   var recargo = c.movs.filter(function (m) { return m.tipo === "Actualización"; }).reduce(function (s, m) { return s + m.importe; }, 0);
   L.push("Hola" + (c.saludo ? " " + c.saludo : "") + " 👋");
   L.push("Te escribimos de *La Caleta* con el resumen de tu cuenta corriente del " + dm(D.periodo.desde) + " al " + dm(D.periodo.hasta) + ".");
   L.push("");
   if (Math.abs(c.anterior) >= 1) L.push("*Saldo anterior:* " + pesos(c.anterior), "");
-  if (cons.length) {
-    L.push("*Consumos*");
-    cons.forEach(function (m) { L.push("▪️ " + dia(m.fecha) + " — " + pesos(m.importe)); if (m.texto) L.push("      " + m.texto); });
-    L.push("");
-  }
-  if (pag.length) { L.push("*Pagos recibidos*"); pag.forEach(function (m) { L.push("▪️ " + dia(m.fecha) + " — " + pesos(m.importe)); }); L.push(""); }
+  cons.forEach(function (m) {
+    L.push("🧾 *" + dia(m.fecha) + "*");
+    m.renglones.forEach(function (r) { L.push(r); });
+    L.push("*Total del día: " + pesos(m.importe) + "*", "");
+  });
+  if (ultimo) L.push("*Último pago recibido:* " + dia(ultimo.fecha) + " — " + pesos(ultimo.importe), "");
   if (recargo >= 1) L.push("*Recargo por saldo impago:* " + pesos(recargo), "");
   if (c.actual <= 0) L.push("✅ *Tu cuenta está al día.* ¡Gracias!");
   else {
     L.push("*Total a pagar: " + pesos(c.actual) + "*", "");
     L.push("Podés pagarlo en el salón o por transferencia al alias *" + D.alias + "*.");
-    L.push("Recordá que los miércoles el saldo impago tiene un recargo del " + String(D.recargo * 100).replace(".", ",") + "%.");
   }
-  L.push("", "¡Gracias! La Caleta · Yacht Club Rosario");
+  L.push("¡Gracias! La Caleta · Yacht Club Rosario");
   return L.join(NL);
 }
 function burbuja(t) {
