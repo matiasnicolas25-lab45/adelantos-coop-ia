@@ -3279,13 +3279,13 @@ function datosCliente(c) {
 /* ---------- facturas ---------- */
 function formFactura(tipo, c) {
   var B = $("box"), total = c ? consumos(c).reduce(function (s, m) { return s + m.importe; }, 0) : 0;
-  var detalle = c && D.periodo ? "Servicio gastronómico del " + dm(D.periodo.desde) + " al " + dm(D.periodo.hasta) : "Servicio gastronómico";
+  var detalle = "Servicio gastronómico";
   B.innerHTML = '<div class="top"><div><h3>Nueva factura</h3><div class="sub">' + (c ? esc(c.nombre) : "Cargada a mano") + '</div></div><button class="close" id="x">' + (c ? "Volver" : "Cerrar") + '</button></div>' +
     '<div class="two"><button class="ghost" id="tA">Factura A</button><button class="ghost" id="tB">Factura B</button></div>' +
     '<div id="campos" style="display:grid;gap:12px"></div>' +
     '<label>Importe total <small>Con el IVA incluido</small><input id="fTot" inputmode="decimal" value="' + (total ? String(Math.round(total * 100) / 100).replace(".", ",") : "") + '" placeholder="0,00"></label>' +
     '<p class="nota" id="desglose"></p>' +
-    '<label>Producto / servicio <small>Sale así en la factura</small><input id="fDet" value="' + esc(detalle) + '"></label>' +
+    '<label>Producto / servicio <small>Si el cliente pide otra cosa, cambialo acá</small><input id="fDet" value="' + esc(detalle) + '"></label>' +
     '<button class="solo" id="bRev">Revisar factura</button>';
   $("x").onclick = function () { if (c) abrir(c); else cerrar(); };
   function elegir(t) {
