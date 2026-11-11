@@ -251,7 +251,8 @@ function mensaje(c) {
   var L = [];
   var cons = porDia(consumos(c));
   var pagos = c.movs.filter(function (m) { return m.tipo === "Pago"; }).sort(function (a, b) { return a.fecha < b.fecha ? -1 : 1; });
-  var ultimo = pagos.length ? pagos[pagos.length - 1] : null;
+  var ultimo = pagos.length ? { fecha: pagos[pagos.length - 1].fecha, importe: 0 } : null;   // si pagó varias veces el último día, se suman
+  if (ultimo) pagos.forEach(function (m) { if (m.fecha === ultimo.fecha) ultimo.importe += m.importe; });
   var recargo = c.movs.filter(function (m) { return m.tipo === "Actualización"; }).reduce(function (s, m) { return s + m.importe; }, 0) + (c.recargoApp || 0);
   L.push("Hola" + (c.saludo ? " " + c.saludo : "") + " 👋");
   L.push("Te escribimos de *La Caleta* con el resumen de tu cuenta corriente del " + dm(D.periodo.desde) + " al " + dm(D.periodo.hasta) + ".");
@@ -264,7 +265,7 @@ function mensaje(c) {
   });
   if (ultimo) L.push("*Último pago recibido:* " + dia(ultimo.fecha) + " — " + pesos(ultimo.importe), "");
   if (recargo >= 1) L.push("*Recargo por saldo impago:* " + pesos(recargo), "");
-  if (c.actual <= 0) L.push("✅ *Tu cuenta está al día.* ¡Gracias!");
+  if (c.actual <= 0) L.push("✅ *Tu cuenta está al día.*", "");
   else {
     L.push("*Total a pagar: " + pesos(c.actual) + "*", "");
     L.push("Podés pagarlo en el salón o por transferencia al alias *" + D.alias + "*.");
