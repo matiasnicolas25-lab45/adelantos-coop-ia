@@ -187,7 +187,7 @@ const ARCHIVO_CUENTAS = "DETALLE DE CONSUMOS DE CUENTAS CORRIENTES";
 const ALIAS_PAGO = "caleta.ycr";
 const RECARGO = 0.025;
 const ZONA = "America/Argentina/Buenos_Aires";
-const USUARIOS = [["Matías", "admin"], ["Raquel", "usuario"], ["Yoana", "usuario"], ["Belén", "usuario"]];
+const USUARIOS = [["Matías", "admin"], ["Raquel", "usuario"], ["Yoana", "usuario"], ["Belén", "usuario"], ["Romi", "usuario"], ["Yasmila", "usuario"], ["Ana", "usuario"]];
 
 const HOJAS = {
   ACCESO: ["Nombre", "PIN", "Rol"],
