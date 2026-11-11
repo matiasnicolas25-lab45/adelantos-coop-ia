@@ -504,7 +504,7 @@ function datos(token) {
   const lista = s.filter(r => fTxt(r[0]) === periodo).map(function (r) {
     desde = fTxt(r[6]);
     const k = String(r[1]), c = cli[k] || [], e = est[k] || [], m = mv[k] || [];
-    const conDetalle = m.map(x => ({ fecha: fTxt(x[2]), tipo: x[4], importe: x[4] === "Pago" ? Number(x[6]) : Number(x[5]), detalle: String(x[8] || "") }));
+    const conDetalle = m.map(x => ({ fecha: fTxt(x[2]), tipo: x[4], importe: x[4] === "Pago" ? Number(x[6]) : Number(x[5]), saldo: Number(x[7]), detalle: String(x[8] || "") }));
     const rec = recargosApp(inicioRec, cargados[k] || "", Number(r[4]), m.map(x => ({ fecha: fTxt(x[2]), saldo: Number(x[7]) })), hoy);
     return {
       codigo: Number(k), nombre: String(r[2]), saludo: String(c[2] || ""), wa: String(c[3] || ""), cuit: String(c[4] || ""),
@@ -3419,7 +3419,15 @@ function cargar() {
   $("cargando").hidden = false;
   run("datos", TOKEN).then(function (d) {
     D = d; $("cargando").hidden = true; $("vApp").hidden = false;
-    D.clientes.forEach(function (c) { c.restoSoft = c.actual; c.recargoApp = c.recargoApp || 0; c.actual = c.actual + c.recargoApp; });
+    D.clientes.forEach(function (c) {
+      c.restoSoft = c.actual; c.recargoApp = c.recargoApp || 0; c.ajusteRec = 0;
+      // las actualizaciones de Resto Soft se recalculan al % que corresponde sobre el saldo de ese día
+      c.movs.forEach(function (m) {
+        if (m.tipo !== "Actualización" || isNaN(m.saldo)) return;
+        m.cargado = m.importe; m.importe = Math.round((m.saldo - m.cargado) * D.recargo); c.ajusteRec += m.cargado - m.importe;
+      });
+      c.actual = c.actual - c.ajusteRec + c.recargoApp;
+    });
     $("yo").innerHTML = esc(d.yo.nombre) + '<br><button id="bSalir">Salir</button>';
     $("bSalir").onclick = function () { TOKEN = null; entrarPantalla(); };
     $("per").textContent = d.periodo ? "Cuentas corrientes · " + dm(d.periodo.desde) + " al " + dm(d.periodo.hasta) : "Cuentas corrientes";
@@ -3525,7 +3533,7 @@ function mensaje(c) {
   });
   if (ultimo) L.push("*Último pago recibido:* " + dia(ultimo.fecha) + " — " + pesos(ultimo.importe), "");
   if (recargo >= 1) L.push("*Recargo por saldo impago:* " + pesos(recargo), "");
-  if (c.actual <= 0) L.push("✅ *Tu cuenta está al día.*", "");
+  if (c.actual <= 0) L.push("✅ *Tu cuenta está al día.*" + (c.actual <= -1 ? " Tenés un saldo a favor de " + pesos(-c.actual) + "." : ""), "");
   else {
     L.push("*Total a pagar: " + pesos(c.actual) + "*", "");
     L.push("Podés pagarlo en el salón o por transferencia al alias *" + D.alias + "*.");
@@ -3552,6 +3560,7 @@ function abrir(c) {
       '<p class="nota" style="margin:0">' + c.recargoSemanas.map(function (s) { return dia(s[0]) + ": " + pesos(s[1]); }).join(" · ") + '</p>' +
       '<p class="nota" style="margin:0">Todavía no está en Resto Soft. Cuando pague, cargalo en Resto Soft y tocá el botón.</p>' +
       '<button class="ghost" id="bRec">Ya cargué ' + pesos(c.recargoApp) + ' en Resto Soft</button></div>' : '') +
+    (Math.abs(c.ajusteRec) >= 1 ? '<p class="aviso">En Resto Soft el recargo quedó ' + (c.ajusteRec > 0 ? 'cargado de más' : 'cargado de menos') + ' por ' + pesos(Math.abs(c.ajusteRec)) + ' (no está al ' + String(D.recargo * 100).replace(".", ",") + ' %). El mensaje ya va con el recargo bien calculado. En Resto Soft hay que cargar ' + (c.ajusteRec > 0 ? 'una nota de crédito' : 'una actualización') + ' por ' + pesos(Math.abs(c.ajusteRec)) + '.</p>' : '') +
     '<button class="ghost" id="bDatos">' + (c.revisado ? "Editar datos del cliente" : "Revisar datos del cliente") + '</button>' +
     (c.enviado ? '<p class="nota">Mensaje enviado el ' + esc(c.enviado) + ' por ' + esc(c.enviadoPor) + '.</p>' : '') +
     (c.pago ? '<p class="nota">Pago marcado el ' + esc(c.pago) + ' por ' + esc(c.pagoPor) + '.</p>' : '') +
@@ -3575,7 +3584,7 @@ function abrir(c) {
   if ($("bRec")) $("bRec").onclick = function () {
     var b = this; b.disabled = true; b.textContent = "Guardando…";
     run("marcarRecargoCargado", TOKEN, c.codigo, c.nombre, c.recargoApp, c.recargoSemanas.length).then(function () {
-      c.actual = c.restoSoft + c.recargoApp; c.restoSoft = c.actual; c.recargoApp = 0; c.recargoSemanas = []; abrir(c); dibujar();
+      c.restoSoft = c.restoSoft + c.recargoApp; c.recargoApp = 0; c.recargoSemanas = []; abrir(c); dibujar();
     }).catch(function (e) { b.disabled = false; alerta(e.message); });
   };
 }

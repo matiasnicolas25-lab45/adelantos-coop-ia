@@ -323,7 +323,7 @@ function datos(token) {
   const lista = s.filter(r => fTxt(r[0]) === periodo).map(function (r) {
     desde = fTxt(r[6]);
     const k = String(r[1]), c = cli[k] || [], e = est[k] || [], m = mv[k] || [];
-    const conDetalle = m.map(x => ({ fecha: fTxt(x[2]), tipo: x[4], importe: x[4] === "Pago" ? Number(x[6]) : Number(x[5]), detalle: String(x[8] || "") }));
+    const conDetalle = m.map(x => ({ fecha: fTxt(x[2]), tipo: x[4], importe: x[4] === "Pago" ? Number(x[6]) : Number(x[5]), saldo: Number(x[7]), detalle: String(x[8] || "") }));
     const rec = recargosApp(inicioRec, cargados[k] || "", Number(r[4]), m.map(x => ({ fecha: fTxt(x[2]), saldo: Number(x[7]) })), hoy);
     return {
       codigo: Number(k), nombre: String(r[2]), saludo: String(c[2] || ""), wa: String(c[3] || ""), cuit: String(c[4] || ""),
