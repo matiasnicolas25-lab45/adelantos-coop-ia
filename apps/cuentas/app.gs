@@ -16,7 +16,7 @@ const HOJAS = {
   MOVIMIENTOS: ["Período", "Código", "Fecha", "Comprobante", "Tipo", "Debe", "Haber", "Saldo", "Detalle"],
   ESTADO: ["Período", "Código", "Mensaje enviado", "Enviado por", "Pagó", "Marcado por"],
   FACTURAS: ["Fecha", "Quién", "Tipo", "Punto de venta", "Número", "Código cliente", "Receptor", "Documento", "Condición IVA",
-    "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle", "PDF"],
+    "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle", "PDF", "WhatsApp"],
   REGISTRO: ["Fecha", "Quién", "Acción", "Cliente", "Detalle"],
   CUIT: ["Texto de la lista CUIT CLIENTES", "CUIT", "Estado"],
   NOMBRES: ["Nombre en Resto Soft", "Cómo sale en el mensaje", "Revisar"],
@@ -424,6 +424,8 @@ function facturar(token, f) {
     if (docTipo === "96" && !(docNro.length >= 7 && docNro.length <= 8)) throw new Error("El DNI tiene que tener 7 u 8 números.");
     if (docTipo !== "80" && docTipo !== "96") { docTipo = "99"; docNro = "0"; }
   }
+  const waFac = String(f.wa || "").trim() ? normalizarWa(f.wa) : "";
+  if (String(f.wa || "").trim() && !waFac) throw new Error("Ese WhatsApp no parece válido. Ponelo con característica, por ejemplo 341 5123456, o dejalo vacío.");
   const neto = dosDec(total / 1.21), iva = dosDec(total - neto);
   const lock = LockService.getScriptLock(); lock.waitLock(30000);
   try {
@@ -452,7 +454,7 @@ function facturar(token, f) {
     const sh = hoja("FACTURAS");
     sh.appendRow([ahoraTxt(), yo.nombre, "Factura " + f.tipo, PUNTO_VENTA, numero, f.codigo || "", receptor,
       (DOC[docTipo] || "") + (docTipo !== "99" ? " " + docNro : ""), COND_IVA[cond], neto, iva, total, cae,
-      vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), String(f.detalle || "") + (f.domicilio ? " · Domicilio: " + f.domicilio : ""), ""]);
+      vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), String(f.detalle || "") + (f.domicilio ? " · Domicilio: " + f.domicilio : ""), "", waFac]);
     const filaFac = sh.getLastRow();
     if (docTipo === "80" && !filas("CUIT").some(r => String(r[1]).replace(/\D/g, "") === docNro)) hoja("CUIT").appendRow([receptor + " " + docNro, docNro, "OK (agregado por una factura)"]);
     registrar(yo.nombre, "Hizo la factura " + f.tipo + " " + numero, receptor, "$" + fmt(total) + " · CAE " + cae);
@@ -463,13 +465,22 @@ function facturar(token, f) {
         venta: "Otra" });
       sh.getRange(filaFac, 16).setValue(pdf);
     } catch (e) { errPdf = "La factura está hecha en ARCA, pero no se pudo armar el PDF: " + e.message; }
-    return { numero: numero, cae: cae, vence: vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), total: total, neto: neto, iva: iva, tipo: f.tipo, pdf: pdf, errPdf: errPdf };
+    return { numero: numero, cae: cae, vence: vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), total: total, neto: neto, iva: iva, tipo: f.tipo, pdf: pdf, errPdf: errPdf, wa: waFac };
   } finally { lock.releaseLock(); }
 }
 
 function ultimasFacturas(token) {
   quien(token);
-  return filas("FACTURAS").slice(-15).reverse().map(r => ({ fecha: hTxt(r[0]), quien: String(r[1]), tipo: String(r[2]), numero: String(r[4]), receptor: String(r[6]), total: Number(r[11]), cae: String(r[12]), pdf: String(r[15] || "") }));
+  return filas("FACTURAS").slice(-15).reverse().map(r => ({ fecha: hTxt(r[0]), quien: String(r[1]), tipo: String(r[2]), numero: String(r[4]), receptor: String(r[6]), total: Number(r[11]), cae: String(r[12]), pdf: String(r[15] || ""), wa: String(r[16] || "") }));
+}
+
+/** El PDF de una factura, para bajarlo en la compu y adjuntarlo en WhatsApp. */
+function pdfParaEnviar(token, url) {
+  quien(token);
+  const m = String(url || "").match(/\/d\/([^/?#]+)/);
+  if (!m) throw new Error("No encontré el PDF de esa factura.");
+  const f = DriveApp.getFileById(m[1]);
+  return { nombre: f.getName(), b64: Utilities.base64Encode(f.getBlob().getBytes()) };
 }
 
 

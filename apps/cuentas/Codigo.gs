@@ -197,7 +197,7 @@ const HOJAS = {
   MOVIMIENTOS: ["Período", "Código", "Fecha", "Comprobante", "Tipo", "Debe", "Haber", "Saldo", "Detalle"],
   ESTADO: ["Período", "Código", "Mensaje enviado", "Enviado por", "Pagó", "Marcado por"],
   FACTURAS: ["Fecha", "Quién", "Tipo", "Punto de venta", "Número", "Código cliente", "Receptor", "Documento", "Condición IVA",
-    "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle", "PDF"],
+    "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle", "PDF", "WhatsApp"],
   REGISTRO: ["Fecha", "Quién", "Acción", "Cliente", "Detalle"],
   CUIT: ["Texto de la lista CUIT CLIENTES", "CUIT", "Estado"],
   NOMBRES: ["Nombre en Resto Soft", "Cómo sale en el mensaje", "Revisar"],
@@ -605,6 +605,8 @@ function facturar(token, f) {
     if (docTipo === "96" && !(docNro.length >= 7 && docNro.length <= 8)) throw new Error("El DNI tiene que tener 7 u 8 números.");
     if (docTipo !== "80" && docTipo !== "96") { docTipo = "99"; docNro = "0"; }
   }
+  const waFac = String(f.wa || "").trim() ? normalizarWa(f.wa) : "";
+  if (String(f.wa || "").trim() && !waFac) throw new Error("Ese WhatsApp no parece válido. Ponelo con característica, por ejemplo 341 5123456, o dejalo vacío.");
   const neto = dosDec(total / 1.21), iva = dosDec(total - neto);
   const lock = LockService.getScriptLock(); lock.waitLock(30000);
   try {
@@ -633,7 +635,7 @@ function facturar(token, f) {
     const sh = hoja("FACTURAS");
     sh.appendRow([ahoraTxt(), yo.nombre, "Factura " + f.tipo, PUNTO_VENTA, numero, f.codigo || "", receptor,
       (DOC[docTipo] || "") + (docTipo !== "99" ? " " + docNro : ""), COND_IVA[cond], neto, iva, total, cae,
-      vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), String(f.detalle || "") + (f.domicilio ? " · Domicilio: " + f.domicilio : ""), ""]);
+      vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), String(f.detalle || "") + (f.domicilio ? " · Domicilio: " + f.domicilio : ""), "", waFac]);
     const filaFac = sh.getLastRow();
     if (docTipo === "80" && !filas("CUIT").some(r => String(r[1]).replace(/\D/g, "") === docNro)) hoja("CUIT").appendRow([receptor + " " + docNro, docNro, "OK (agregado por una factura)"]);
     registrar(yo.nombre, "Hizo la factura " + f.tipo + " " + numero, receptor, "$" + fmt(total) + " · CAE " + cae);
@@ -644,13 +646,22 @@ function facturar(token, f) {
         venta: "Otra" });
       sh.getRange(filaFac, 16).setValue(pdf);
     } catch (e) { errPdf = "La factura está hecha en ARCA, pero no se pudo armar el PDF: " + e.message; }
-    return { numero: numero, cae: cae, vence: vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), total: total, neto: neto, iva: iva, tipo: f.tipo, pdf: pdf, errPdf: errPdf };
+    return { numero: numero, cae: cae, vence: vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), total: total, neto: neto, iva: iva, tipo: f.tipo, pdf: pdf, errPdf: errPdf, wa: waFac };
   } finally { lock.releaseLock(); }
 }
 
 function ultimasFacturas(token) {
   quien(token);
-  return filas("FACTURAS").slice(-15).reverse().map(r => ({ fecha: hTxt(r[0]), quien: String(r[1]), tipo: String(r[2]), numero: String(r[4]), receptor: String(r[6]), total: Number(r[11]), cae: String(r[12]), pdf: String(r[15] || "") }));
+  return filas("FACTURAS").slice(-15).reverse().map(r => ({ fecha: hTxt(r[0]), quien: String(r[1]), tipo: String(r[2]), numero: String(r[4]), receptor: String(r[6]), total: Number(r[11]), cae: String(r[12]), pdf: String(r[15] || ""), wa: String(r[16] || "") }));
+}
+
+/** El PDF de una factura, para bajarlo en la compu y adjuntarlo en WhatsApp. */
+function pdfParaEnviar(token, url) {
+  quien(token);
+  const m = String(url || "").match(/\/d\/([^/?#]+)/);
+  if (!m) throw new Error("No encontré el PDF de esa factura.");
+  const f = DriveApp.getFileById(m[1]);
+  return { nombre: f.getName(), b64: Utilities.base64Encode(f.getBlob().getBytes()) };
 }
 
 
@@ -3604,6 +3615,7 @@ function formFactura(tipo, c) {
     '<label>Importe total <small>Con el IVA incluido</small><input id="fTot" inputmode="decimal" value="' + (total ? String(Math.round(total * 100) / 100).replace(".", ",") : "") + '" placeholder="0,00"></label>' +
     '<p class="nota" id="desglose"></p>' +
     '<label>Producto / servicio <small>Si el cliente pide otra cosa, cambialo acá</small><input id="fDet" value="' + esc(detalle) + '"></label>' +
+    '<label>WhatsApp del cliente <small>Opcional, para mandarle la factura. Ej: 341 5123456</small><input id="fWa" type="tel" value="' + esc(c && c.wa ? c.wa.replace(/^549/, "") : "") + '"></label>' +
     '<button class="solo" id="bRev">Revisar factura</button>';
   $("x").onclick = function () { if (c) abrir(c); else cerrar(); };
   function elegir(t) {
@@ -3648,7 +3660,7 @@ function formFactura(tipo, c) {
   function desg() { var t = numTot(), n = Math.round(t / 1.21 * 100) / 100; $("desglose").textContent = t ? "Neto " + pesos2(n) + " + IVA 21% " + pesos2(Math.round((t - n) * 100) / 100) : ""; }
   $("fTot").oninput = desg; desg();
   $("bRev").onclick = function () {
-    var f = { codigo: c ? c.codigo : "", tipo: tipo, total: numTot(), cond: $("fCond").value, detalle: $("fDet").value,
+    var f = { codigo: c ? c.codigo : "", tipo: tipo, total: numTot(), cond: $("fCond").value, detalle: $("fDet").value, wa: $("fWa").value,
       nombre: $("fNom") ? $("fNom").value : "", docTipo: tipo === "A" ? "80" : $("fDocTipo").value, docNro: $("fDoc") ? $("fDoc").value : "", domicilio: $("fDom") ? $("fDom").value : "" };
     if (tipo === "B" && f.docTipo === "99") { f.nombre = "Consumidor final"; f.docNro = ""; }
     if (!f.total) return alerta("Poné el importe total.");
@@ -3672,12 +3684,32 @@ function confirmar(f, c) {
       if (c) c.facturas.push({ tipo: "Factura " + r.tipo, numero: r.numero, total: r.total });
       B.innerHTML = '<div class="top"><div><h3>Factura ' + r.tipo + ' hecha</h3><div class="sub">' + esc(f.nombre || "Consumidor final") + '</div></div><button class="close" id="x">Cerrar</button></div>' +
         '<p class="bien">Número ' + esc(r.numero) + ' · ' + pesos2(r.total) + '</p><div class="resumen"><div><span>CAE</span><b>' + esc(r.cae) + '</b></div><div><span>Vence el CAE</span><b>' + esc(r.vence) + '</b></div></div>' +
-        (r.pdf ? '<a class="solo" href="' + esc(r.pdf) + '">Abrir el PDF</a><p class="nota">Desde el PDF tocá Compartir y elegí WhatsApp para mandárselo al cliente.</p>' : '<p class="aviso">' + esc(r.errPdf) + '</p>') +
+        (r.pdf ? '<div id="envFac"></div><p class="nota"><a href="' + esc(r.pdf) + '">Ver el PDF en Drive</a></p>' : '<p class="aviso">' + esc(r.errPdf) + '</p>') +
         '<p class="nota">Quedó anotada en la hoja FACTURAS de la planilla.</p>';
       $("x").onclick = function () { if (c) abrir(c); else cerrar(); };
+      if (r.pdf) botonWhatsApp($("envFac"), { pdf: r.pdf, wa: r.wa, tipo: r.tipo, numero: r.numero, total: r.total, saludo: c ? c.saludo : "" });
     }).catch(function (e) { b.disabled = false; b.textContent = "Confirmar y hacer la factura"; alerta(e.message); });
   };
 }
+/* ---------- mandar la factura por WhatsApp: se baja el PDF y se abre el chat; el PDF se adjunta a mano ---------- */
+function botonWhatsApp(cont, x) {
+  var t = "Hola" + (x.saludo ? " " + x.saludo : "") + "! Te enviamos tu factura " + x.tipo + " N° " + x.numero + " de La Caleta por " + pesos2(x.total) + ". ¡Gracias!";
+  var b = document.createElement("button"); b.className = "wa"; b.textContent = "Mandar por WhatsApp";
+  cont.textContent = ""; cont.appendChild(b);
+  b.onclick = function () {
+    b.disabled = true; b.textContent = "Preparando el PDF…";
+    run("pdfParaEnviar", TOKEN, x.pdf).then(function (d) {
+      var bin = atob(d.b64), arr = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      var url = URL.createObjectURL(new Blob([arr], { type: "application/pdf" }));
+      cont.innerHTML = '<div class="resumen" style="gap:10px"><b>Dos pasos:</b>' +
+        '<a class="solo" id="paso1" href="' + url + '" download="' + esc(d.nombre) + '">1. Bajar el PDF a la compu</a>' +
+        '<a class="wa" id="paso2" href="https://wa.me/' + esc(x.wa || "") + '?text=' + encodeURIComponent(t) + '">2. Abrir el chat de WhatsApp</a>' +
+        '<p class="nota" style="margin:0">En el chat tocá el clip 📎 → Documento → elegí <b>' + esc(d.nombre) + '</b> (está en Descargas) → Enviar.' + (x.wa ? '' : ' Como no hay número cargado, WhatsApp te va a pedir elegir el contacto.') + '</p></div>';
+    }).catch(function (e) { b.disabled = false; b.textContent = "Mandar por WhatsApp"; var p = document.createElement("p"); p.className = "aviso"; p.textContent = e.message; cont.appendChild(p); });
+  };
+}
+
 /* ---------- mesas que se fueron sin pagar ---------- */
 var MESAS = null;
 function cargarMesas() { run("pendientes", TOKEN).then(function (m) { MESAS = m; if (filtro === "mesas") dibujarMesas(); }).catch(function (e) { $("lista").textContent = e.message; }); }
@@ -3782,9 +3814,13 @@ $("bFacturas").onclick = function () {
   run("ultimasFacturas", TOKEN).then(function (fs) {
     B.innerHTML = '<div class="top"><h3>Últimas facturas</h3><button class="close" id="x">Cerrar</button></div>' + (fs.length ? fs.map(function (f) {
       return '<div class="resumen"><div><b>' + esc(f.tipo + " " + f.numero) + '</b><b>' + pesos2(f.total) + '</b></div><div><span>' + esc(f.receptor) + '</span><span class="nota">' + esc(f.fecha + " · " + f.quien) + '</span></div>' +
-        (f.pdf ? '<div><a href="' + esc(f.pdf) + '">Abrir el PDF</a></div>' : '') + '</div>';
+        (f.pdf ? '<div class="envF" data-i="' + fs.indexOf(f) + '"></div>' : '') + '</div>';
     }).join("") : '<p class="nota">Todavía no se hizo ninguna factura.</p>');
     $("x").onclick = cerrar;
+    Array.prototype.forEach.call(B.querySelectorAll(".envF"), function (d) {
+      var f = fs[Number(d.dataset.i)];
+      botonWhatsApp(d, { pdf: f.pdf, wa: f.wa, tipo: f.tipo.replace("Factura ", ""), numero: f.numero, total: f.total, saludo: "" });
+    });
   });
 };
 $("bCargar").onclick = function () {
