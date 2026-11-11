@@ -18,6 +18,7 @@ const HOJAS = {
   FACTURAS: ["Fecha", "Quién", "Tipo", "Punto de venta", "Número", "Código cliente", "Receptor", "Documento", "Condición IVA",
     "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle", "PDF"],
   REGISTRO: ["Fecha", "Quién", "Acción", "Cliente", "Detalle"],
+  CUIT: ["Texto de la lista CUIT CLIENTES", "CUIT", "Estado"],
   NOMBRES: ["Nombre en Resto Soft", "Cómo sale en el mensaje", "Revisar"],
   RECARGOS: ["Código", "Cliente", "Cargado en Resto Soft el", "Monto", "Miércoles incluidos", "Quién"],
   PENDIENTES: ["ID", "Cargado", "Quién", "Fecha", "Mesa", "Comprobante", "Nombre", "Saludo", "WhatsApp", "Total", "Detalle",
@@ -383,6 +384,16 @@ function sugerirCuit(token, nombre) {
     .map(r => ({ texto: String(r[0]), cuit: String(r[1]).replace(/\D/g, "") })).slice(0, 6);
 }
 
+/** Busca en la hoja CUIT por lo que se escribe (nombre, apellido o empresa): tienen que aparecer todas las palabras. */
+function buscarCuit(token, texto) {
+  quien(token);
+  const palabras = sinTildes(texto).split(/[^a-z0-9]+/).filter(p => p.length >= 2);
+  if (!palabras.length) return [];
+  return filas("CUIT").filter(r => cuitValido(r[1]) && palabras.every(p => sinTildes(r[0] + " " + r[1]).indexOf(p) >= 0))
+    .map(r => ({ texto: String(r[0]), cuit: String(r[1]).replace(/\D/g, ""), nombre: String(r[0]).replace(/<[^>]*>/g, "").replace(/CUIT/i, "").replace(/[\d-]{9,}/g, "").replace(/[():]/g, " ").replace(/\s+/g, " ").trim() }))
+    .slice(0, 8);
+}
+
 /* ---------- facturas A y B ---------- */
 
 const COND_IVA = { "1": "Responsable inscripto", "6": "Monotributista", "4": "Exento", "5": "Consumidor final" };
@@ -443,6 +454,7 @@ function facturar(token, f) {
       (DOC[docTipo] || "") + (docTipo !== "99" ? " " + docNro : ""), COND_IVA[cond], neto, iva, total, cae,
       vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), String(f.detalle || "") + (f.domicilio ? " · Domicilio: " + f.domicilio : ""), ""]);
     const filaFac = sh.getLastRow();
+    if (docTipo === "80" && !filas("CUIT").some(r => String(r[1]).replace(/\D/g, "") === docNro)) hoja("CUIT").appendRow([receptor + " " + docNro, docNro, "OK (agregado por una factura)"]);
     registrar(yo.nombre, "Hizo la factura " + f.tipo + " " + numero, receptor, "$" + fmt(total) + " · CAE " + cae);
     let pdf = "", errPdf = "";
     try {

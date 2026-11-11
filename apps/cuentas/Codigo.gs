@@ -199,6 +199,7 @@ const HOJAS = {
   FACTURAS: ["Fecha", "Quién", "Tipo", "Punto de venta", "Número", "Código cliente", "Receptor", "Documento", "Condición IVA",
     "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle", "PDF"],
   REGISTRO: ["Fecha", "Quién", "Acción", "Cliente", "Detalle"],
+  CUIT: ["Texto de la lista CUIT CLIENTES", "CUIT", "Estado"],
   NOMBRES: ["Nombre en Resto Soft", "Cómo sale en el mensaje", "Revisar"],
   RECARGOS: ["Código", "Cliente", "Cargado en Resto Soft el", "Monto", "Miércoles incluidos", "Quién"],
   PENDIENTES: ["ID", "Cargado", "Quién", "Fecha", "Mesa", "Comprobante", "Nombre", "Saludo", "WhatsApp", "Total", "Detalle",
@@ -564,6 +565,16 @@ function sugerirCuit(token, nombre) {
     .map(r => ({ texto: String(r[0]), cuit: String(r[1]).replace(/\D/g, "") })).slice(0, 6);
 }
 
+/** Busca en la hoja CUIT por lo que se escribe (nombre, apellido o empresa): tienen que aparecer todas las palabras. */
+function buscarCuit(token, texto) {
+  quien(token);
+  const palabras = sinTildes(texto).split(/[^a-z0-9]+/).filter(p => p.length >= 2);
+  if (!palabras.length) return [];
+  return filas("CUIT").filter(r => cuitValido(r[1]) && palabras.every(p => sinTildes(r[0] + " " + r[1]).indexOf(p) >= 0))
+    .map(r => ({ texto: String(r[0]), cuit: String(r[1]).replace(/\D/g, ""), nombre: String(r[0]).replace(/<[^>]*>/g, "").replace(/CUIT/i, "").replace(/[\d-]{9,}/g, "").replace(/[():]/g, " ").replace(/\s+/g, " ").trim() }))
+    .slice(0, 8);
+}
+
 /* ---------- facturas A y B ---------- */
 
 const COND_IVA = { "1": "Responsable inscripto", "6": "Monotributista", "4": "Exento", "5": "Consumidor final" };
@@ -624,6 +635,7 @@ function facturar(token, f) {
       (DOC[docTipo] || "") + (docTipo !== "99" ? " " + docNro : ""), COND_IVA[cond], neto, iva, total, cae,
       vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), String(f.detalle || "") + (f.domicilio ? " · Domicilio: " + f.domicilio : ""), ""]);
     const filaFac = sh.getLastRow();
+    if (docTipo === "80" && !filas("CUIT").some(r => String(r[1]).replace(/\D/g, "") === docNro)) hoja("CUIT").appendRow([receptor + " " + docNro, docNro, "OK (agregado por una factura)"]);
     registrar(yo.nombre, "Hizo la factura " + f.tipo + " " + numero, receptor, "$" + fmt(total) + " · CAE " + cae);
     let pdf = "", errPdf = "";
     try {
@@ -3598,11 +3610,25 @@ function formFactura(tipo, c) {
     tipo = t; $("tA").classList.toggle("sel", t === "A"); $("tB").classList.toggle("sel", t === "B");
     var k = $("campos");
     if (t === "A") {
-      k.innerHTML = '<label>Nombre o razón social<input id="fNom" value="' + esc(c ? c.nombre : "") + '"></label>' +
+      k.innerHTML = '<label>Buscar en la lista de CUIT <small>Escribí el nombre, apellido o empresa</small><input id="fBus" autocomplete="off" placeholder="Ej: Ansaldi, Bauen, Giordano"></label><div class="chips" id="busF"></div>' +
+        '<label>Nombre o razón social<input id="fNom" value="' + esc(c ? c.nombre : "") + '"></label>' +
         '<label>CUIT<input id="fDoc" inputmode="numeric" value="' + esc(c ? c.cuit : "") + '"></label><div class="chips" id="sugF"></div>' +
         '<label>Condición frente al IVA<select id="fCond"><option value="1">Responsable inscripto</option><option value="6">Monotributista</option></select></label>' +
         '<label>Domicilio <small>Opcional, sale en la factura</small><input id="fDom"></label>';
       if (c && c.cond === "6") $("fCond").value = "6";
+      var espera = null;
+      $("fBus").oninput = function () {
+        var t = this.value; clearTimeout(espera);
+        espera = setTimeout(function () {
+          var d = $("busF"); if (!d) return; d.textContent = "";
+          if (t.trim().length < 2) return;
+          run("buscarCuit", TOKEN, t).then(function (s) {
+            d.textContent = "";
+            if (!s.length) { var p = document.createElement("p"); p.className = "nota"; p.textContent = "No está en la lista. Escribí el CUIT a mano abajo."; d.appendChild(p); return; }
+            s.forEach(function (x) { var b = document.createElement("button"); b.className = "chip"; b.textContent = x.texto; b.onclick = function () { $("fDoc").value = x.cuit; if (x.nombre) $("fNom").value = x.nombre; d.textContent = ""; $("fBus").value = ""; }; d.appendChild(b); });
+          }).catch(function () {});
+        }, 350);
+      };
       if (c && !c.cuit) run("sugerirCuit", TOKEN, c.nombre).then(function (s) {
         var d = $("sugF"); if (!d) return;
         s.forEach(function (x) { var b = document.createElement("button"); b.className = "chip"; b.textContent = x.texto; b.onclick = function () { $("fDoc").value = x.cuit; }; d.appendChild(b); });
