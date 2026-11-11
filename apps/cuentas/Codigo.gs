@@ -387,25 +387,27 @@ function reemplazarPeriodo(sh, periodo, nuevas, colsTexto) {
 }
 
 /** Busca el último Excel de cuentas corrientes en la carpeta RESTOSOFT y lo carga. */
-function importar(token) {
+/** Carga el Excel de cuentas corrientes de Resto Soft. Con base64: el archivo que se eligió en la compu (cualquier nombre).
+ *  Sin archivo: el Excel más nuevo de la carpeta RESTOSOFT que tenga el formato de cuentas corrientes. */
+function importar(token, base64, nombreArchivo) {
   const yo = quien(token);
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(5000)) throw new Error("Ya se está cargando un Excel. Esperá un minuto y volvé a tocar Cargar Excel nuevo.");
   try {
-    const it = DriveApp.getFolderById(RESTOSOFT_ID).getFiles(); let ultimo = null;
-    while (it.hasNext()) {
-      const f = it.next();
-      if (f.getName().toUpperCase().indexOf(ARCHIVO_CUENTAS) === 0 && (!ultimo || f.getLastUpdated() > ultimo.getLastUpdated())) ultimo = f;
+    let datos = null, ultimo = { getName: () => String(nombreArchivo || "Excel elegido") };
+    if (base64) {
+      try { datos = leerCuentas(leerXls(Array.from(Utilities.base64Decode(base64)))); }
+      catch (e) { throw new Error("No pude leer ese archivo. Elegí el Excel que exporta Resto Soft (Detalle de consumos de cuentas corrientes)."); }
+    } else {
+      const archivos = [], it = DriveApp.getFolderById(RESTOSOFT_ID).getFiles();
+      while (it.hasNext()) { const f = it.next(); if (/\.xls$/i.test(f.getName())) archivos.push(f); }
+      archivos.sort((x, y) => y.getLastUpdated() - x.getLastUpdated());
+      for (let i = 0; i < Math.min(archivos.length, 8) && !datos; i++) {
+        try { const d = leerCuentas(leerXls(archivos[i].getBlob().getBytes())); if (d.hasta && d.clientes.length) { datos = d; ultimo = archivos[i]; } } catch (e) {}
+      }
+      if (!datos) throw new Error("No encontré un Excel de cuentas corrientes en la carpeta RESTOSOFT.");
     }
-    if (!ultimo) throw new Error("No encontré el Excel '" + ARCHIVO_CUENTAS + "' en la carpeta RESTOSOFT.");
-    let datos;
-    try { datos = leerCuentas(leerXls(ultimo.getBlob().getBytes())); }   // el .xls de Resto Soft es de un Excel viejo que Google no convierte
-    catch (e) {
-      const tmp = convertirAPlanilla(ultimo);
-      try { datos = leerCuentas(SpreadsheetApp.openById(tmp).getSheets()[0].getDataRange().getValues()); }
-      finally { DriveApp.getFileById(tmp).setTrashed(true); }
-    }
-    if (!datos.hasta || !datos.clientes.length) throw new Error("El Excel no tiene el formato de cuentas corrientes de Resto Soft.");
+    if (!datos.hasta || !datos.clientes.length) throw new Error("Ese Excel no es el de cuentas corrientes. En Resto Soft exportá Clientes → Cuentas corrientes → Detalle de consumos.");
     const periodo = datos.hasta;
 
     // Todo de una vez (borrar renglón por renglón tardaba tanto que Google cortaba la carga).
@@ -3412,7 +3414,7 @@ function dibujar() {
   if (filtro === "mesas") return dibujarMesas();
   var L = $("lista"), q = $("busca").value.trim().toLowerCase(), tot = 0, n = 0;
   L.textContent = "";
-  if (!D.periodo) { L.innerHTML = '<p class="nota">Todavía no hay datos. Subí el Excel de Resto Soft a la carpeta RESTOSOFT y tocá <b>Cargar Excel nuevo</b>.</p>'; $("tot").textContent = "$0"; $("totsub").textContent = ""; return; }
+  if (!D.periodo) { L.innerHTML = '<p class="nota">Todavía no hay datos. Tocá <b>Cargar Excel nuevo</b> y elegí el Excel de cuentas corrientes que exportaste de Resto Soft.</p>'; $("tot").textContent = "$0"; $("totsub").textContent = ""; return; }
   D.clientes.forEach(function (c) { if (!c.pago && c.actual > 0) { tot += c.actual; n++; } });
   $("tot").textContent = pesos(tot); $("totsub").textContent = n + (n === 1 ? " cliente debe" : " clientes deben");
   var lista = D.clientes.filter(function (c) {
@@ -3761,15 +3763,26 @@ $("bFacturas").onclick = function () {
   });
 };
 $("bCargar").onclick = function () {
-  var b = this; b.disabled = true; b.textContent = "Cargando…";
-  run("importar", TOKEN).then(function (r) {
-    b.disabled = false; b.textContent = "Cargar Excel nuevo";
-    $("sheet").hidden = false;
-    $("box").innerHTML = '<div class="top"><h3>Excel cargado</h3><button class="close" id="x">Listo</button></div><p class="bien">Período ' + dm(r.desde) + ' al ' + dm(r.hasta) + ': ' + r.clientes + ' clientes.</p>' +
-      (r.nuevos ? '<p class="nota">' + r.nuevos + ' clientes nuevos: revisales el saludo y el WhatsApp la primera vez.</p>' : '') +
-      (r.productosNuevos ? '<p class="nota">' + r.productosNuevos + ' productos nuevos de Resto Soft: revisá cómo se escriben en la pestaña NOMBRES de la planilla.</p>' : '');
-    $("x").onclick = function () { cerrar(); cargar(); };
-  }).catch(function (e) { b.disabled = false; b.textContent = "Cargar Excel nuevo"; $("sheet").hidden = false; $("box").innerHTML = '<p class="aviso">' + esc(e.message) + '</p><button class="ghost" id="x">Cerrar</button>'; $("x").onclick = cerrar; });
+  var b = this, inp = document.createElement("input"); inp.type = "file"; inp.accept = ".xls,.xlsx";
+  inp.onchange = function () {
+    var f = inp.files[0]; if (!f) return;
+    var lector = new FileReader();
+    lector.onload = function () {
+      var bytes = new Uint8Array(lector.result), bin = "";
+      for (var i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+      b.disabled = true; b.textContent = "Cargando…";
+      run("importar", TOKEN, btoa(bin), f.name).then(function (r) {
+        b.disabled = false; b.textContent = "Cargar Excel nuevo";
+        $("sheet").hidden = false;
+        $("box").innerHTML = '<div class="top"><h3>Excel cargado</h3><button class="close" id="x">Listo</button></div><p class="bien">Período ' + dm(r.desde) + ' al ' + dm(r.hasta) + ': ' + r.clientes + ' clientes.</p>' +
+          (r.nuevos ? '<p class="nota">' + r.nuevos + ' clientes nuevos: revisales el saludo y el WhatsApp la primera vez.</p>' : '') +
+          (r.productosNuevos ? '<p class="nota">' + r.productosNuevos + ' productos nuevos de Resto Soft: revisá cómo se escriben en la pestaña NOMBRES de la planilla.</p>' : '');
+        $("x").onclick = function () { cerrar(); cargar(); };
+      }).catch(function (e) { b.disabled = false; b.textContent = "Cargar Excel nuevo"; $("sheet").hidden = false; $("box").innerHTML = '<p class="aviso">' + esc(e.message) + '</p><button class="ghost" id="x">Cerrar</button>'; $("x").onclick = cerrar; });
+    };
+    lector.readAsArrayBuffer(f);
+  };
+  inp.click();
 };
 entrarPantalla();
 </script>

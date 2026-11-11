@@ -206,25 +206,27 @@ function reemplazarPeriodo(sh, periodo, nuevas, colsTexto) {
 }
 
 /** Busca el último Excel de cuentas corrientes en la carpeta RESTOSOFT y lo carga. */
-function importar(token) {
+/** Carga el Excel de cuentas corrientes de Resto Soft. Con base64: el archivo que se eligió en la compu (cualquier nombre).
+ *  Sin archivo: el Excel más nuevo de la carpeta RESTOSOFT que tenga el formato de cuentas corrientes. */
+function importar(token, base64, nombreArchivo) {
   const yo = quien(token);
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(5000)) throw new Error("Ya se está cargando un Excel. Esperá un minuto y volvé a tocar Cargar Excel nuevo.");
   try {
-    const it = DriveApp.getFolderById(RESTOSOFT_ID).getFiles(); let ultimo = null;
-    while (it.hasNext()) {
-      const f = it.next();
-      if (f.getName().toUpperCase().indexOf(ARCHIVO_CUENTAS) === 0 && (!ultimo || f.getLastUpdated() > ultimo.getLastUpdated())) ultimo = f;
+    let datos = null, ultimo = { getName: () => String(nombreArchivo || "Excel elegido") };
+    if (base64) {
+      try { datos = leerCuentas(leerXls(Array.from(Utilities.base64Decode(base64)))); }
+      catch (e) { throw new Error("No pude leer ese archivo. Elegí el Excel que exporta Resto Soft (Detalle de consumos de cuentas corrientes)."); }
+    } else {
+      const archivos = [], it = DriveApp.getFolderById(RESTOSOFT_ID).getFiles();
+      while (it.hasNext()) { const f = it.next(); if (/\.xls$/i.test(f.getName())) archivos.push(f); }
+      archivos.sort((x, y) => y.getLastUpdated() - x.getLastUpdated());
+      for (let i = 0; i < Math.min(archivos.length, 8) && !datos; i++) {
+        try { const d = leerCuentas(leerXls(archivos[i].getBlob().getBytes())); if (d.hasta && d.clientes.length) { datos = d; ultimo = archivos[i]; } } catch (e) {}
+      }
+      if (!datos) throw new Error("No encontré un Excel de cuentas corrientes en la carpeta RESTOSOFT.");
     }
-    if (!ultimo) throw new Error("No encontré el Excel '" + ARCHIVO_CUENTAS + "' en la carpeta RESTOSOFT.");
-    let datos;
-    try { datos = leerCuentas(leerXls(ultimo.getBlob().getBytes())); }   // el .xls de Resto Soft es de un Excel viejo que Google no convierte
-    catch (e) {
-      const tmp = convertirAPlanilla(ultimo);
-      try { datos = leerCuentas(SpreadsheetApp.openById(tmp).getSheets()[0].getDataRange().getValues()); }
-      finally { DriveApp.getFileById(tmp).setTrashed(true); }
-    }
-    if (!datos.hasta || !datos.clientes.length) throw new Error("El Excel no tiene el formato de cuentas corrientes de Resto Soft.");
+    if (!datos.hasta || !datos.clientes.length) throw new Error("Ese Excel no es el de cuentas corrientes. En Resto Soft exportá Clientes → Cuentas corrientes → Detalle de consumos.");
     const periodo = datos.hasta;
 
     // Todo de una vez (borrar renglón por renglón tardaba tanto que Google cortaba la carga).
