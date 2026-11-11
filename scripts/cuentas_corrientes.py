@@ -6,7 +6,7 @@ de Resto Soft (Clientes → Cuentas Corrientes) y arma un .xlsx con:
   último pago, días sin pagar, próxima actualización y alerta.
 - DETALLE: todos los comprobantes con lo que se consumió en cada uno.
 - MENSAJES: el resumen de cada socio que debe, listo para WhatsApp.
-- REVISAR: actualizaciones que cobraron más del 2,5% del saldo.
+- REVISAR: actualizaciones que cobraron más del 1,5% del saldo.
 
 El porcentaje de actualización y los topes de alerta están en SALDOS!B2:B4;
 las columnas que dependen de ellos son fórmulas.
@@ -21,7 +21,7 @@ import openpyxl
 import xlrd
 from openpyxl.styles import Alignment, Font, PatternFill
 
-PORCENTAJE = 0.025
+PORCENTAJE = 0.015
 TOPE_MONTO = 100000
 TOPE_DIAS = 30
 
@@ -198,24 +198,24 @@ def hoja_mensajes(wb, clientes, desde, hasta):
 def hoja_revisar(wb, clientes):
     ws = wb.create_sheet("REVISAR")
     titulo(ws, 1, ["Código", "Socio", "Fecha", "Comprobante", "Saldo antes", "Actualización cobrada",
-                   "% cobrado", "Con 2,5% daba", "Diferencia"], [8, 30, 12, 22, 14, 14, 10, 14, 13])
+                   "% cobrado", "Con 1,5% daba", "Diferencia"], [8, 30, 12, 22, 14, 14, 10, 14, 13])
     fila = 2
     for c in clientes:
         for m in c["movs"]:
             if m["tipo"] != "Actualización" or m["previo"] <= 0:
                 continue
             pct = m["debe"] / m["previo"]
-            if m["debe"] - round(m["previo"] * 0.025) < 100:
+            if m["debe"] - round(m["previo"] * PORCENTAJE) < 100:
                 continue
             for col, v in enumerate([c["codigo"], c["nombre"], m["fecha"], m["comp"], m["previo"], m["debe"],
-                                     pct, round(m["previo"] * 0.025), m["debe"] - round(m["previo"] * 0.025)], 1):
+                                     pct, round(m["previo"] * PORCENTAJE), m["debe"] - round(m["previo"] * PORCENTAJE)], 1):
                 ws.cell(fila, col, v)
             ws.cell(fila, 3).number_format = "dd/mm/yyyy"
             ws.cell(fila, 7).number_format = "0.0%"
             for col in (5, 6, 8, 9):
                 ws.cell(fila, col).number_format = "$ #,##0.00"
             fila += 1
-    ws.cell(fila + 1, 1, "Solo se listan las actualizaciones que cobraron más de $100 por encima del 2,5% del saldo.")
+    ws.cell(fila + 1, 1, "Solo se listan las actualizaciones que cobraron más de $100 por encima del 1,5% del saldo.")
 
 
 def main():
