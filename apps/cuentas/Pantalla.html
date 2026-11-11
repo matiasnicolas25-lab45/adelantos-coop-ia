@@ -159,6 +159,7 @@ function cargar() {
   $("cargando").hidden = false;
   run("datos", TOKEN).then(function (d) {
     D = d; $("cargando").hidden = true; $("vApp").hidden = false;
+    D.clientes.forEach(function (c) { c.restoSoft = c.actual; c.recargoApp = c.recargoApp || 0; c.actual = c.actual + c.recargoApp; });
     $("yo").innerHTML = esc(d.yo.nombre) + '<br><button id="bSalir">Salir</button>';
     $("bSalir").onclick = function () { TOKEN = null; entrarPantalla(); };
     $("per").textContent = d.periodo ? "Cuentas corrientes · " + dm(d.periodo.desde) + " al " + dm(d.periodo.hasta) : "Cuentas corrientes";
@@ -251,7 +252,7 @@ function mensaje(c) {
   var cons = porDia(consumos(c));
   var pagos = c.movs.filter(function (m) { return m.tipo === "Pago"; }).sort(function (a, b) { return a.fecha < b.fecha ? -1 : 1; });
   var ultimo = pagos.length ? pagos[pagos.length - 1] : null;
-  var recargo = c.movs.filter(function (m) { return m.tipo === "Actualización"; }).reduce(function (s, m) { return s + m.importe; }, 0);
+  var recargo = c.movs.filter(function (m) { return m.tipo === "Actualización"; }).reduce(function (s, m) { return s + m.importe; }, 0) + (c.recargoApp || 0);
   L.push("Hola" + (c.saludo ? " " + c.saludo : "") + " 👋");
   L.push("Te escribimos de *La Caleta* con el resumen de tu cuenta corriente del " + dm(D.periodo.desde) + " al " + dm(D.periodo.hasta) + ".");
   L.push("");
@@ -286,6 +287,10 @@ function abrir(c) {
     (waOk ? '<a class="wa" id="env" href="https://wa.me/' + esc(c.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>' : '<button class="solo" id="env">Cargar el WhatsApp para mandar</button>') +
     '<div class="two"><button class="ghost' + (c.pago ? " ok" : "") + '" id="bPago">' + (c.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">Copiar mensaje</button></div>' +
     '<div class="two"><button class="ghost" id="bFA">Factura A</button><button class="ghost" id="bFB">Factura B</button></div>' +
+    (c.recargoApp >= 1 ? '<div class="resumen"><div><span>Recargo que calculó la app (' + c.recargoSemanas.length + (c.recargoSemanas.length === 1 ? " miércoles" : " miércoles") + ')</span><b>' + pesos(c.recargoApp) + '</b></div>' +
+      '<p class="nota" style="margin:0">' + c.recargoSemanas.map(function (s) { return dia(s[0]) + ": " + pesos(s[1]); }).join(" · ") + '</p>' +
+      '<p class="nota" style="margin:0">Todavía no está en Resto Soft. Cuando pague, cargalo en Resto Soft y tocá el botón.</p>' +
+      '<button class="ghost" id="bRec">Ya cargué ' + pesos(c.recargoApp) + ' en Resto Soft</button></div>' : '') +
     '<button class="ghost" id="bDatos">' + (c.revisado ? "Editar datos del cliente" : "Revisar datos del cliente") + '</button>' +
     (c.enviado ? '<p class="nota">Mensaje enviado el ' + esc(c.enviado) + ' por ' + esc(c.enviadoPor) + '.</p>' : '') +
     (c.pago ? '<p class="nota">Pago marcado el ' + esc(c.pago) + ' por ' + esc(c.pagoPor) + '.</p>' : '') +
@@ -306,6 +311,12 @@ function abrir(c) {
   $("bFA").onclick = function () { formFactura("A", c); };
   $("bFB").onclick = function () { formFactura("B", c); };
   $("bDatos").onclick = function () { datosCliente(c); };
+  if ($("bRec")) $("bRec").onclick = function () {
+    var b = this; b.disabled = true; b.textContent = "Guardando…";
+    run("marcarRecargoCargado", TOKEN, c.codigo, c.nombre, c.recargoApp, c.recargoSemanas.length).then(function () {
+      c.actual = c.restoSoft + c.recargoApp; c.restoSoft = c.actual; c.recargoApp = 0; c.recargoSemanas = []; abrir(c); dibujar();
+    }).catch(function (e) { b.disabled = false; alerta(e.message); });
+  };
 }
 function alerta(m) { var p = document.createElement("p"); p.className = "aviso"; p.textContent = m; $("box").appendChild(p); p.scrollIntoView({ block: "nearest" }); }
 

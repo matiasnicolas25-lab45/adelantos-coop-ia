@@ -19,6 +19,7 @@ const HOJAS = {
     "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle", "PDF"],
   REGISTRO: ["Fecha", "Quién", "Acción", "Cliente", "Detalle"],
   NOMBRES: ["Nombre en Resto Soft", "Cómo sale en el mensaje", "Revisar"],
+  RECARGOS: ["Código", "Cliente", "Cargado en Resto Soft el", "Monto", "Miércoles incluidos", "Quién"],
   PENDIENTES: ["ID", "Cargado", "Quién", "Fecha", "Mesa", "Comprobante", "Nombre", "Saludo", "WhatsApp", "Total", "Detalle",
     "Mensaje enviado", "Enviado por", "Pagó", "Marcado por"],
 };
@@ -49,6 +50,7 @@ function instalarApp() {
   acc.getRange("B:B").setNumberFormat("@");
   hoja("CLIENTES").getRange("D:E").setNumberFormat("@");
   const cfg = hoja("CONFIG");
+  if (!filas("CONFIG").some(r => String(r[0]) === DATO_INICIO_RECARGO)) cfg.appendRow([DATO_INICIO_RECARGO, ""]);
   if (cfg.getLastRow() < 2) cfg.getRange(2, 1, 3, 2).setValues([["Cuentas de Google que pueden abrir la app (separadas por coma)", Session.getActiveUser().getEmail()],
     ["Ingresos Brutos", ""], ["Inicio de actividades", ""]]);
   cfg.getRange("B:B").setNumberFormat("@");
@@ -261,6 +263,45 @@ function importar(token) {
   } finally { lock.releaseLock(); }
 }
 
+/* ---------- recargo semanal calculado por la app (2,5 % cada miércoles sobre todo lo que se debe) ---------- */
+
+const DATO_INICIO_RECARGO = "La app calcula los recargos desde (un miércoles)";
+function fechaDato(nombre) {
+  const f = filas("CONFIG").filter(r => String(r[0]) === nombre)[0];
+  if (!f || f[1] === "" || f[1] == null) return "";
+  if (f[1] instanceof Date) return Utilities.formatDate(f[1], ZONA, "yyyy-MM-dd");
+  const t = String(f[1]).trim(), m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  return m ? m[3] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2) : (/^\d{4}-\d{2}-\d{2}$/.test(t) ? t : "");
+}
+function masDias(f, n) { const d = new Date(f + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+function miercolesDesde(f) { const d = new Date(f + "T12:00:00Z"); return masDias(f, (3 - d.getUTCDay() + 7) % 7); }
+
+/**
+ * Recargos de los miércoles que todavía no están en Resto Soft. Cada miércoles: 2,5 % de lo que debe ese día
+ * (saldo de Resto Soft a esa fecha + los recargos de la app de las semanas anteriores). Se reinicia cuando
+ * alguien marca "Ya lo cargué en Resto Soft".
+ */
+function recargosApp(inicio, cargadoEl, anterior, movs, hoy) {
+  if (!inicio) return { total: 0, semanas: [] };
+  let desde = inicio;
+  if (cargadoEl && cargadoEl >= desde) desde = masDias(cargadoEl, 1);
+  const orden = movs.slice().sort((x, y) => (x.fecha < y.fecha ? -1 : x.fecha > y.fecha ? 1 : 0));
+  const saldoAl = w => { let s = anterior; orden.forEach(m => { if (m.fecha <= w) s = m.saldo; }); return s; };
+  const semanas = []; let acum = 0;
+  for (let w = miercolesDesde(desde); w <= hoy; w = masDias(w, 7)) {
+    const base = saldoAl(w) + acum;
+    if (base >= 1) { const r = Math.round(base * RECARGO); acum += r; semanas.push([w, r]); }
+  }
+  return { total: acum, semanas: semanas };
+}
+
+function marcarRecargoCargado(token, codigo, nombre, monto, semanas) {
+  const yo = quien(token);
+  hoja("RECARGOS").appendRow([codigo, nombre, Utilities.formatDate(new Date(), ZONA, "yyyy-MM-dd"), Number(monto), Number(semanas), yo.nombre]);
+  registrar(yo.nombre, "Cargó el recargo en Resto Soft", nombre, "$" + fmt(monto) + " (" + semanas + " miércoles)");
+  return true;
+}
+
 /* ---------- datos para la pantalla ---------- */
 
 function datos(token) {
@@ -274,16 +315,19 @@ function datos(token) {
   const mv = {}; filas("MOVIMIENTOS").forEach(r => { if (fTxt(r[0]) === periodo) (mv[String(r[1])] = mv[String(r[1])] || []).push(r); });
   const todos = {}; filas("MOVIMIENTOS").forEach(r => { if (r[4] === "Pago") { const k = String(r[1]), f = fTxt(r[2]); if (!todos[k] || f > todos[k]) todos[k] = f; } });
   let desde = "", hasta = periodo;
+  const inicioRec = fechaDato(DATO_INICIO_RECARGO), hoy = Utilities.formatDate(new Date(), ZONA, "yyyy-MM-dd");
+  const cargados = {}; filas("RECARGOS").forEach(r => { const k = String(r[0]), f = fTxt(r[2]); if (!cargados[k] || f > cargados[k]) cargados[k] = f; });
   const lista = s.filter(r => fTxt(r[0]) === periodo).map(function (r) {
     desde = fTxt(r[6]);
     const k = String(r[1]), c = cli[k] || [], e = est[k] || [], m = mv[k] || [];
     const conDetalle = m.map(x => ({ fecha: fTxt(x[2]), tipo: x[4], importe: x[4] === "Pago" ? Number(x[6]) : Number(x[5]), detalle: String(x[8] || "") }));
+    const rec = recargosApp(inicioRec, cargados[k] || "", Number(r[4]), m.map(x => ({ fecha: fTxt(x[2]), saldo: Number(x[7]) })), hoy);
     return {
       codigo: Number(k), nombre: String(r[2]), saludo: String(c[2] || ""), wa: String(c[3] || ""), cuit: String(c[4] || ""),
       cond: String(c[5] || ""), revisado: String(c[6] || "") === "SÍ", tel: String(r[3] || ""),
       anterior: Number(r[4]), actual: Number(r[5]), movs: conDetalle, ultimoPago: todos[k] || "",
       enviado: hTxt(e[2] || ""), enviadoPor: String(e[3] || ""), pago: hTxt(e[4] || ""), pagoPor: String(e[5] || ""),
-      facturas: fac[k] || [],
+      facturas: fac[k] || [], recargoApp: rec.total, recargoSemanas: rec.semanas,
     };
   });
   return { yo: yo, periodo: { desde: desde, hasta: hasta }, clientes: lista, alias: ALIAS_PAGO, recargo: RECARGO, nombres: mapaNombres() };
