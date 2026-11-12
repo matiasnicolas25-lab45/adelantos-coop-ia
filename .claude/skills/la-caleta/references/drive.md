@@ -26,6 +26,7 @@ Verificado el 28/10/2026. Si un ID no abre, buscá por nombre y actualizá este 
 | Planilla vieja de gastos (ya no se usa) | "GASTOS 2026 " (de lacaletaycr) | `1v4zobLlIs0homILGpkQx6XpcLHlMNANPoU4d5780pT0` |
 | Análisis de ventas agosto | "Ventas agosto 2026 — análisis" | `1W2zKhWCRG2THuwty7Voa4GvhXrd6dJ4L5ouLWELdrmY` |
 | Análisis de ventas septiembre | "Ventas septiembre 2026 — análisis" | `12CplCboAd91C1kQ1Y21pSlDqKw87rU6gSDxwqrtV1PI` |
+| Análisis de ventas octubre (sin caja todavía) | "Ventas octubre 2026 — análisis" | `1P2D6Qu5Fk_lN0J-VSM7im_o8TGSQ-5CZWyEF2NHwy-U` |
 | **Costos de recetas (vigente, con precios y hoja RESTO SOFT)** | "COSTOS RECETAS LA CALETA" (Hoja de Google, carpeta 3) | `1IS6goPstA-20qET9q1ZTMfwcAjN5miUzm01bXd6luSI` |
 | Carta de Resto Soft (platos activos + vendidos ago/sep) | "Carta Resto Soft — platos activos" (carpeta 3) | `1n9CRYUqHcBquekTuhkMwuh6kmbtXwUgAHtZ-Wh_BWO0` |
 | Informe al consejo de septiembre | "Informe al consejo — septiembre 2026" (Doc, carpeta 4) | `1qYa5Bt3icK3vq4xR5FRE0raKn3HF3KnrMcXB-K54tts` |
