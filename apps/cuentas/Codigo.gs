@@ -1022,13 +1022,7 @@ function resumenPdf(token, r) {
     "</body></html>";
   const nombre = "Resumen La Caleta - " + String(r.nombre || "cuenta").replace(/[\\/:*?"<>|]+/g, " ").trim() + " " + String(r.al || "").replace(/\//g, "-") + ".pdf";
   const pdf = Utilities.newBlob(html, "text/html", "r.html").getAs("application/pdf").setName(nombre);
-  // copia en Drive (carpeta "Resúmenes" dentro de la de facturas), por si la compu no deja bajarlo desde la app
-  let url = "";
-  try {
-    const padre = DriveApp.getFolderById(FACTURAS_CARPETA), it = padre.getFoldersByName("Resúmenes");
-    url = (it.hasNext() ? it.next() : padre.createFolder("Resúmenes")).createFile(pdf).getUrl();
-  } catch (e) { url = ""; }
-  return { nombre: nombre, b64: Utilities.base64Encode(pdf.getBytes()), url: url };
+  return { nombre: nombre, b64: Utilities.base64Encode(pdf.getBytes()) };   // no se guarda en ningún lado: solo se baja
 }
 
 /* ---------------- librería de QR (qrcode-generator 1.4.4, MIT, Kazuhiko Arase) ---------------- */
@@ -3959,8 +3953,7 @@ function pasosPdf(cont, d, wa, texto, alAbrirChat) {
   cont.innerHTML = '<div class="resumen" style="gap:10px"><b>Dos pasos:</b>' +
     '<a class="solo" id="paso1" href="' + url + '" download="' + esc(d.nombre) + '">1. Bajar el PDF a la compu</a>' +
     '<a class="wa" id="paso2" target="_blank" href="https://wa.me/' + esc(wa || "") + '?text=' + encodeURIComponent(texto) + '">2. Abrir el chat de WhatsApp</a>' +
-    '<p class="nota" style="margin:0">En el chat tocá el clip 📎 → Documento → elegí <b>' + esc(d.nombre) + '</b> (está en Descargas) → Enviar.' + (wa ? '' : ' Como no hay número cargado, WhatsApp te va a pedir elegir el contacto.') + '</p>' +
-    (d.url ? '<p class="nota" style="margin:0">¿No se bajó? <a href="' + esc(d.url) + '" target="_blank">Abrilo en Drive</a> y bajalo desde ahí.</p>' : '') + '</div>';
+    '<p class="nota" style="margin:0">En el chat tocá el clip 📎 → Documento → elegí <b>' + esc(d.nombre) + '</b> (está en Descargas) → Enviar.' + (wa ? '' : ' Como no hay número cargado, WhatsApp te va a pedir elegir el contacto.') + '</p>' + '</div>';
   if (alAbrirChat) $("paso2").addEventListener("click", alAbrirChat);
 }
 function botonWhatsApp(cont, x) {

@@ -624,8 +624,7 @@ function pasosPdf(cont, d, wa, texto, alAbrirChat) {
   cont.innerHTML = '<div class="resumen" style="gap:10px"><b>Dos pasos:</b>' +
     '<a class="solo" id="paso1" href="' + url + '" download="' + esc(d.nombre) + '">1. Bajar el PDF a la compu</a>' +
     '<a class="wa" id="paso2" target="_blank" href="https://wa.me/' + esc(wa || "") + '?text=' + encodeURIComponent(texto) + '">2. Abrir el chat de WhatsApp</a>' +
-    '<p class="nota" style="margin:0">En el chat tocá el clip 📎 → Documento → elegí <b>' + esc(d.nombre) + '</b> (está en Descargas) → Enviar.' + (wa ? '' : ' Como no hay número cargado, WhatsApp te va a pedir elegir el contacto.') + '</p>' +
-    (d.url ? '<p class="nota" style="margin:0">¿No se bajó? <a href="' + esc(d.url) + '" target="_blank">Abrilo en Drive</a> y bajalo desde ahí.</p>' : '') + '</div>';
+    '<p class="nota" style="margin:0">En el chat tocá el clip 📎 → Documento → elegí <b>' + esc(d.nombre) + '</b> (está en Descargas) → Enviar.' + (wa ? '' : ' Como no hay número cargado, WhatsApp te va a pedir elegir el contacto.') + '</p>' + '</div>';
   if (alAbrirChat) $("paso2").addEventListener("click", alAbrirChat);
 }
 function botonWhatsApp(cont, x) {

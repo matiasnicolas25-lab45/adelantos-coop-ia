@@ -165,11 +165,5 @@ function resumenPdf(token, r) {
     "</body></html>";
   const nombre = "Resumen La Caleta - " + String(r.nombre || "cuenta").replace(/[\\/:*?"<>|]+/g, " ").trim() + " " + String(r.al || "").replace(/\//g, "-") + ".pdf";
   const pdf = Utilities.newBlob(html, "text/html", "r.html").getAs("application/pdf").setName(nombre);
-  // copia en Drive (carpeta "Resúmenes" dentro de la de facturas), por si la compu no deja bajarlo desde la app
-  let url = "";
-  try {
-    const padre = DriveApp.getFolderById(FACTURAS_CARPETA), it = padre.getFoldersByName("Resúmenes");
-    url = (it.hasNext() ? it.next() : padre.createFolder("Resúmenes")).createFile(pdf).getUrl();
-  } catch (e) { url = ""; }
-  return { nombre: nombre, b64: Utilities.base64Encode(pdf.getBytes()), url: url };
+  return { nombre: nombre, b64: Utilities.base64Encode(pdf.getBytes()) };   // no se guarda en ningún lado: solo se baja
 }
