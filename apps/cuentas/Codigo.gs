@@ -3426,6 +3426,7 @@ function cargar() {
         if (m.tipo !== "Actualización" || isNaN(m.saldo)) return;
         m.cargado = m.importe; m.importe = Math.round((m.saldo - m.cargado) * D.recargo); c.ajusteRec += m.cargado - m.importe;
       });
+      if (c.restoSoft <= 0) c.ajusteRec = 0;   // si ya pagó todo, la cuenta queda cerrada: no hay saldo a favor
       c.actual = c.actual - c.ajusteRec + c.recargoApp;
     });
     $("yo").innerHTML = esc(d.yo.nombre) + '<br><button id="bSalir">Salir</button>';
@@ -3533,7 +3534,7 @@ function mensaje(c) {
   });
   if (ultimo) L.push("*Último pago recibido:* " + dia(ultimo.fecha) + " — " + pesos(ultimo.importe), "");
   if (recargo >= 1) L.push("*Recargo por saldo impago:* " + pesos(recargo), "");
-  if (c.actual <= 0) L.push("✅ *Tu cuenta está al día.*" + (c.actual <= -1 ? " Tenés un saldo a favor de " + pesos(-c.actual) + "." : ""), "");
+  if (c.actual <= 0) L.push("✅ *Tu cuenta está al día.*", "");
   else {
     L.push("*Total a pagar: " + pesos(c.actual) + "*", "");
     L.push("Podés pagarlo en el salón o por transferencia al alias *" + D.alias + "*.");
