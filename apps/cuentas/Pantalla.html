@@ -336,9 +336,9 @@ function fila(txt, imp, ancho) {
 function partes(r) { var k = r.lastIndexOf(" — "); return k > 0 ? { t: r.slice(0, k), imp: r.slice(k + 3) } : { t: r, imp: "" }; }
 function numPesos(t) { var n = Number(String(t).replace(/[^0-9]/g, "")) || 0; return String(t).indexOf("-") >= 0 ? -n : n; }
 
-var ESTILO = 1, FUENTE = "a";
+var ESTILO = 1, FUENTE = "b";   // b = letra con serifa, tipo Times New Roman
 /** Letras "con estilo" de Unicode (WhatsApp no deja cambiar la letra, pero sí muestra estos caracteres). */
-var FUENTES = { a: [0x1D5D4, 0x1D5EE, 0x1D7EC], b: [0x1D468, 0x1D482, 0x1D7CE], c: [0x1D538, 0x1D552, 0x1D7D8] };
+var FUENTES = { a: [0x1D5D4, 0x1D5EE, 0x1D7EC], b: [0x1D400, 0x1D41A, 0x1D7CE], c: [0x1D538, 0x1D552, 0x1D7D8] };
 var HUECOS_C = { C: 0x2102, H: 0x210D, N: 0x2115, P: 0x2119, Q: 0x211A, R: 0x211D, Z: 0x2124 };
 function letra(t, f) {
   var b = FUENTES[f]; if (!b) return t;
@@ -358,7 +358,7 @@ function mensaje(c, estilo, fuente) {
   var p = pendiente(c), u = ultimoPago(c), hoy = dm(D.periodo.hasta), L = [];
   if (estilo === 1) {
     var lin = new Array(31).join("-");
-    L.push(letra(fuente === "b" ? "La Caleta" : "LA CALETA", fuente), "_Yacht Club Rosario_", "", hola, "Te pasamos el detalle de lo pendiente en tu cuenta corriente.", "");
+    L.push(letra("LA CALETA", fuente), "_Yacht Club Rosario_", "", hola, "Te pasamos el detalle de lo pendiente en tu cuenta corriente.", "");
     var T = ["CUENTA CORRIENTE AL " + hoy, lin];
     if (p.previo >= 1) T.push(fila("Saldo anterior", p.previo), lin);
     p.dias.forEach(function (d) {
@@ -623,7 +623,7 @@ function ticketMesa(m) {
 }
 function mensajeMesa(m) {
   var lin = new Array(31).join("-"), L = [];
-  L.push(letra(FUENTE === "b" ? "La Caleta" : "LA CALETA", FUENTE), "_Yacht Club Rosario_", "");
+  L.push(letra("LA CALETA", FUENTE), "_Yacht Club Rosario_", "");
   L.push("Hola" + (m.saludo ? " " + m.saludo : "") + " 👋");
   L.push("Te pasamos el detalle de tu consumo del " + dia(m.fecha) + ", que quedó pendiente de pago.", "");
   var T = [(diaLargo(m.fecha) + (m.mesa ? " · MESA " + m.mesa : "")).toUpperCase(), lin];
