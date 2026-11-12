@@ -3748,7 +3748,8 @@ function abrir(c) {
   B.innerHTML = '<div class="top"><div><h3>' + esc(c.nombre) + '</h3><div class="sub">' + (c.wa ? "WhatsApp +" + esc(c.wa) : "Sin WhatsApp") + ' · debe ' + pesos(c.actual) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
     (!c.revisado ? '<p class="aviso">Revisá el saludo y el WhatsApp antes de mandar. Es una sola vez por cliente.</p>' : '') +
     (conPdf ? vistaPdf("Resumen La Caleta - " + r.nombre + ".pdf", tc) : '<div class="chat"><div class="bubble">' + burbuja(t) + '</div></div>') +
-    (!waOk ? '<button class="solo" id="env">Cargar el WhatsApp para mandar</button>' : conPdf ? '<div id="env"></div>' : '<a class="wa" id="env" href="https://wa.me/' + esc(c.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>') +
+    (conPdf ? '<div id="env"></div>' + (waOk ? '' : '<p class="nota">No tiene WhatsApp cargado: igual podés bajar el PDF y elegir el contacto en WhatsApp, o cargarlo en "Editar datos del cliente".</p>')
+      : !waOk ? '<button class="solo" id="env">Cargar el WhatsApp para mandar</button>' : '<a class="wa" id="env" href="https://wa.me/' + esc(c.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>') +
     '<div class="two"><button class="ghost' + (c.pago ? " ok" : "") + '" id="bPago">' + (c.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">' + (conPdf ? "Copiar como texto" : "Copiar mensaje") + '</button></div>' +
     '<div class="two"><button class="ghost" id="bFA">Factura A</button><button class="ghost" id="bFB">Factura B</button></div>' +
     (c.recargoApp >= 1 ? '<div class="resumen"><div><span>Recargo que calculó la app (' + c.recargoSemanas.length + (c.recargoSemanas.length === 1 ? " miércoles" : " miércoles") + ')</span><b>' + pesos(c.recargoApp) + '</b></div>' +
@@ -3763,8 +3764,8 @@ function abrir(c) {
   $("sheet").hidden = false; B.scrollTop = 0;
   $("x").onclick = cerrar;
   var enviado = function () { c.enviado = "ahora"; c.enviadoPor = D.yo.nombre; run("marcar", TOKEN, c.codigo, c.nombre, "enviado", true).catch(function () {}); setTimeout(dibujar, 300); };
-  if (!waOk) $("env").onclick = function () { datosCliente(c); };
-  else if (conPdf) botonPdf($("env"), r, c.wa, tc, enviado);
+  if (conPdf) botonPdf($("env"), r, c.wa, tc, enviado);
+  else if (!waOk) $("env").onclick = function () { datosCliente(c); };
   else $("env").onclick = enviado;
   $("bPago").onclick = function () {
     var nuevo = !c.pago; this.disabled = true;
