@@ -3946,14 +3946,36 @@ function botonPdf(cont, r, wa, texto, alAbrirChat) {
       .catch(function (e) { b.disabled = false; b.textContent = "Mandar resumen en PDF"; var p = document.createElement("p"); p.className = "aviso"; p.textContent = e.message; cont.appendChild(p); });
   };
 }
+/**
+ * Baja el PDF. La app de Google corre "encerrada" y no deja bajar archivos desde adentro,
+ * así que se abre una pestaña nueva (que sí puede) y el PDF se baja desde ahí.
+ */
+function bajarPdf(d) {
+  var w = null;
+  try { w = window.open("", "_blank"); } catch (e) { w = null; }
+  var donde = w || window, bin = atob(d.b64), arr = new donde.Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  var url = donde.URL.createObjectURL(new donde.Blob([arr], { type: "application/pdf" }));
+  var doc = donde.document, a = doc.createElement("a");
+  a.href = url; a.download = d.nombre; a.textContent = "Bajar de nuevo";
+  if (w) {
+    doc.title = d.nombre;
+    doc.body.style.cssText = "font:18px system-ui,sans-serif;padding:40px;text-align:center;color:#1c211e";
+    doc.body.innerHTML = "<p>✅ Listo, el PDF <b></b> se bajó a la compu (está en Descargas).</p><p>Ya podés cerrar esta pestaña y volver a la app para abrir el chat.</p><p></p>";
+    doc.body.querySelector("b").textContent = d.nombre;
+    doc.body.lastChild.appendChild(a);
+  } else { a.style.display = "none"; doc.body.appendChild(a); }
+  a.click();
+}
 function pasosPdf(cont, d, wa, texto, alAbrirChat) {
   var bin = atob(d.b64), arr = new Uint8Array(bin.length);
   for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
   var url = URL.createObjectURL(new Blob([arr], { type: "application/pdf" }));
   cont.innerHTML = '<div class="resumen" style="gap:10px"><b>Dos pasos:</b>' +
-    '<a class="solo" id="paso1" href="' + url + '" download="' + esc(d.nombre) + '">1. Bajar el PDF a la compu</a>' +
+    '<button class="solo" id="paso1" type="button">1. Bajar el PDF a la compu</button>' +
     '<a class="wa" id="paso2" target="_blank" href="https://wa.me/' + esc(wa || "") + '?text=' + encodeURIComponent(texto) + '">2. Abrir el chat de WhatsApp</a>' +
     '<p class="nota" style="margin:0">En el chat tocá el clip 📎 → Documento → elegí <b>' + esc(d.nombre) + '</b> (está en Descargas) → Enviar.' + (wa ? '' : ' Como no hay número cargado, WhatsApp te va a pedir elegir el contacto.') + '</p>' + '</div>';
+  $("paso1").onclick = function () { bajarPdf(d); };
   if (alAbrirChat) $("paso2").addEventListener("click", alAbrirChat);
 }
 function botonWhatsApp(cont, x) {
@@ -3967,9 +3989,10 @@ function botonWhatsApp(cont, x) {
       for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
       var url = URL.createObjectURL(new Blob([arr], { type: "application/pdf" }));
       cont.innerHTML = '<div class="resumen" style="gap:10px"><b>Dos pasos:</b>' +
-        '<a class="solo" id="paso1" href="' + url + '" download="' + esc(d.nombre) + '">1. Bajar el PDF a la compu</a>' +
+        '<button class="solo" id="paso1" type="button">1. Bajar el PDF a la compu</button>' +
         '<a class="wa" id="paso2" href="https://wa.me/' + esc(x.wa || "") + '?text=' + encodeURIComponent(t) + '">2. Abrir el chat de WhatsApp</a>' +
         '<p class="nota" style="margin:0">En el chat tocá el clip 📎 → Documento → elegí <b>' + esc(d.nombre) + '</b> (está en Descargas) → Enviar.' + (x.wa ? '' : ' Como no hay número cargado, WhatsApp te va a pedir elegir el contacto.') + '</p></div>';
+      $("paso1").onclick = function () { bajarPdf(d); };
     }).catch(function (e) { b.disabled = false; b.textContent = "Mandar por WhatsApp"; var p = document.createElement("p"); p.className = "aviso"; p.textContent = e.message; cont.appendChild(p); });
   };
 }
