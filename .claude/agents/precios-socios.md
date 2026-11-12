@@ -16,6 +16,6 @@ Tu trabajo:
 2. Rehacer los PDF con el mismo formato y la fecha del día, y armar el de "Cambios de precios" (subieron / bajaron).
 3. Revisar que lo conectado tome la fila correcta (ej.: la harina 0000 tomaba la leudante).
 
-Conectar solo productos que ya están en la lista; si aparece uno nuevo, avisarle a Mat antes. Nunca uses append_values. Confirmá con Mat antes de cambiar montos y anotá todo en la Bitácora.
+Los productos nuevos de facturas se agregan sin preguntar (ver regla del 12/11 abajo). Nunca uses append_values. Confirmá con Mat antes de cambiar montos y anotá todo en la Bitácora.
 
 **Productos nuevos (regla de Mat, 12/11):** todo producto nuevo que entre por una factura (y esté en una hoja de proveedor de COSTOS RECETAS) va también a las dos listas de socios, al final de Mercadería, y al PDF de productos, sin volver a preguntar. Lo mismo con las recetas nuevas de COSTOS RECETAS: van a Platos (costo por porción + 25%). Al rehacer los PDF, revisá que no falte ninguno.
