@@ -10,13 +10,13 @@ Fuente: el CLAUDE.md del chat de adelantos (pasado por Matías el 28/10/2026). E
 | Precios La Caleta (maestra) | `1q17AXG0q01wCKnyayCaG_dBqWvlthWUr8EH_MauzOXw` | Pestañas: Mercadería, Platos, Por proveedor (fórmula, no editar), Proveedores |
 | Precios La Caleta (lista completa, la ven los socios) | `1TG-ayAZoRvvg5-3rPSDjTfEaC5qzA-IubckD3AwAB9M` | Copia que hay que mantener igual a la maestra |
 | Carpeta "Listas de precios La Caleta" (socios) | `1quRYus4l1p-_RjsQ2Hebry6i5yeYnWDZ` | Link que va en cada mensaje |
-| Carpeta ADELANTOS (interna) | `1AYLEqRNqdpJiAizvxTH4ZUq2AiDSGzFl` | Acá van los PDF viejos renombrados "(viejo dd-mm)" |
+| Carpeta ADELANTOS (interna) | `1AYLEqRNqdpJiAizvxTH4ZUq2AiDSGzFl` | Carpeta interna (los PDF viejos ya no se guardan: van a la papelera) |
 | PDF "Precios Recetas" vigente (22/10) | `1dUkvgSqT1i_G9TCiWwvBrqkSJXfhbUqM` | 467 platos, en carpeta socios |
 | Boletas de proveedores | carpeta `1dIVyu3RbbAdPCB9bNEHtDtG5HNEJ7TlH` (y otras) | Frío Net, carnicería, etc. |
 
 Link para los socios: https://drive.google.com/drive/folders/1quRYus4l1p-_RjsQ2Hebry6i5yeYnWDZ
 
-Cada cambio de precio se hace en **las dos** planillas de precios (maestra + lista completa) y, si corresponde, se regenera el PDF de la carpeta de socios (el viejo se mueve a ADELANTOS, nunca se borra).
+Cada cambio de precio se hace en **las dos** planillas de precios (maestra + lista completa) y, si corresponde, se regenera el PDF de la carpeta de socios (cuando el nuevo ya está subido, el viejo va a la papelera: regla de Mat, 05/11).
 
 ---
 
