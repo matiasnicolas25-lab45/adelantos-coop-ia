@@ -415,12 +415,12 @@ function burbuja(t) {
 /* ---------- cliente ---------- */
 function abrir(c) {
   var t = mensaje(c), B = $("box");
-  var waOk = !!c.wa;
+  var waOk = !!c.wa, conPdf = c.actual > 0, r = conPdf ? resumenCuenta(c) : null, tc = conPdf ? textoCuenta(c) : "";
   B.innerHTML = '<div class="top"><div><h3>' + esc(c.nombre) + '</h3><div class="sub">' + (c.wa ? "WhatsApp +" + esc(c.wa) : "Sin WhatsApp") + ' · debe ' + pesos(c.actual) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
     (!c.revisado ? '<p class="aviso">Revisá el saludo y el WhatsApp antes de mandar. Es una sola vez por cliente.</p>' : '') +
-    '<div class="chat"><div class="bubble">' + burbuja(t) + '</div></div>' +
-    (waOk ? '<a class="wa" id="env" href="https://wa.me/' + esc(c.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>' : '<button class="solo" id="env">Cargar el WhatsApp para mandar</button>') +
-    '<div class="two"><button class="ghost' + (c.pago ? " ok" : "") + '" id="bPago">' + (c.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">Copiar mensaje</button></div>' +
+    (conPdf ? vistaPdf("Resumen La Caleta - " + r.nombre + ".pdf", tc) : '<div class="chat"><div class="bubble">' + burbuja(t) + '</div></div>') +
+    (!waOk ? '<button class="solo" id="env">Cargar el WhatsApp para mandar</button>' : conPdf ? '<div id="env"></div>' : '<a class="wa" id="env" href="https://wa.me/' + esc(c.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>') +
+    '<div class="two"><button class="ghost' + (c.pago ? " ok" : "") + '" id="bPago">' + (c.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">' + (conPdf ? "Copiar como texto" : "Copiar mensaje") + '</button></div>' +
     '<div class="two"><button class="ghost" id="bFA">Factura A</button><button class="ghost" id="bFB">Factura B</button></div>' +
     (c.recargoApp >= 1 ? '<div class="resumen"><div><span>Recargo que calculó la app (' + c.recargoSemanas.length + (c.recargoSemanas.length === 1 ? " miércoles" : " miércoles") + ')</span><b>' + pesos(c.recargoApp) + '</b></div>' +
       '<p class="nota" style="margin:0">' + c.recargoSemanas.map(function (s) { return dia(s[0]) + ": " + pesos(s[1]); }).join(" · ") + '</p>' +
@@ -433,8 +433,10 @@ function abrir(c) {
     (c.facturas.length ? '<p class="nota">Facturas: ' + c.facturas.map(function (f) { return esc(f.tipo + " " + f.numero + " (" + pesos(f.total) + ")"); }).join(", ") + '</p>' : '');
   $("sheet").hidden = false; B.scrollTop = 0;
   $("x").onclick = cerrar;
-  if (waOk) $("env").onclick = function () { c.enviado = "ahora"; c.enviadoPor = D.yo.nombre; run("marcar", TOKEN, c.codigo, c.nombre, "enviado", true).catch(function () {}); setTimeout(dibujar, 300); };
-  else $("env").onclick = function () { datosCliente(c); };
+  var enviado = function () { c.enviado = "ahora"; c.enviadoPor = D.yo.nombre; run("marcar", TOKEN, c.codigo, c.nombre, "enviado", true).catch(function () {}); setTimeout(dibujar, 300); };
+  if (!waOk) $("env").onclick = function () { datosCliente(c); };
+  else if (conPdf) botonPdf($("env"), r, c.wa, tc, enviado);
+  else $("env").onclick = enviado;
   $("bPago").onclick = function () {
     var nuevo = !c.pago; this.disabled = true;
     run("marcar", TOKEN, c.codigo, c.nombre, "pago", nuevo).then(function () { c.pago = nuevo ? "recién" : ""; c.pagoPor = D.yo.nombre; cerrar(); dibujar(); })
@@ -572,6 +574,60 @@ function confirmar(f, c) {
   };
 }
 /* ---------- mandar la factura por WhatsApp: se baja el PDF y se abre el chat; el PDF se adjunta a mano ---------- */
+/* ---------- resumen en PDF (cuentas y mesas) ---------- */
+function nombrePropio(t) { return String(t || "").toLowerCase().replace(/(^|[ (])([a-záéíóúñ])/g, function (x, a, b) { return a + b.toUpperCase(); }); }
+function fechaLarga(f) { return f ? f.slice(8, 10) + "/" + f.slice(5, 7) + "/" + f.slice(0, 4) : ""; }
+/** "3 Entrecot — $105.000" → ["3", "Entrecot", "$105.000"] */
+function filasPdf(renglones) {
+  return renglones.map(function (r) {
+    var x = partes(r), m = x.t.match(/^([0-9,]+) (.*)$/);
+    return m ? [m[1], m[2], x.imp] : ["", x.t, x.imp];
+  });
+}
+function resumenCuenta(c) {
+  var p = pendiente(c), u = ultimoPago(c);
+  return { tipo: "cuenta", nombre: nombrePropio(c.nombre), al: fechaLarga(D.periodo.hasta), previo: p.previo, recargo: p.recargo, pct: pct(), total: c.actual,
+    ultimo: u ? dia(u.fecha) + " · " + pesos(u.importe) : "", alias: D.alias,
+    dias: p.dias.map(function (d) { return { titulo: diaLargo(d.fecha), total: d.importe, filas: filasPdf(d.renglones) }; }) };
+}
+function resumenMesa(m) {
+  return { tipo: "mesa", nombre: nombrePropio(m.nombre), al: fechaLarga(m.fecha), previo: 0, recargo: 0, total: m.total, ultimo: "", alias: D.alias,
+    dias: [{ titulo: diaLargo(m.fecha) + (m.mesa ? " · Mesa " + m.mesa : ""), total: m.total, filas: filasPdf(ticketMesa(m)) }] };
+}
+function textoCuenta(c) {
+  return "Hola" + (c.saludo ? " " + c.saludo : "") + " 👋 Te mandamos el resumen de tu cuenta corriente de *La Caleta*." + NL + NL +
+    "Total a pagar: *" + pesos(c.actual) + "*" + NL + "Podés pagar en el salón o por transferencia al alias *" + D.alias + "*." + NL + NL + "¡Gracias!";
+}
+function textoMesa(m) {
+  return "Hola" + (m.saludo ? " " + m.saludo : "") + " 👋 Te mandamos el detalle de tu consumo del " + dia(m.fecha) + " en *La Caleta*, que quedó pendiente de pago." + NL + NL +
+    "Total a pagar: *" + pesos(m.total) + "*" + NL + "Podés pagar en el salón o por transferencia al alias *" + D.alias + "*." + NL + NL + "¡Gracias!";
+}
+function vistaPdf(nombre, texto) {
+  return '<div class="chat"><div class="bubble"><span style="display:flex;gap:10px;align-items:center;background:var(--line);border-radius:8px;padding:10px;margin-bottom:6px;white-space:normal">' +
+    '<span style="width:30px;height:36px;border-radius:4px;background:#c0392b;color:#fff;font:700 10px var(--f-body);display:grid;place-items:center;flex:none">PDF</span>' +
+    '<span><b style="display:block;font-size:13px">' + esc(nombre) + '</b><small class="nota">Resumen con el detalle de lo que debe</small></span></span>' + burbuja(texto) + '</div></div>';
+}
+/** Botón que arma el PDF y muestra los dos pasos: bajarlo y abrir el chat. */
+function botonPdf(cont, r, wa, texto, alAbrirChat) {
+  var b = document.createElement("button"); b.className = "wa"; b.textContent = "Mandar resumen en PDF";
+  cont.textContent = ""; cont.appendChild(b);
+  b.onclick = function () {
+    b.disabled = true; b.textContent = "Armando el PDF…";
+    run("resumenPdf", TOKEN, r).then(function (d) { pasosPdf(cont, d, wa, texto, alAbrirChat); })
+      .catch(function (e) { b.disabled = false; b.textContent = "Mandar resumen en PDF"; var p = document.createElement("p"); p.className = "aviso"; p.textContent = e.message; cont.appendChild(p); });
+  };
+}
+function pasosPdf(cont, d, wa, texto, alAbrirChat) {
+  var bin = atob(d.b64), arr = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  var url = URL.createObjectURL(new Blob([arr], { type: "application/pdf" }));
+  cont.innerHTML = '<div class="resumen" style="gap:10px"><b>Dos pasos:</b>' +
+    '<a class="solo" id="paso1" href="' + url + '" download="' + esc(d.nombre) + '">1. Bajar el PDF a la compu</a>' +
+    '<a class="wa" id="paso2" target="_blank" href="https://wa.me/' + esc(wa || "") + '?text=' + encodeURIComponent(texto) + '">2. Abrir el chat de WhatsApp</a>' +
+    '<p class="nota" style="margin:0">En el chat tocá el clip 📎 → Documento → elegí <b>' + esc(d.nombre) + '</b> (está en Descargas) → Enviar.' + (wa ? '' : ' Como no hay número cargado, WhatsApp te va a pedir elegir el contacto.') + '</p>' +
+    (d.url ? '<p class="nota" style="margin:0">¿No se bajó? <a href="' + esc(d.url) + '" target="_blank">Abrilo en Drive</a> y bajalo desde ahí.</p>' : '') + '</div>';
+  if (alAbrirChat) $("paso2").addEventListener("click", alAbrirChat);
+}
 function botonWhatsApp(cont, x) {
   var t = "Hola" + (x.saludo ? " " + x.saludo : "") + "! Te enviamos tu factura " + x.tipo + " N° " + x.numero + " de La Caleta por " + pesos2(x.total) + ". ¡Gracias!";
   var b = document.createElement("button"); b.className = "wa"; b.textContent = "Mandar por WhatsApp";
@@ -700,17 +756,17 @@ function formMesa(m) {
   };
 }
 function abrirMesa(m) {
-  var t = mensajeMesa(m), B = $("box");
+  var t = mensajeMesa(m), B = $("box"), r = resumenMesa(m), tc = textoMesa(m);
   B.innerHTML = '<div class="top"><div><h3>' + esc(m.nombre) + '</h3><div class="sub">WhatsApp +' + esc(m.wa) + ' · ' + pesos(m.total) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
-    '<div class="chat"><div class="bubble">' + burbuja(t) + '</div></div>' +
-    '<a class="wa" id="env" href="https://wa.me/' + esc(m.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>' +
-    '<div class="two"><button class="ghost' + (m.pago ? " ok" : "") + '" id="bPago">' + (m.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">Copiar mensaje</button></div>' +
+    vistaPdf("Resumen La Caleta - " + r.nombre + ".pdf", tc) +
+    '<div id="env"></div>' +
+    '<div class="two"><button class="ghost' + (m.pago ? " ok" : "") + '" id="bPago">' + (m.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">Copiar como texto</button></div>' +
     (m.enviado ? '<p class="nota">Mensaje enviado el ' + esc(m.enviado) + ' por ' + esc(m.enviadoPor) + '.</p>' : '') +
     (m.pago ? '<p class="nota">Pago marcado el ' + esc(m.pago) + ' por ' + esc(m.pagoPor) + '.</p>' : '') +
     '<p class="nota">Cargada por ' + esc(m.quien) + ' el ' + esc(m.cargado) + ' · ' + esc(m.comp) + '</p>';
   $("sheet").hidden = false; B.scrollTop = 0;
   $("x").onclick = cerrar;
-  $("env").onclick = function () { m.enviado = "ahora"; m.enviadoPor = D.yo.nombre; run("marcarMesa", TOKEN, m.id, "enviado", true).catch(function () {}); setTimeout(dibujar, 300); };
+  botonPdf($("env"), r, m.wa, tc, function () { m.enviado = "ahora"; m.enviadoPor = D.yo.nombre; run("marcarMesa", TOKEN, m.id, "enviado", true).catch(function () {}); setTimeout(dibujar, 300); });
   $("bPago").onclick = function () {
     var nuevo = !m.pago; this.disabled = true;
     run("marcarMesa", TOKEN, m.id, "pago", nuevo).then(function () { m.pago = nuevo ? "recién" : ""; m.pagoPor = D.yo.nombre; cerrar(); dibujar(); }).catch(function (e) { alerta(e.message); });

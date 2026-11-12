@@ -978,6 +978,59 @@ function facturaPdf(x) {
   return DriveApp.getFolderById(FACTURAS_CARPETA).createFile(pdf).getUrl();
 }
 
+
+/* ---------- resumen de cuenta (o de mesa sin pagar) en PDF, con logo y letra Garamond ---------- */
+
+const LOGO_PDF = "data:image/png;base64,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";
+
+/**
+ * r = {tipo: "cuenta"|"mesa", nombre, al (dd/mm/aaaa), previo, recargo, total, ultimo, alias,
+ *      dias: [{titulo, total, filas: [[cantidad, producto, importe]]}]}
+ * Devuelve el PDF para bajar (no se guarda en Drive).
+ */
+function resumenPdf(token, r) {
+  quien(token);
+  const ps = n => (n < 0 ? "-$" : "$") + Math.abs(Math.round(Number(n))).toLocaleString("es-AR");
+  let filas = "";
+  if (Number(r.previo) >= 1) filas += "<tr class='rec'><td></td><td>Saldo anterior pendiente</td><td class='m'>" + ps(r.previo) + "</td></tr>";
+  (r.dias || []).forEach(d => {
+    filas += "<tr class='dia'><th colspan='3'>" + escH(d.titulo) + "</th></tr>";
+    (d.filas || []).forEach(f => { filas += "<tr><td class='q'>" + escH(f[0]) + "</td><td>" + escH(f[1]) + "</td><td class='m'>" + escH(f[2]) + "</td></tr>"; });
+    if (r.tipo !== "mesa") filas += "<tr class='sub'><td></td><td>Total del día</td><td class='m'>" + ps(d.total) + "</td></tr>";
+  });
+  if (Number(r.recargo) >= 1) filas += "<tr class='rec'><td></td><td>Recargo por saldo impago (" + escH(r.pct || "") + " semanal)</td><td class='m'>" + ps(r.recargo) + "</td></tr>";
+  const serif = "font-family:'EB Garamond','Cormorant Garamond',Garamond,'Times New Roman',Times,serif;";
+  const html = "<html><head><meta charset='utf-8'><style>" +
+    "@page{size:A4;margin:16mm 16mm}body{" + serif + "font-size:13pt;color:#1f2a26;margin:0}" +
+    "table{border-collapse:collapse;width:100%}td,th{padding:3px 0;vertical-align:baseline}" +
+    ".cab td{vertical-align:middle;border-bottom:1px solid #cfc9bb;padding-bottom:12px}.marca{font-size:26pt;font-weight:bold;letter-spacing:2px}" +
+    ".marca div{font-size:12pt;font-weight:normal;letter-spacing:0;color:#5b625e}" +
+    ".para td{padding:12px 0 6px;font-size:13pt}" +
+    ".dia th{text-align:left;font-size:11.5pt;letter-spacing:2px;text-transform:uppercase;color:#2f5d62;padding-top:14px;border-bottom:1px solid #e2dccf}" +
+    "td.q{width:26px;color:#5b625e}td.m{text-align:right;white-space:nowrap;padding-left:12px}" +
+    ".sub td{font-style:italic;color:#5b625e;border-top:1px dotted #cfc9bb}.rec td{padding-top:12px;font-weight:bold}" +
+    ".tot td{border-top:2px solid #1f2a26;padding-top:10px;font-size:20pt;font-weight:bold}" +
+    ".pie{margin-top:18px;text-align:center;color:#5b625e;font-size:12pt;line-height:1.5}" +
+    "</style></head><body>" +
+    "<table class='cab'><tr><td style='width:70px'><img src='" + LOGO_PDF + "' style='height:62px'></td>" +
+    "<td class='marca'>LA CALETA<div>Yacht Club Rosario · " + (r.tipo === "mesa" ? "Detalle de consumo pendiente" : "Resumen de cuenta corriente") + "</div></td></tr></table>" +
+    "<table class='para'><tr><td>" + (r.nombre ? "Para: <b>" + escH(r.nombre) + "</b>" : "") + "</td><td style='text-align:right'>Al <b>" + escH(r.al) + "</b></td></tr></table>" +
+    "<table>" + filas + "</table>" +
+    "<table class='tot'><tr><td>Total a pagar</td><td style='text-align:right'>" + ps(r.total) + "</td></tr></table>" +
+    "<div class='pie'>" + (r.ultimo ? "Último pago recibido: " + escH(r.ultimo) + "<br>" : "") +
+    "Pagá en el salón o por transferencia al alias <b>" + escH(r.alias || ALIAS_PAGO) + "</b><br>¡Gracias!</div>" +
+    "</body></html>";
+  const nombre = "Resumen La Caleta - " + String(r.nombre || "cuenta").replace(/[\\/:*?"<>|]+/g, " ").trim() + " " + String(r.al || "").replace(/\//g, "-") + ".pdf";
+  const pdf = Utilities.newBlob(html, "text/html", "r.html").getAs("application/pdf").setName(nombre);
+  // copia en Drive (carpeta "Resúmenes" dentro de la de facturas), por si la compu no deja bajarlo desde la app
+  let url = "";
+  try {
+    const padre = DriveApp.getFolderById(FACTURAS_CARPETA), it = padre.getFoldersByName("Resúmenes");
+    url = (it.hasNext() ? it.next() : padre.createFolder("Resúmenes")).createFile(pdf).getUrl();
+  } catch (e) { url = ""; }
+  return { nombre: nombre, b64: Utilities.base64Encode(pdf.getBytes()), url: url };
+}
+
 /* ---------------- librería de QR (qrcode-generator 1.4.4, MIT, Kazuhiko Arase) ---------------- */
 
 //---------------------------------------------------------------------
@@ -3697,12 +3750,12 @@ function burbuja(t) {
 /* ---------- cliente ---------- */
 function abrir(c) {
   var t = mensaje(c), B = $("box");
-  var waOk = !!c.wa;
+  var waOk = !!c.wa, conPdf = c.actual > 0, r = conPdf ? resumenCuenta(c) : null, tc = conPdf ? textoCuenta(c) : "";
   B.innerHTML = '<div class="top"><div><h3>' + esc(c.nombre) + '</h3><div class="sub">' + (c.wa ? "WhatsApp +" + esc(c.wa) : "Sin WhatsApp") + ' · debe ' + pesos(c.actual) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
     (!c.revisado ? '<p class="aviso">Revisá el saludo y el WhatsApp antes de mandar. Es una sola vez por cliente.</p>' : '') +
-    '<div class="chat"><div class="bubble">' + burbuja(t) + '</div></div>' +
-    (waOk ? '<a class="wa" id="env" href="https://wa.me/' + esc(c.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>' : '<button class="solo" id="env">Cargar el WhatsApp para mandar</button>') +
-    '<div class="two"><button class="ghost' + (c.pago ? " ok" : "") + '" id="bPago">' + (c.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">Copiar mensaje</button></div>' +
+    (conPdf ? vistaPdf("Resumen La Caleta - " + r.nombre + ".pdf", tc) : '<div class="chat"><div class="bubble">' + burbuja(t) + '</div></div>') +
+    (!waOk ? '<button class="solo" id="env">Cargar el WhatsApp para mandar</button>' : conPdf ? '<div id="env"></div>' : '<a class="wa" id="env" href="https://wa.me/' + esc(c.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>') +
+    '<div class="two"><button class="ghost' + (c.pago ? " ok" : "") + '" id="bPago">' + (c.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">' + (conPdf ? "Copiar como texto" : "Copiar mensaje") + '</button></div>' +
     '<div class="two"><button class="ghost" id="bFA">Factura A</button><button class="ghost" id="bFB">Factura B</button></div>' +
     (c.recargoApp >= 1 ? '<div class="resumen"><div><span>Recargo que calculó la app (' + c.recargoSemanas.length + (c.recargoSemanas.length === 1 ? " miércoles" : " miércoles") + ')</span><b>' + pesos(c.recargoApp) + '</b></div>' +
       '<p class="nota" style="margin:0">' + c.recargoSemanas.map(function (s) { return dia(s[0]) + ": " + pesos(s[1]); }).join(" · ") + '</p>' +
@@ -3715,8 +3768,10 @@ function abrir(c) {
     (c.facturas.length ? '<p class="nota">Facturas: ' + c.facturas.map(function (f) { return esc(f.tipo + " " + f.numero + " (" + pesos(f.total) + ")"); }).join(", ") + '</p>' : '');
   $("sheet").hidden = false; B.scrollTop = 0;
   $("x").onclick = cerrar;
-  if (waOk) $("env").onclick = function () { c.enviado = "ahora"; c.enviadoPor = D.yo.nombre; run("marcar", TOKEN, c.codigo, c.nombre, "enviado", true).catch(function () {}); setTimeout(dibujar, 300); };
-  else $("env").onclick = function () { datosCliente(c); };
+  var enviado = function () { c.enviado = "ahora"; c.enviadoPor = D.yo.nombre; run("marcar", TOKEN, c.codigo, c.nombre, "enviado", true).catch(function () {}); setTimeout(dibujar, 300); };
+  if (!waOk) $("env").onclick = function () { datosCliente(c); };
+  else if (conPdf) botonPdf($("env"), r, c.wa, tc, enviado);
+  else $("env").onclick = enviado;
   $("bPago").onclick = function () {
     var nuevo = !c.pago; this.disabled = true;
     run("marcar", TOKEN, c.codigo, c.nombre, "pago", nuevo).then(function () { c.pago = nuevo ? "recién" : ""; c.pagoPor = D.yo.nombre; cerrar(); dibujar(); })
@@ -3854,6 +3909,60 @@ function confirmar(f, c) {
   };
 }
 /* ---------- mandar la factura por WhatsApp: se baja el PDF y se abre el chat; el PDF se adjunta a mano ---------- */
+/* ---------- resumen en PDF (cuentas y mesas) ---------- */
+function nombrePropio(t) { return String(t || "").toLowerCase().replace(/(^|[ (])([a-záéíóúñ])/g, function (x, a, b) { return a + b.toUpperCase(); }); }
+function fechaLarga(f) { return f ? f.slice(8, 10) + "/" + f.slice(5, 7) + "/" + f.slice(0, 4) : ""; }
+/** "3 Entrecot — $105.000" → ["3", "Entrecot", "$105.000"] */
+function filasPdf(renglones) {
+  return renglones.map(function (r) {
+    var x = partes(r), m = x.t.match(/^([0-9,]+) (.*)$/);
+    return m ? [m[1], m[2], x.imp] : ["", x.t, x.imp];
+  });
+}
+function resumenCuenta(c) {
+  var p = pendiente(c), u = ultimoPago(c);
+  return { tipo: "cuenta", nombre: nombrePropio(c.nombre), al: fechaLarga(D.periodo.hasta), previo: p.previo, recargo: p.recargo, pct: pct(), total: c.actual,
+    ultimo: u ? dia(u.fecha) + " · " + pesos(u.importe) : "", alias: D.alias,
+    dias: p.dias.map(function (d) { return { titulo: diaLargo(d.fecha), total: d.importe, filas: filasPdf(d.renglones) }; }) };
+}
+function resumenMesa(m) {
+  return { tipo: "mesa", nombre: nombrePropio(m.nombre), al: fechaLarga(m.fecha), previo: 0, recargo: 0, total: m.total, ultimo: "", alias: D.alias,
+    dias: [{ titulo: diaLargo(m.fecha) + (m.mesa ? " · Mesa " + m.mesa : ""), total: m.total, filas: filasPdf(ticketMesa(m)) }] };
+}
+function textoCuenta(c) {
+  return "Hola" + (c.saludo ? " " + c.saludo : "") + " 👋 Te mandamos el resumen de tu cuenta corriente de *La Caleta*." + NL + NL +
+    "Total a pagar: *" + pesos(c.actual) + "*" + NL + "Podés pagar en el salón o por transferencia al alias *" + D.alias + "*." + NL + NL + "¡Gracias!";
+}
+function textoMesa(m) {
+  return "Hola" + (m.saludo ? " " + m.saludo : "") + " 👋 Te mandamos el detalle de tu consumo del " + dia(m.fecha) + " en *La Caleta*, que quedó pendiente de pago." + NL + NL +
+    "Total a pagar: *" + pesos(m.total) + "*" + NL + "Podés pagar en el salón o por transferencia al alias *" + D.alias + "*." + NL + NL + "¡Gracias!";
+}
+function vistaPdf(nombre, texto) {
+  return '<div class="chat"><div class="bubble"><span style="display:flex;gap:10px;align-items:center;background:var(--line);border-radius:8px;padding:10px;margin-bottom:6px;white-space:normal">' +
+    '<span style="width:30px;height:36px;border-radius:4px;background:#c0392b;color:#fff;font:700 10px var(--f-body);display:grid;place-items:center;flex:none">PDF</span>' +
+    '<span><b style="display:block;font-size:13px">' + esc(nombre) + '</b><small class="nota">Resumen con el detalle de lo que debe</small></span></span>' + burbuja(texto) + '</div></div>';
+}
+/** Botón que arma el PDF y muestra los dos pasos: bajarlo y abrir el chat. */
+function botonPdf(cont, r, wa, texto, alAbrirChat) {
+  var b = document.createElement("button"); b.className = "wa"; b.textContent = "Mandar resumen en PDF";
+  cont.textContent = ""; cont.appendChild(b);
+  b.onclick = function () {
+    b.disabled = true; b.textContent = "Armando el PDF…";
+    run("resumenPdf", TOKEN, r).then(function (d) { pasosPdf(cont, d, wa, texto, alAbrirChat); })
+      .catch(function (e) { b.disabled = false; b.textContent = "Mandar resumen en PDF"; var p = document.createElement("p"); p.className = "aviso"; p.textContent = e.message; cont.appendChild(p); });
+  };
+}
+function pasosPdf(cont, d, wa, texto, alAbrirChat) {
+  var bin = atob(d.b64), arr = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  var url = URL.createObjectURL(new Blob([arr], { type: "application/pdf" }));
+  cont.innerHTML = '<div class="resumen" style="gap:10px"><b>Dos pasos:</b>' +
+    '<a class="solo" id="paso1" href="' + url + '" download="' + esc(d.nombre) + '">1. Bajar el PDF a la compu</a>' +
+    '<a class="wa" id="paso2" target="_blank" href="https://wa.me/' + esc(wa || "") + '?text=' + encodeURIComponent(texto) + '">2. Abrir el chat de WhatsApp</a>' +
+    '<p class="nota" style="margin:0">En el chat tocá el clip 📎 → Documento → elegí <b>' + esc(d.nombre) + '</b> (está en Descargas) → Enviar.' + (wa ? '' : ' Como no hay número cargado, WhatsApp te va a pedir elegir el contacto.') + '</p>' +
+    (d.url ? '<p class="nota" style="margin:0">¿No se bajó? <a href="' + esc(d.url) + '" target="_blank">Abrilo en Drive</a> y bajalo desde ahí.</p>' : '') + '</div>';
+  if (alAbrirChat) $("paso2").addEventListener("click", alAbrirChat);
+}
 function botonWhatsApp(cont, x) {
   var t = "Hola" + (x.saludo ? " " + x.saludo : "") + "! Te enviamos tu factura " + x.tipo + " N° " + x.numero + " de La Caleta por " + pesos2(x.total) + ". ¡Gracias!";
   var b = document.createElement("button"); b.className = "wa"; b.textContent = "Mandar por WhatsApp";
@@ -3982,17 +4091,17 @@ function formMesa(m) {
   };
 }
 function abrirMesa(m) {
-  var t = mensajeMesa(m), B = $("box");
+  var t = mensajeMesa(m), B = $("box"), r = resumenMesa(m), tc = textoMesa(m);
   B.innerHTML = '<div class="top"><div><h3>' + esc(m.nombre) + '</h3><div class="sub">WhatsApp +' + esc(m.wa) + ' · ' + pesos(m.total) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
-    '<div class="chat"><div class="bubble">' + burbuja(t) + '</div></div>' +
-    '<a class="wa" id="env" href="https://wa.me/' + esc(m.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>' +
-    '<div class="two"><button class="ghost' + (m.pago ? " ok" : "") + '" id="bPago">' + (m.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">Copiar mensaje</button></div>' +
+    vistaPdf("Resumen La Caleta - " + r.nombre + ".pdf", tc) +
+    '<div id="env"></div>' +
+    '<div class="two"><button class="ghost' + (m.pago ? " ok" : "") + '" id="bPago">' + (m.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">Copiar como texto</button></div>' +
     (m.enviado ? '<p class="nota">Mensaje enviado el ' + esc(m.enviado) + ' por ' + esc(m.enviadoPor) + '.</p>' : '') +
     (m.pago ? '<p class="nota">Pago marcado el ' + esc(m.pago) + ' por ' + esc(m.pagoPor) + '.</p>' : '') +
     '<p class="nota">Cargada por ' + esc(m.quien) + ' el ' + esc(m.cargado) + ' · ' + esc(m.comp) + '</p>';
   $("sheet").hidden = false; B.scrollTop = 0;
   $("x").onclick = cerrar;
-  $("env").onclick = function () { m.enviado = "ahora"; m.enviadoPor = D.yo.nombre; run("marcarMesa", TOKEN, m.id, "enviado", true).catch(function () {}); setTimeout(dibujar, 300); };
+  botonPdf($("env"), r, m.wa, tc, function () { m.enviado = "ahora"; m.enviadoPor = D.yo.nombre; run("marcarMesa", TOKEN, m.id, "enviado", true).catch(function () {}); setTimeout(dibujar, 300); });
   $("bPago").onclick = function () {
     var nuevo = !m.pago; this.disabled = true;
     run("marcarMesa", TOKEN, m.id, "pago", nuevo).then(function () { m.pago = nuevo ? "recién" : ""; m.pagoPor = D.yo.nombre; cerrar(); dibujar(); }).catch(function (e) { alerta(e.message); });
