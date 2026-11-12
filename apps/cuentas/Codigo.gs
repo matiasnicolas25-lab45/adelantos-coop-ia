@@ -3554,8 +3554,8 @@ function cant(c) { return String(Math.round(c * 100) / 100).replace(".", ","); }
 function porDia(movs) {
   var d = {}, orden = [];
   movs.forEach(function (m) {
-    if (!(m.fecha in d)) { d[m.fecha] = { importe: 0, cosas: {}, lista: [] }; orden.push(m.fecha); }
-    var x = d[m.fecha]; x.importe += m.importe;
+    if (!(m.fecha in d)) { d[m.fecha] = { importe: 0, aCuenta: 0, cosas: {}, lista: [] }; orden.push(m.fecha); }
+    var x = d[m.fecha]; x.importe += m.importe; x.aCuenta += m.aCuenta || 0;
     items(m.detalle).forEach(function (i) {
       if (!(i.n in x.cosas)) { x.cosas[i.n] = { c: 0, imp: 0 }; x.lista.push(i.n); }
       x.cosas[i.n].c += i.c; x.cosas[i.n].imp += i.imp;
@@ -3566,41 +3566,119 @@ function porDia(movs) {
     x.lista.forEach(function (n) { suma += x.cosas[n].imp; });
     if (suma < 1) return { fecha: f, importe: x.importe, renglones: x.lista.map(function (n) { return cant(x.cosas[n].c) + " " + n; }) };   // sin precios: solo la lista
     var renglones = x.lista.map(function (n) { return cant(x.cosas[n].c) + " " + n + " — " + pesos(x.cosas[n].imp); });
-    var dif = x.importe - suma;
+    var dif = x.importe + x.aCuenta - suma;
     if (x.lista.length && dif <= -1) renglones.push("Descuento — -" + pesos(-dif));
     if (x.lista.length && dif >= 1) renglones.push("Otros — " + pesos(dif));
+    if (x.aCuenta >= 1) renglones.push("Pagado a cuenta — -" + pesos(x.aCuenta));
     return { fecha: f, importe: x.importe, renglones: renglones };
   });
 }
-function mensaje(c) {
-  var L = [];
-  var cons = porDia(consumos(c));
-  var pagos = c.movs.filter(function (m) { return m.tipo === "Pago"; }).sort(function (a, b) { return a.fecha < b.fecha ? -1 : 1; });
-  var ultimo = pagos.length ? { fecha: pagos[pagos.length - 1].fecha, importe: 0 } : null;   // si pagó varias veces el último día, se suman
-  if (ultimo) pagos.forEach(function (m) { if (m.fecha === ultimo.fecha) ultimo.importe += m.importe; });
-  var recargo = c.movs.filter(function (m) { return m.tipo === "Actualización"; }).reduce(function (s, m) { return s + m.importe; }, 0) + (c.recargoApp || 0);
-  L.push("Hola" + (c.saludo ? " " + c.saludo : "") + " 👋");
-  L.push("Te escribimos de *La Caleta* con el resumen de tu cuenta corriente del " + dm(D.periodo.desde) + " al " + dm(D.periodo.hasta) + ".");
-  L.push("");
-  if (Math.abs(c.anterior) >= 1) L.push("*Saldo anterior:* " + pesos(c.anterior), "");
-  cons.forEach(function (m) {
-    L.push("🧾 *" + dia(m.fecha) + "*");
-    m.renglones.forEach(function (r) { L.push(r); });
-    L.push("*Total del día: " + pesos(m.importe) + "*", "");
+/**
+ * Lo que todavía se debe. Los pagos van cancelando lo más viejo primero (saldo anterior, después cada consumo
+ * y cada recargo por fecha). Lo que ya quedó pago no aparece en el mensaje.
+ */
+function pendiente(c) {
+  var cargos = [{ fecha: "", tipo: "Anterior", importe: c.anterior }], pagado = 0;
+  c.movs.forEach(function (m) {
+    if (m.tipo === "Pago") pagado += m.importe;
+    else if (m.importe < 0) pagado += -m.importe;    // notas de crédito
+    else cargos.push(m);
   });
-  if (ultimo) L.push("*Último pago recibido:* " + dia(ultimo.fecha) + " — " + pesos(ultimo.importe), "");
-  if (recargo >= 1) L.push("*Recargo por saldo impago:* " + pesos(recargo), "");
-  if (c.actual <= 0) L.push("✅ *Tu cuenta está al día.*", "");
-  else {
-    L.push("*Total a pagar: " + pesos(c.actual) + "*", "");
-    L.push("Podés pagarlo en el salón o por transferencia al alias *" + D.alias + "*.");
+  cargos.sort(function (a, b) { return a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0; });
+  var previo = 0, debe = [], recargo = 0;
+  cargos.forEach(function (m) {
+    var resto = m.importe;
+    if (pagado > 0) { var usa = Math.min(pagado, resto); pagado -= usa; resto -= usa; }
+    if (resto < 1) return;
+    if (m.tipo === "Anterior") previo += resto;
+    else if (m.tipo === "Actualización") recargo += resto;
+    else if (resto < m.importe - 0.5) debe.push({ fecha: m.fecha, tipo: m.tipo, detalle: m.detalle, importe: resto, aCuenta: m.importe - resto });   // pagado en parte
+    else debe.push(m);
+  });
+  recargo += c.recargoApp || 0;
+  return { previo: previo, dias: porDia(debe), recargo: recargo };
+}
+function ultimoPago(c) {
+  var pagos = c.movs.filter(function (m) { return m.tipo === "Pago"; }).sort(function (a, b) { return a.fecha < b.fecha ? -1 : 1; });
+  if (!pagos.length) return null;
+  var u = { fecha: pagos[pagos.length - 1].fecha, importe: 0 };   // si pagó varias veces el último día, se suman
+  pagos.forEach(function (m) { if (m.fecha === u.fecha) u.importe += m.importe; });
+  return u;
+}
+var DIAS_LARGOS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+function diaLargo(f) { var d = new Date(f + "T12:00:00"); return DIAS_LARGOS[d.getDay()] + " " + dm(f); }
+var TRES = String.fromCharCode(96, 96, 96);   // bloque de letra fija de WhatsApp
+function pct() { return String(D.recargo * 100).replace(".", ",") + "%"; }
+/** Renglón de ticket de ancho fijo: texto a la izquierda, importe a la derecha. */
+function fila(txt, imp, ancho) {
+  ancho = ancho || 30; var der = imp == null ? "" : pesos(imp);
+  var izq = String(txt); if (izq.length > ancho - der.length - 1) izq = izq.slice(0, ancho - der.length - 2) + ".";
+  return izq + new Array(Math.max(1, ancho - izq.length - der.length) + 1).join(" ") + der;
+}
+function partes(r) { var k = r.lastIndexOf(" — "); return k > 0 ? { t: r.slice(0, k), imp: r.slice(k + 3) } : { t: r, imp: "" }; }
+function numPesos(t) { var n = Number(String(t).replace(/[^0-9]/g, "")) || 0; return String(t).indexOf("-") >= 0 ? -n : n; }
+
+var ESTILO = 1;
+function mensaje(c, estilo) {
+  estilo = estilo || ESTILO;
+  var hola = "Hola" + (c.saludo ? " " + c.saludo : "") + " 👋";
+  if (c.actual <= 0) return [hola, "", "Te escribimos de *La Caleta*: tu cuenta corriente está *al día*. ✅", "", "¡Gracias!", "_La Caleta · Yacht Club Rosario_"].join(NL);
+  var p = pendiente(c), u = ultimoPago(c), hoy = dm(D.periodo.hasta), L = [];
+  if (estilo === 1) {
+    var lin = new Array(31).join("-"), dob = new Array(31).join("=");
+    L.push(hola, "Te pasamos el detalle de lo pendiente en tu cuenta corriente de *La Caleta*.", "");
+    var T = ["LA CALETA - YACHT CLUB ROSARIO", "Cuenta corriente al " + hoy, lin];
+    if (p.previo >= 1) T.push(fila("Saldo anterior", p.previo), lin);
+    p.dias.forEach(function (d) {
+      T.push(diaLargo(d.fecha).toUpperCase());
+      d.renglones.forEach(function (r) { var x = partes(r); T.push(fila(x.t, x.imp ? numPesos(x.imp) : null)); });
+      T.push(fila("Total del día", d.importe), lin);
+    });
+    if (p.recargo >= 1) T.push(fila("Recargo saldo impago", p.recargo), lin);
+    T.push(fila("TOTAL A PAGAR", c.actual), dob);
+    L.push(TRES + T.join(NL) + TRES, "");
+    if (u) L.push("Último pago recibido: " + dia(u.fecha) + " · " + pesos(u.importe));
+    L.push("Podés pagar en el salón o por transferencia al alias *" + D.alias + "*.", "", "¡Gracias!");
+  } else if (estilo === 2) {
+    L.push("*LA CALETA* · Yacht Club Rosario", "_Resumen de cuenta corriente_", "");
+    L.push(hola.replace(" 👋", "") + ", tu saldo pendiente al " + hoy + " es de:", "> *" + pesos(c.actual) + "*", "");
+    L.push("*Detalle de lo adeudado*", "");
+    if (p.previo >= 1) L.push("*Saldo anterior pendiente* — " + pesos(p.previo), "");
+    p.dias.forEach(function (d) {
+      L.push("*" + diaLargo(d.fecha) + "* — " + pesos(d.importe));
+      d.renglones.forEach(function (r) { var x = partes(r); L.push("- " + x.t.replace(new RegExp("^([0-9,]+) "), "$1 × ") + (x.imp ? " · " + x.imp : "")); });
+      L.push("");
+    });
+    if (p.recargo >= 1) L.push("*Recargo por saldo impago* (" + pct() + " semanal) — " + pesos(p.recargo), "");
+    if (u) L.push("_Último pago recibido: " + dia(u.fecha) + " · " + pesos(u.importe) + "_", "");
+    L.push("*Cómo pagar*", "- En el salón", "- Transferencia al alias *" + D.alias + "*", "", "Muchas gracias.", "_La Caleta_");
+  } else {
+    var raya = "━━━━━━━━━━━━━━━━";
+    L.push(hola, "", raya, "*LA CALETA* | Cuenta corriente", "_al " + hoy + "_", raya, "");
+    if (p.previo >= 1) L.push("🗂️ *Saldo anterior pendiente:* " + pesos(p.previo), "");
+    p.dias.forEach(function (d) {
+      L.push("📅 *" + diaLargo(d.fecha) + "*");
+      d.renglones.forEach(function (r) { L.push("▸ " + r); });
+      L.push("_Subtotal: " + pesos(d.importe) + "_", "");
+    });
+    L.push(raya);
+    if (p.recargo >= 1) L.push("➕ Recargo por saldo impago: " + pesos(p.recargo));
+    if (u) L.push("💳 Último pago: " + dia(u.fecha) + " · " + pesos(u.importe));
+    L.push("", "💰 *TOTAL A PAGAR: " + pesos(c.actual) + "*", "Alias: *" + D.alias + "*", raya, "", "¡Gracias!", "_La Caleta · Yacht Club Rosario_");
   }
-  L.push("¡Gracias! La Caleta · Yacht Club Rosario");
   return L.join(NL);
 }
 function burbuja(t) {
   var negrita = new RegExp("[*]([^*" + NL + "]+)[*]", "g"), curs = new RegExp("_([^_" + NL + "]+)_", "g");
-  return esc(t).replace(negrita, "<b>$1</b>").replace(curs, "<i>$1</i>");
+  // bloque de letra fija (como lo muestra WhatsApp)
+  var trozos = String(t).split(TRES), out = "";
+  trozos.forEach(function (x, i) {
+    if (i % 2) { out += '<span style="display:block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;white-space:pre;overflow-x:auto">' + esc(x) + '</span>'; return; }
+    out += esc(x).replace(negrita, "<b>$1</b>").replace(curs, "<i>$1</i>").split(NL).map(function (l) {
+      return l.indexOf("&gt; ") === 0 ? '<span style="display:block;border-left:3px solid #999;padding-left:8px">' + l.slice(5) + '</span>' : l;
+    }).join(NL);
+  });
+  return out;
 }
 
 /* ---------- cliente ---------- */
