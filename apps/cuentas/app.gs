@@ -543,8 +543,8 @@ function armarMesa(comps) {
 
 function guardarMesa(token, m) {
   const yo = quien(token);
-  const wa = normalizarWa(m.wa);
-  if (!wa) throw new Error("Poné el WhatsApp con característica, por ejemplo 341 5123456.");
+  const wa = normalizarWa(m.wa);   // opcional: sin número, WhatsApp deja elegir el contacto
+  if (String(m.wa || "").trim() && !wa) throw new Error("Ese WhatsApp no parece válido. Ponelo con característica, por ejemplo 341 5123456, o dejalo vacío.");
   if (!String(m.nombre || "").trim()) throw new Error("Poné el nombre de la persona.");
   const id = Utilities.getUuid().slice(0, 8);
   hoja("PENDIENTES").appendRow([id, ahoraTxt(), yo.nombre, m.fecha, m.mesa, m.comp, String(m.nombre).trim(), String(m.saludo || "").trim(), wa,

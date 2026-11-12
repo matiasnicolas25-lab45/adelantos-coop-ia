@@ -724,8 +724,8 @@ function armarMesa(comps) {
 
 function guardarMesa(token, m) {
   const yo = quien(token);
-  const wa = normalizarWa(m.wa);
-  if (!wa) throw new Error("Poné el WhatsApp con característica, por ejemplo 341 5123456.");
+  const wa = normalizarWa(m.wa);   // opcional: sin número, WhatsApp deja elegir el contacto
+  if (String(m.wa || "").trim() && !wa) throw new Error("Ese WhatsApp no parece válido. Ponelo con característica, por ejemplo 341 5123456, o dejalo vacío.");
   if (!String(m.nombre || "").trim()) throw new Error("Poné el nombre de la persona.");
   const id = Utilities.getUuid().slice(0, 8);
   hoja("PENDIENTES").appendRow([id, ahoraTxt(), yo.nombre, m.fecha, m.mesa, m.comp, String(m.nombre).trim(), String(m.saludo || "").trim(), wa,
@@ -4093,10 +4093,11 @@ function formMesa(m) {
   B.innerHTML = '<div class="top"><div><h3>Mesa sin pagar</h3><div class="sub">' + dia(m.fecha) + (m.mesa ? " · mesa " + esc(m.mesa) : "") + ' · ' + esc(m.comp) + '</div></div><button class="close" id="x">Cancelar</button></div>' +
     '<label>Nombre y apellido<input id="mNom" value="' + esc(m.cliente && m.cliente !== "CONSUMIDOR FINAL" ? m.cliente : "") + '"></label>' +
     '<label>Saludo <small>Cómo arranca el mensaje: "Hola Carlos"</small><input id="mSal"></label>' +
-    '<label>WhatsApp <small>Con característica, ej. 341 5123456</small><input id="mWa" type="tel"></label>' +
-    '<div class="chat"><div class="bubble" id="mPrev"></div></div>' +
-    '<button class="solo" id="mOk">Guardar</button>';
-  function prev() { m.saludo = $("mSal").value.trim(); $("mPrev").innerHTML = burbuja(mensajeMesa(m)); }
+    '<label>WhatsApp <small>Opcional. Con característica, ej. 341 5123456. Si lo dejás vacío, elegís el contacto en WhatsApp.</small><input id="mWa" type="tel"></label>' +
+    '<div id="mPrev"></div>' +
+    '<button class="solo" id="mOk">Guardar y armar el PDF</button>';
+  function prev() { m.saludo = $("mSal").value.trim(); m.nombre = $("mNom").value; $("mPrev").innerHTML = vistaPdf("Resumen La Caleta - " + (nombrePropio(m.nombre) || "mesa " + (m.mesa || "")) + ".pdf", textoMesa(m)); }
+  $("mNom").oninput = prev;
   $("mSal").oninput = prev; prev();
   $("x").onclick = cerrar;
   $("mOk").onclick = function () {
@@ -4104,12 +4105,12 @@ function formMesa(m) {
     m.nombre = $("mNom").value; m.wa = $("mWa").value;
     run("guardarMesa", TOKEN, m).then(function (id) {
       MESAS = null; run("pendientes", TOKEN).then(function (lista) { MESAS = lista; dibujar(); var x = lista.filter(function (p) { return p.id === id; })[0]; if (x) abrirMesa(x); });
-    }).catch(function (e) { b.disabled = false; b.textContent = "Guardar"; alerta(e.message); });
+    }).catch(function (e) { b.disabled = false; b.textContent = "Guardar y armar el PDF"; alerta(e.message); });
   };
 }
 function abrirMesa(m) {
   var t = mensajeMesa(m), B = $("box"), r = resumenMesa(m), tc = textoMesa(m);
-  B.innerHTML = '<div class="top"><div><h3>' + esc(m.nombre) + '</h3><div class="sub">WhatsApp +' + esc(m.wa) + ' · ' + pesos(m.total) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
+  B.innerHTML = '<div class="top"><div><h3>' + esc(m.nombre) + '</h3><div class="sub">' + (m.wa ? 'WhatsApp +' + esc(m.wa) : 'Sin WhatsApp') + ' · ' + pesos(m.total) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
     vistaPdf("Resumen La Caleta - " + r.nombre + ".pdf", tc) +
     '<div id="env"></div>' +
     '<div class="two"><button class="ghost' + (m.pago ? " ok" : "") + '" id="bPago">' + (m.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">Copiar como texto</button></div>' +
