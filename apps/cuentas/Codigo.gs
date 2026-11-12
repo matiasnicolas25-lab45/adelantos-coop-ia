@@ -571,8 +571,15 @@ function buscarCuit(token, texto) {
   const palabras = sinTildes(texto).split(/[^a-z0-9]+/).filter(p => p.length >= 2);
   if (!palabras.length) return [];
   return filas("CUIT").filter(r => cuitValido(r[1]) && palabras.every(p => sinTildes(r[0] + " " + r[1]).indexOf(p) >= 0))
-    .map(r => ({ texto: String(r[0]), cuit: String(r[1]).replace(/\D/g, ""), nombre: String(r[0]).replace(/<[^>]*>/g, "").replace(/CUIT/i, "").replace(/[\d-]{9,}/g, "").replace(/[():]/g, " ").replace(/\s+/g, " ").trim() }))
-    .slice(0, 8);
+    .map(filaCuit).slice(0, 8);
+}
+function filaCuit(r) {
+  return { texto: String(r[0]), cuit: String(r[1]).replace(/\D/g, ""), nombre: String(r[0]).replace(/<[^>]*>/g, "").replace(/CUIT/i, "").replace(/[\d-]{9,}/g, "").replace(/[():]/g, " ").replace(/\s+/g, " ").trim() };
+}
+/** Toda la lista de CUIT de una vez, para buscar en la pantalla sin esperar. */
+function listaCuit(token) {
+  quien(token);
+  return filas("CUIT").filter(r => cuitValido(r[1])).map(filaCuit);
 }
 
 /* ---------- facturas A y B ---------- */
@@ -684,20 +691,35 @@ function leerComprobantes(valores) {
 }
 
 /** Recibe el Excel (en base64) y devuelve lo que se va a mandar, sin guardar nada todavía. */
-function leerMesa(token, base64) {
+function leerMesa(token, base64, mesa) {
   quien(token);
-  const comps = leerComprobantes(leerXls(Array.from(Utilities.base64Decode(base64))));
-  if (!comps.length) throw new Error("Ese Excel no tiene comprobantes de Resto Soft. Exportá la Consulta de Comprobantes de esa mesa.");
-  if (comps.length > 5) throw new Error("Ese Excel tiene " + comps.length + " comprobantes. Exportá solo el de la mesa que se fue sin pagar.");
+  let comps = leerComprobantes(leerXls(Array.from(Utilities.base64Decode(base64))));
+  if (!comps.length) throw new Error("Ese Excel no tiene comprobantes de Resto Soft. Exportá la Consulta de Comprobantes.");
+  const nro = Number(String(mesa || "").replace(/\D/g, ""));
+  if (nro) {
+    comps = comps.filter(c => c.mesa === nro);
+    if (!comps.length) throw new Error("En ese Excel no hay tickets de la mesa " + nro + ". Revisá el número.");
+    // los más nuevos primero; cada ticket es una opción para elegir
+    comps.sort((a, b) => (b.fecha + b.hora + b.comp) < (a.fecha + a.hora + a.comp) ? -1 : 1);
+    const nombres = registrarNombres(comps.slice(0, 20));
+    return { opciones: comps.slice(0, 20).map(c => armarMesa([c])), nombres: nombres };
+  }
+  if (comps.length > 5) throw new Error("Ese Excel tiene " + comps.length + " tickets. Poné el número de mesa para buscarla.");
+  const m = armarMesa(comps); m.nombres = registrarNombres(comps); return m;
+}
+function registrarNombres(comps) {
   const conocidos = mapaNombres(), nuevos = {};
   comps.forEach(c => c.items.forEach(i => { const k = claveNombre(i.desc); if (k && !conocidos[k] && !nuevos[k]) nuevos[k] = [i.desc, limpiarNombre(i.desc), "SÍ"]; }));
   const fn = Object.keys(nuevos).map(k => nuevos[k]);
   if (fn.length) { const sn = hoja("NOMBRES"); sn.getRange(sn.getLastRow() + 1, 1, fn.length, 3).setValues(fn); }
+  return fn.length ? mapaNombres() : conocidos;
+}
+function armarMesa(comps) {
   const items = [];
   comps.forEach(c => c.items.forEach(i => items.push(i.cant + "× " + i.desc + " = " + i.importe)));
   const tot = comps.reduce((s, c) => s + c.total, 0);
-  return { fecha: comps[0].fecha, mesa: comps[0].mesa, comp: comps.map(c => c.comp).join(", "), cliente: comps[0].cliente,
-    total: tot, detalle: items.join(" | "), nombres: mapaNombres() };
+  return { fecha: comps[0].fecha, hora: comps[0].hora, mozo: comps[0].mozo, mesa: comps[0].mesa, comp: comps.map(c => c.comp).join(", "), cliente: comps[0].cliente,
+    total: tot, detalle: items.join(" | ") };
 }
 
 function guardarMesa(token, m) {
@@ -3323,8 +3345,14 @@ nav button.on{background:var(--ink);color:var(--paper)}
 .chip{font:600 14px var(--f-body);padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
 .chip.sel{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .pin{display:flex;justify-content:center;gap:12px}.pin span{width:18px;height:18px;border-radius:50%;border:2px solid var(--ink)}.pin span.on{background:var(--ink)}
-.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.pad button{font:24px var(--f-display);padding:12px 0;border-radius:14px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:320px;width:100%;margin:0 auto}
+.pad button{font:28px var(--f-display);height:64px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;box-shadow:0 2px 0 var(--line);transition:transform .08s,background .08s}
+.pad button:hover{background:var(--paper)}
+.pad button:active{transform:translateY(2px);box-shadow:none}
+.pad button.borrar{font-size:22px;color:var(--muted)}
+.pad button.enter{font:700 17px var(--f-body);background:var(--in);border-color:var(--in);color:var(--card)}
+.pad button.enter:disabled{opacity:.45;cursor:default}
+.pin{margin:4px 0}.pin span{width:20px;height:20px;transition:background .1s}
 .resumen{display:grid;gap:6px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px}
 .resumen div{display:flex;justify-content:space-between;gap:12px}.resumen b{font-variant-numeric:tabular-nums}
 .resumen .grande{font:28px var(--f-display)}
@@ -3360,7 +3388,12 @@ nav button.on{background:var(--ink);color:var(--paper)}
 
 <script>
 var NL = String.fromCharCode(10), DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-var TOKEN = null, D = null, filtro = "deben", usuario = "", pin = "";
+var TOKEN = null, D = null, filtro = "deben", usuario = "", pin = "", CUITS = null, pidiendoCuits = null;
+function sinTildes(t) { return String(t || "").normalize("NFD").replace(new RegExp("[̀-ͯ]", "g"), "").toLowerCase().replace(new RegExp("[^a-z0-9]+", "g"), " "); }
+function traerCuits(despues) {
+  if (!pidiendoCuits) pidiendoCuits = run("listaCuit", TOKEN).then(function (l) { CUITS = l; }).catch(function () { pidiendoCuits = null; });
+  if (despues) pidiendoCuits.then(despues);
+}
 function $(i) { return document.getElementById(i); }
 function esc(t) { return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function pesos(n) { return (n < 0 ? "-$" : "$") + Math.abs(Math.round(n)).toLocaleString("es-AR"); }
@@ -3397,20 +3430,42 @@ function entrarPantalla() {
     });
   }).catch(function (e) { $("nombres").textContent = e.message; });
 }
-function puntos() { Array.prototype.forEach.call($("dots").children, function (s, i) { s.classList.toggle("on", i < pin.length); }); }
+function puntos() {
+  Array.prototype.forEach.call($("dots").children, function (s, i) { s.classList.toggle("on", i < pin.length); });
+  if ($("bEnter") && !entrando) $("bEnter").disabled = pin.length !== 4;
+}
+var entrando = false;
+function tecla(k) {
+  if (entrando || $("pinBox").hidden) return;
+  if (k === "⌫") pin = pin.slice(0, -1);
+  else if (k === "OK") { if (pin.length === 4) mandarPin(); return; }
+  else if (pin.length < 4) pin += k;
+  $("pinErr").hidden = true; puntos();
+  if (pin.length === 4 && k !== "⌫") mandarPin();
+}
+function mandarPin() {
+  entrando = true; $("bEnter").disabled = true; $("bEnter").textContent = "Entrando…";
+  run("entrar", usuario, pin).then(function (r) { TOKEN = r.token; $("vEntrar").hidden = true; cargar(); })
+    .catch(function (e) { pin = ""; puntos(); $("pinErr").hidden = false; $("pinErr").textContent = e.message; })
+    .then(function () { entrando = false; $("bEnter").textContent = "Entrar"; puntos(); });
+}
 (function () {
   var p = $("pad");
-  ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"].forEach(function (k) {
-    var b = document.createElement("button"); b.textContent = k; if (!k) b.style.visibility = "hidden";
-    b.onclick = function () {
-      if (k === "⌫") pin = pin.slice(0, -1); else if (pin.length < 4) pin += k;
-      puntos();
-      if (pin.length === 4) {
-        run("entrar", usuario, pin).then(function (r) { TOKEN = r.token; $("vEntrar").hidden = true; cargar(); })
-          .catch(function (e) { pin = ""; puntos(); $("pinErr").hidden = false; $("pinErr").textContent = e.message; });
-      }
-    };
+  ["1", "2", "3", "4", "5", "6", "7", "8", "9", "⌫", "0", "OK"].forEach(function (k) {
+    var b = document.createElement("button"); b.type = "button";
+    if (k === "OK") { b.id = "bEnter"; b.className = "enter"; b.textContent = "Entrar"; }
+    else { b.textContent = k; if (k === "⌫") b.className = "borrar"; }
+    b.onclick = function () { tecla(k); };
     p.appendChild(b);
+  });
+  // con el teclado de la compu: números, borrar y Enter
+  document.addEventListener("keydown", function (e) {
+    if ($("vEntrar").hidden || $("pinBox").hidden) return;
+    if (/^[0-9]$/.test(e.key)) tecla(e.key);
+    else if (e.key === "Backspace") tecla("⌫");
+    else if (e.key === "Enter") tecla("OK");
+    else return;
+    e.preventDefault();
   });
 })();
 
@@ -3433,6 +3488,7 @@ function cargar() {
     $("bSalir").onclick = function () { TOKEN = null; entrarPantalla(); };
     $("per").textContent = d.periodo ? "Cuentas corrientes · " + dm(d.periodo.desde) + " al " + dm(d.periodo.hasta) : "Cuentas corrientes";
     dibujar();
+    traerCuits();   // la lista de CUIT queda lista para la factura A
   }).catch(function (e) { $("cargando").textContent = e.message; });
 }
 function saldo(c) { return c.actual; }
@@ -3638,19 +3694,22 @@ function formFactura(tipo, c) {
         '<label>Condición frente al IVA<select id="fCond"><option value="1">Responsable inscripto</option><option value="6">Monotributista</option></select></label>' +
         '<label>Domicilio <small>Opcional, sale en la factura</small><input id="fDom"></label>';
       if (c && c.cond === "6") $("fCond").value = "6";
-      var espera = null;
-      $("fNom").oninput = function () {
-        var t = this.value; clearTimeout(espera);
-        espera = setTimeout(function () {
-          var d = $("busF"); if (!d) return; d.textContent = "";
-          if (t.trim().length < 2) return;
-          run("buscarCuit", TOKEN, t).then(function (s) {
-            d.textContent = "";
-            if (!s.length) { if ($("fDoc").value) return; var p = document.createElement("p"); p.className = "nota"; p.textContent = "No está en la lista de CUIT. Escribilo a mano abajo."; d.appendChild(p); return; }
-            s.forEach(function (x) { var b = document.createElement("button"); b.className = "chip"; b.textContent = x.texto; b.onclick = function () { $("fDoc").value = x.cuit; if (x.nombre) $("fNom").value = x.nombre; d.textContent = ""; }; d.appendChild(b); });
-          }).catch(function () {});
-        }, 350);
-      };
+      var hallados = [];
+      function elegirCuit(x) { $("fDoc").value = x.cuit; if (x.nombre) $("fNom").value = x.nombre; $("busF").textContent = ""; hallados = []; }
+      function buscar() {
+        var d = $("busF"); if (!d) return; d.textContent = ""; hallados = [];
+        var t = $("fNom").value;
+        if (t.trim().length < 2) return;
+        if (!CUITS) { var e = document.createElement("p"); e.className = "nota"; e.textContent = "Cargando la lista de CUIT…"; d.appendChild(e); return; }
+        var pal = sinTildes(t).split(" ").filter(function (x) { return x.length >= 2; });
+        hallados = CUITS.filter(function (x) { var h = sinTildes(x.texto + " " + x.cuit); return pal.every(function (p) { return h.indexOf(p) >= 0; }); }).slice(0, 8);
+        if (!hallados.length) { if ($("fDoc").value) return; var p = document.createElement("p"); p.className = "nota"; p.textContent = "No está en la lista de CUIT. Escribilo a mano abajo."; d.appendChild(p); return; }
+        hallados.forEach(function (x, i) { var b = document.createElement("button"); b.type = "button"; b.className = "chip" + (i === 0 ? " sel" : ""); b.textContent = x.texto; b.onclick = function () { elegirCuit(x); }; d.appendChild(b); });
+        if (hallados.length) { var n = document.createElement("p"); n.className = "nota"; n.style.width = "100%"; n.textContent = "Enter elige el primero."; d.appendChild(n); }
+      }
+      $("fNom").oninput = buscar;
+      $("fNom").onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); if (hallados.length) elegirCuit(hallados[0]); } };
+      if (!CUITS) traerCuits(buscar);
       if (c && !c.cuit) run("sugerirCuit", TOKEN, c.nombre).then(function (s) {
         var d = $("sugF"); if (!d) return;
         s.forEach(function (x) { var b = document.createElement("button"); b.className = "chip"; b.textContent = x.texto; b.onclick = function () { $("fDoc").value = x.cuit; }; d.appendChild(b); });
@@ -3692,6 +3751,7 @@ function confirmar(f, c) {
   $("bOk").onclick = function () {
     var b = this; b.disabled = true; b.textContent = "Haciendo la factura en ARCA…";
     run("facturar", TOKEN, f).then(function (r) {
+      CUITS = null; pidiendoCuits = null;   // si era un CUIT nuevo, la próxima búsqueda ya lo trae
       if (c) c.facturas.push({ tipo: "Factura " + r.tipo, numero: r.numero, total: r.total });
       B.innerHTML = '<div class="top"><div><h3>Factura ' + r.tipo + ' hecha</h3><div class="sub">' + esc(f.nombre || "Consumidor final") + '</div></div><button class="close" id="x">Cerrar</button></div>' +
         '<p class="bien">Número ' + esc(r.numero) + ' · ' + pesos2(r.total) + '</p><div class="resumen"><div><span>CAE</span><b>' + esc(r.cae) + '</b></div><div><span>Vence el CAE</span><b>' + esc(r.vence) + '</b></div></div>' +
@@ -3729,7 +3789,7 @@ function dibujarMesas() {
   var b = document.createElement("button"); b.className = "solo"; b.textContent = "Cargar mesa sin pagar";
   b.onclick = cargarMesaArchivo; L.appendChild(b);
   var p = document.createElement("p"); p.className = "nota";
-  p.textContent = "Exportá de Resto Soft la Consulta de Comprobantes solo de esa mesa y elegí el archivo.";
+  p.textContent = "Exportá de Resto Soft la Consulta de Comprobantes (puede venir con todos los tickets), poné el número de mesa y elegí el archivo.";
   L.appendChild(p);
   if (!MESAS) { var c = document.createElement("p"); c.className = "nota"; c.textContent = "Cargando…"; L.appendChild(c); return cargarMesas(); }
   var q = $("busca").value.trim().toLowerCase();
@@ -3765,20 +3825,46 @@ function mensajeMesa(m) {
   return L.join(NL);
 }
 function cargarMesaArchivo() {
-  var inp = document.createElement("input"); inp.type = "file"; inp.accept = ".xls,.xlsx";
-  inp.onchange = function () {
-    var f = inp.files[0]; if (!f) return;
-    var r = new FileReader();
-    r.onload = function () {
-      var bytes = new Uint8Array(r.result), bin = "";
-      for (var i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
-      $("sheet").hidden = false; $("box").innerHTML = '<p class="nota">Leyendo el Excel…</p>';
-      run("leerMesa", TOKEN, btoa(bin)).then(function (m) { if (m.nombres) D.nombres = m.nombres; formMesa(m); })
-        .catch(function (e) { $("box").innerHTML = '<p class="aviso">' + esc(e.message) + '</p><button class="ghost" id="x">Cerrar</button>'; $("x").onclick = cerrar; });
+  var B = $("box");
+  B.innerHTML = '<div class="top"><div><h3>Mesa sin pagar</h3><div class="sub">Paso 1: el número de mesa</div></div><button class="close" id="x">Cancelar</button></div>' +
+    '<label>Número de mesa<input id="mNro" inputmode="numeric" autocomplete="off" placeholder="Ej: 12"></label>' +
+    '<button class="solo" id="mArch">Elegir el Excel de Resto Soft</button>' +
+    '<p class="nota">Puede ser el Excel con todos los tickets: la app busca los de esa mesa.</p>';
+  $("sheet").hidden = false; $("x").onclick = cerrar; $("mNro").focus();
+  $("mNro").onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); $("mArch").click(); } };
+  $("mArch").onclick = function () {
+    var nro = $("mNro").value.trim();
+    if (!nro) { alerta("Poné el número de mesa."); return; }
+    var inp = document.createElement("input"); inp.type = "file"; inp.accept = ".xls,.xlsx";
+    inp.onchange = function () {
+      var f = inp.files[0]; if (!f) return;
+      var r = new FileReader();
+      r.onload = function () {
+        var bytes = new Uint8Array(r.result), bin = "";
+        for (var i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+        B.innerHTML = '<p class="nota">Buscando los tickets de la mesa ' + esc(nro) + '…</p>';
+        run("leerMesa", TOKEN, btoa(bin), nro).then(function (m) {
+          if (m.nombres) D.nombres = m.nombres;
+          if (m.opciones) elegirTicket(m.opciones, nro); else formMesa(m);
+        }).catch(function (e) { B.innerHTML = '<p class="aviso">' + esc(e.message) + '</p><button class="ghost" id="x">Volver</button>'; $("x").onclick = cargarMesaArchivo; });
+      };
+      r.readAsArrayBuffer(f);
     };
-    r.readAsArrayBuffer(f);
+    inp.click();
   };
-  inp.click();
+}
+function elegirTicket(ops, nro) {
+  var B = $("box");
+  B.innerHTML = '<div class="top"><div><h3>Mesa ' + esc(nro) + '</h3><div class="sub">Paso 2: tocá el ticket que quedó sin pagar</div></div><button class="close" id="x">Cancelar</button></div><div class="list" id="tks"></div>';
+  $("x").onclick = cerrar;
+  ops.forEach(function (m) {
+    var b = document.createElement("button"); b.type = "button"; b.className = "cli"; b.style.gridTemplateColumns = "1fr auto";
+    var cosas = items(m.detalle).map(function (i) { return cant(i.c) + " " + i.n; });
+    b.innerHTML = '<span><b>' + dia(m.fecha) + (m.hora ? " · " + esc(m.hora) : "") + '</b><small>' + (m.mozo ? "Mozo: " + esc(cap(m.mozo.toLowerCase())) + " · " : "") + esc(cosas.slice(0, 3).join(", ") + (cosas.length > 3 ? "…" : "")) + '</small></span><span class="monto">' + pesos(m.total) + '</span>';
+    b.onclick = function () { formMesa(m); };
+    $("tks").appendChild(b);
+  });
+  if (ops.length >= 20) { var p = document.createElement("p"); p.className = "nota"; p.textContent = "Se muestran los 20 más nuevos."; B.appendChild(p); }
 }
 function formMesa(m) {
   var B = $("box");

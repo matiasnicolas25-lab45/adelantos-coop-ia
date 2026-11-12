@@ -390,8 +390,15 @@ function buscarCuit(token, texto) {
   const palabras = sinTildes(texto).split(/[^a-z0-9]+/).filter(p => p.length >= 2);
   if (!palabras.length) return [];
   return filas("CUIT").filter(r => cuitValido(r[1]) && palabras.every(p => sinTildes(r[0] + " " + r[1]).indexOf(p) >= 0))
-    .map(r => ({ texto: String(r[0]), cuit: String(r[1]).replace(/\D/g, ""), nombre: String(r[0]).replace(/<[^>]*>/g, "").replace(/CUIT/i, "").replace(/[\d-]{9,}/g, "").replace(/[():]/g, " ").replace(/\s+/g, " ").trim() }))
-    .slice(0, 8);
+    .map(filaCuit).slice(0, 8);
+}
+function filaCuit(r) {
+  return { texto: String(r[0]), cuit: String(r[1]).replace(/\D/g, ""), nombre: String(r[0]).replace(/<[^>]*>/g, "").replace(/CUIT/i, "").replace(/[\d-]{9,}/g, "").replace(/[():]/g, " ").replace(/\s+/g, " ").trim() };
+}
+/** Toda la lista de CUIT de una vez, para buscar en la pantalla sin esperar. */
+function listaCuit(token) {
+  quien(token);
+  return filas("CUIT").filter(r => cuitValido(r[1])).map(filaCuit);
 }
 
 /* ---------- facturas A y B ---------- */
@@ -503,20 +510,35 @@ function leerComprobantes(valores) {
 }
 
 /** Recibe el Excel (en base64) y devuelve lo que se va a mandar, sin guardar nada todavía. */
-function leerMesa(token, base64) {
+function leerMesa(token, base64, mesa) {
   quien(token);
-  const comps = leerComprobantes(leerXls(Array.from(Utilities.base64Decode(base64))));
-  if (!comps.length) throw new Error("Ese Excel no tiene comprobantes de Resto Soft. Exportá la Consulta de Comprobantes de esa mesa.");
-  if (comps.length > 5) throw new Error("Ese Excel tiene " + comps.length + " comprobantes. Exportá solo el de la mesa que se fue sin pagar.");
+  let comps = leerComprobantes(leerXls(Array.from(Utilities.base64Decode(base64))));
+  if (!comps.length) throw new Error("Ese Excel no tiene comprobantes de Resto Soft. Exportá la Consulta de Comprobantes.");
+  const nro = Number(String(mesa || "").replace(/\D/g, ""));
+  if (nro) {
+    comps = comps.filter(c => c.mesa === nro);
+    if (!comps.length) throw new Error("En ese Excel no hay tickets de la mesa " + nro + ". Revisá el número.");
+    // los más nuevos primero; cada ticket es una opción para elegir
+    comps.sort((a, b) => (b.fecha + b.hora + b.comp) < (a.fecha + a.hora + a.comp) ? -1 : 1);
+    const nombres = registrarNombres(comps.slice(0, 20));
+    return { opciones: comps.slice(0, 20).map(c => armarMesa([c])), nombres: nombres };
+  }
+  if (comps.length > 5) throw new Error("Ese Excel tiene " + comps.length + " tickets. Poné el número de mesa para buscarla.");
+  const m = armarMesa(comps); m.nombres = registrarNombres(comps); return m;
+}
+function registrarNombres(comps) {
   const conocidos = mapaNombres(), nuevos = {};
   comps.forEach(c => c.items.forEach(i => { const k = claveNombre(i.desc); if (k && !conocidos[k] && !nuevos[k]) nuevos[k] = [i.desc, limpiarNombre(i.desc), "SÍ"]; }));
   const fn = Object.keys(nuevos).map(k => nuevos[k]);
   if (fn.length) { const sn = hoja("NOMBRES"); sn.getRange(sn.getLastRow() + 1, 1, fn.length, 3).setValues(fn); }
+  return fn.length ? mapaNombres() : conocidos;
+}
+function armarMesa(comps) {
   const items = [];
   comps.forEach(c => c.items.forEach(i => items.push(i.cant + "× " + i.desc + " = " + i.importe)));
   const tot = comps.reduce((s, c) => s + c.total, 0);
-  return { fecha: comps[0].fecha, mesa: comps[0].mesa, comp: comps.map(c => c.comp).join(", "), cliente: comps[0].cliente,
-    total: tot, detalle: items.join(" | "), nombres: mapaNombres() };
+  return { fecha: comps[0].fecha, hora: comps[0].hora, mozo: comps[0].mozo, mesa: comps[0].mesa, comp: comps.map(c => c.comp).join(", "), cliente: comps[0].cliente,
+    total: tot, detalle: items.join(" | ") };
 }
 
 function guardarMesa(token, m) {
