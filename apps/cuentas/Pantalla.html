@@ -592,7 +592,8 @@ function resumenCuenta(c) {
     dias: p.dias.map(function (d) { return { titulo: diaLargo(d.fecha), total: d.importe, filas: filasPdf(d.renglones) }; }) };
 }
 function resumenMesa(m) {
-  return { tipo: "mesa", nombre: nombrePropio(m.nombre), al: fechaLarga(m.fecha), previo: 0, recargo: 0, total: m.total, ultimo: "", alias: D.alias,
+  var sinNombre = !String(m.nombre || "").trim() || /^mesa /i.test(m.nombre);
+  return { tipo: "mesa", nombre: sinNombre ? "" : nombrePropio(m.nombre), archivo: sinNombre ? "Mesa " + (m.mesa || "") : nombrePropio(m.nombre), al: fechaLarga(m.fecha), previo: 0, recargo: 0, total: m.total, ultimo: "", alias: D.alias,
     dias: [{ titulo: diaLargo(m.fecha) + (m.mesa ? " · Mesa " + m.mesa : ""), total: m.total, filas: filasPdf(ticketMesa(m)) }] };
 }
 function textoCuenta(c) {
@@ -762,7 +763,7 @@ function elegirTicket(ops, nro, otra) {
 function formMesa(m) {
   var B = $("box");
   B.innerHTML = '<div class="top"><div><h3>Mesa sin pagar</h3><div class="sub">' + dia(m.fecha) + (m.mesa ? " · mesa " + esc(m.mesa) : "") + ' · ' + esc(m.comp) + '</div></div><button class="close" id="x">Cancelar</button></div>' +
-    '<label>Nombre y apellido<input id="mNom" value="' + esc(m.cliente && m.cliente !== "CONSUMIDOR FINAL" ? m.cliente : "") + '"></label>' +
+    '<label>Nombre y apellido <small>Opcional</small><input id="mNom" value="' + esc(m.cliente && m.cliente !== "CONSUMIDOR FINAL" ? m.cliente : "") + '"></label>' +
     '<label>Saludo <small>Cómo arranca el mensaje: "Hola Carlos"</small><input id="mSal"></label>' +
     '<label>WhatsApp <small>Opcional. Con característica, ej. 341 5123456. Si lo dejás vacío, elegís el contacto en WhatsApp.</small><input id="mWa" type="tel"></label>' +
     '<div id="mPrev"></div>' +
@@ -773,6 +774,7 @@ function formMesa(m) {
   $("x").onclick = cerrar;
   $("mOk").onclick = function () {
     var b = this; b.disabled = true; b.textContent = "Guardando…";
+    Array.prototype.forEach.call(B.querySelectorAll(".aviso"), function (x) { x.remove(); });   // saca los errores viejos
     m.nombre = $("mNom").value; m.wa = $("mWa").value;
     run("guardarMesa", TOKEN, m).then(function (id) {
       MESAS = null; run("pendientes", TOKEN).then(function (lista) { MESAS = lista; dibujar(); var x = lista.filter(function (p) { return p.id === id; })[0]; if (x) abrirMesa(x); });

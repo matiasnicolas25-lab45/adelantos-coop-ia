@@ -139,7 +139,7 @@ function resumenPdf(token, r) {
   (r.dias || []).forEach(d => {
     filas += "<tr class='dia'><th colspan='3'>" + escH(d.titulo) + "</th></tr>";
     (d.filas || []).forEach(f => { filas += "<tr><td class='q'>" + escH(f[0]) + "</td><td>" + escH(f[1]) + "</td><td class='m'>" + escH(f[2]) + "</td></tr>"; });
-    if (r.tipo !== "mesa") filas += "<tr class='sub'><td></td><td>Total del día</td><td class='m'>" + ps(d.total) + "</td></tr>";
+    filas += "<tr class='sub'><td></td><td>Total del día</td><td class='m'>" + ps(d.total) + "</td></tr>";
   });
   if (Number(r.recargo) >= 1) filas += "<tr class='rec'><td></td><td>Recargo por saldo impago (" + escH(r.pct || "") + " semanal)</td><td class='m'>" + ps(r.recargo) + "</td></tr>";
   const serif = "font-family:'EB Garamond','Cormorant Garamond',Garamond,'Times New Roman',Times,serif;";
@@ -163,7 +163,7 @@ function resumenPdf(token, r) {
     "<div class='pie'>" + (r.ultimo ? "Último pago recibido: " + escH(r.ultimo) + "<br>" : "") +
     "Pagá en el salón o por transferencia al alias <b>" + escH(r.alias || ALIAS_PAGO) + "</b><br>¡Gracias!</div>" +
     "</body></html>";
-  const nombre = "Resumen La Caleta - " + String(r.nombre || "cuenta").replace(/[\\/:*?"<>|]+/g, " ").trim() + " " + String(r.al || "").replace(/\//g, "-") + ".pdf";
+  const nombre = "Resumen La Caleta - " + String(r.archivo || r.nombre || "cuenta").replace(/[\\/:*?"<>|]+/g, " ").trim() + " " + String(r.al || "").replace(/\//g, "-") + ".pdf";
   const pdf = Utilities.newBlob(html, "text/html", "r.html").getAs("application/pdf").setName(nombre);
   return { nombre: nombre, b64: Utilities.base64Encode(pdf.getBytes()) };   // no se guarda en ningún lado: solo se baja
 }

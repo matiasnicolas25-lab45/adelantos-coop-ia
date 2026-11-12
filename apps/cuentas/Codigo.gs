@@ -726,7 +726,7 @@ function guardarMesa(token, m) {
   const yo = quien(token);
   const wa = normalizarWa(m.wa);   // opcional: sin número, WhatsApp deja elegir el contacto
   if (String(m.wa || "").trim() && !wa) throw new Error("Ese WhatsApp no parece válido. Ponelo con característica, por ejemplo 341 5123456, o dejalo vacío.");
-  if (!String(m.nombre || "").trim()) throw new Error("Poné el nombre de la persona.");
+  if (!String(m.nombre || "").trim()) m.nombre = "Mesa " + (m.mesa || "") + " del " + String(m.fecha || "").split("-").reverse().slice(0, 2).join("/");   // sin nombre: se guarda con la mesa
   const id = Utilities.getUuid().slice(0, 8);
   hoja("PENDIENTES").appendRow([id, ahoraTxt(), yo.nombre, m.fecha, m.mesa, m.comp, String(m.nombre).trim(), String(m.saludo || "").trim(), wa,
     Number(m.total), m.detalle, "", "", "", ""]);
@@ -996,7 +996,7 @@ function resumenPdf(token, r) {
   (r.dias || []).forEach(d => {
     filas += "<tr class='dia'><th colspan='3'>" + escH(d.titulo) + "</th></tr>";
     (d.filas || []).forEach(f => { filas += "<tr><td class='q'>" + escH(f[0]) + "</td><td>" + escH(f[1]) + "</td><td class='m'>" + escH(f[2]) + "</td></tr>"; });
-    if (r.tipo !== "mesa") filas += "<tr class='sub'><td></td><td>Total del día</td><td class='m'>" + ps(d.total) + "</td></tr>";
+    filas += "<tr class='sub'><td></td><td>Total del día</td><td class='m'>" + ps(d.total) + "</td></tr>";
   });
   if (Number(r.recargo) >= 1) filas += "<tr class='rec'><td></td><td>Recargo por saldo impago (" + escH(r.pct || "") + " semanal)</td><td class='m'>" + ps(r.recargo) + "</td></tr>";
   const serif = "font-family:'EB Garamond','Cormorant Garamond',Garamond,'Times New Roman',Times,serif;";
@@ -1020,7 +1020,7 @@ function resumenPdf(token, r) {
     "<div class='pie'>" + (r.ultimo ? "Último pago recibido: " + escH(r.ultimo) + "<br>" : "") +
     "Pagá en el salón o por transferencia al alias <b>" + escH(r.alias || ALIAS_PAGO) + "</b><br>¡Gracias!</div>" +
     "</body></html>";
-  const nombre = "Resumen La Caleta - " + String(r.nombre || "cuenta").replace(/[\\/:*?"<>|]+/g, " ").trim() + " " + String(r.al || "").replace(/\//g, "-") + ".pdf";
+  const nombre = "Resumen La Caleta - " + String(r.archivo || r.nombre || "cuenta").replace(/[\\/:*?"<>|]+/g, " ").trim() + " " + String(r.al || "").replace(/\//g, "-") + ".pdf";
   const pdf = Utilities.newBlob(html, "text/html", "r.html").getAs("application/pdf").setName(nombre);
   return { nombre: nombre, b64: Utilities.base64Encode(pdf.getBytes()) };   // no se guarda en ningún lado: solo se baja
 }
@@ -3921,7 +3921,8 @@ function resumenCuenta(c) {
     dias: p.dias.map(function (d) { return { titulo: diaLargo(d.fecha), total: d.importe, filas: filasPdf(d.renglones) }; }) };
 }
 function resumenMesa(m) {
-  return { tipo: "mesa", nombre: nombrePropio(m.nombre), al: fechaLarga(m.fecha), previo: 0, recargo: 0, total: m.total, ultimo: "", alias: D.alias,
+  var sinNombre = !String(m.nombre || "").trim() || /^mesa /i.test(m.nombre);
+  return { tipo: "mesa", nombre: sinNombre ? "" : nombrePropio(m.nombre), archivo: sinNombre ? "Mesa " + (m.mesa || "") : nombrePropio(m.nombre), al: fechaLarga(m.fecha), previo: 0, recargo: 0, total: m.total, ultimo: "", alias: D.alias,
     dias: [{ titulo: diaLargo(m.fecha) + (m.mesa ? " · Mesa " + m.mesa : ""), total: m.total, filas: filasPdf(ticketMesa(m)) }] };
 }
 function textoCuenta(c) {
@@ -4091,7 +4092,7 @@ function elegirTicket(ops, nro, otra) {
 function formMesa(m) {
   var B = $("box");
   B.innerHTML = '<div class="top"><div><h3>Mesa sin pagar</h3><div class="sub">' + dia(m.fecha) + (m.mesa ? " · mesa " + esc(m.mesa) : "") + ' · ' + esc(m.comp) + '</div></div><button class="close" id="x">Cancelar</button></div>' +
-    '<label>Nombre y apellido<input id="mNom" value="' + esc(m.cliente && m.cliente !== "CONSUMIDOR FINAL" ? m.cliente : "") + '"></label>' +
+    '<label>Nombre y apellido <small>Opcional</small><input id="mNom" value="' + esc(m.cliente && m.cliente !== "CONSUMIDOR FINAL" ? m.cliente : "") + '"></label>' +
     '<label>Saludo <small>Cómo arranca el mensaje: "Hola Carlos"</small><input id="mSal"></label>' +
     '<label>WhatsApp <small>Opcional. Con característica, ej. 341 5123456. Si lo dejás vacío, elegís el contacto en WhatsApp.</small><input id="mWa" type="tel"></label>' +
     '<div id="mPrev"></div>' +
@@ -4102,6 +4103,7 @@ function formMesa(m) {
   $("x").onclick = cerrar;
   $("mOk").onclick = function () {
     var b = this; b.disabled = true; b.textContent = "Guardando…";
+    Array.prototype.forEach.call(B.querySelectorAll(".aviso"), function (x) { x.remove(); });   // saca los errores viejos
     m.nombre = $("mNom").value; m.wa = $("mWa").value;
     run("guardarMesa", TOKEN, m).then(function (id) {
       MESAS = null; run("pendientes", TOKEN).then(function (lista) { MESAS = lista; dibujar(); var x = lista.filter(function (p) { return p.id === id; })[0]; if (x) abrirMesa(x); });
