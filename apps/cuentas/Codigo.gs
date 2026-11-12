@@ -3789,7 +3789,7 @@ function dibujarMesas() {
   var b = document.createElement("button"); b.className = "solo"; b.textContent = "Cargar mesa sin pagar";
   b.onclick = cargarMesaArchivo; L.appendChild(b);
   var p = document.createElement("p"); p.className = "nota";
-  p.textContent = "Exportá de Resto Soft la Consulta de Comprobantes (puede venir con todos los tickets), poné el número de mesa y elegí el archivo.";
+  p.textContent = "Elegí el Excel de la Consulta de Comprobantes de Resto Soft (puede venir con todos los tickets) y después poné el número de mesa.";
   L.appendChild(p);
   if (!MESAS) { var c = document.createElement("p"); c.className = "nota"; c.textContent = "Cargando…"; L.appendChild(c); return cargarMesas(); }
   var q = $("busca").value.trim().toLowerCase();
@@ -3825,38 +3825,43 @@ function mensajeMesa(m) {
   return L.join(NL);
 }
 function cargarMesaArchivo() {
+  var inp = document.createElement("input"); inp.type = "file"; inp.accept = ".xls,.xlsx";
+  inp.onchange = function () {
+    var f = inp.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      var bytes = new Uint8Array(r.result), bin = "";
+      for (var i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+      pedirMesa(btoa(bin), f.name);
+    };
+    r.readAsArrayBuffer(f);
+  };
+  inp.click();
+}
+/** Con el Excel ya elegido, pide el número de mesa (se puede buscar otra sin volver a elegir el archivo). */
+function pedirMesa(b64, archivo, error) {
   var B = $("box");
-  B.innerHTML = '<div class="top"><div><h3>Mesa sin pagar</h3><div class="sub">Paso 1: el número de mesa</div></div><button class="close" id="x">Cancelar</button></div>' +
+  B.innerHTML = '<div class="top"><div><h3>Mesa sin pagar</h3><div class="sub">Excel: ' + esc(archivo) + '</div></div><button class="close" id="x">Cancelar</button></div>' +
+    (error ? '<p class="aviso">' + esc(error) + '</p>' : '') +
     '<label>Número de mesa<input id="mNro" inputmode="numeric" autocomplete="off" placeholder="Ej: 12"></label>' +
-    '<button class="solo" id="mArch">Elegir el Excel de Resto Soft</button>' +
-    '<p class="nota">Puede ser el Excel con todos los tickets: la app busca los de esa mesa.</p>';
+    '<button class="solo" id="mBus">Buscar los tickets</button>';
   $("sheet").hidden = false; $("x").onclick = cerrar; $("mNro").focus();
-  $("mNro").onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); $("mArch").click(); } };
-  $("mArch").onclick = function () {
+  $("mNro").onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); $("mBus").click(); } };
+  $("mBus").onclick = function () {
     var nro = $("mNro").value.trim();
     if (!nro) { alerta("Poné el número de mesa."); return; }
-    var inp = document.createElement("input"); inp.type = "file"; inp.accept = ".xls,.xlsx";
-    inp.onchange = function () {
-      var f = inp.files[0]; if (!f) return;
-      var r = new FileReader();
-      r.onload = function () {
-        var bytes = new Uint8Array(r.result), bin = "";
-        for (var i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
-        B.innerHTML = '<p class="nota">Buscando los tickets de la mesa ' + esc(nro) + '…</p>';
-        run("leerMesa", TOKEN, btoa(bin), nro).then(function (m) {
-          if (m.nombres) D.nombres = m.nombres;
-          if (m.opciones) elegirTicket(m.opciones, nro); else formMesa(m);
-        }).catch(function (e) { B.innerHTML = '<p class="aviso">' + esc(e.message) + '</p><button class="ghost" id="x">Volver</button>'; $("x").onclick = cargarMesaArchivo; });
-      };
-      r.readAsArrayBuffer(f);
-    };
-    inp.click();
+    B.innerHTML = '<p class="nota">Buscando los tickets de la mesa ' + esc(nro) + '…</p>';
+    run("leerMesa", TOKEN, b64, nro).then(function (m) {
+      if (m.nombres) D.nombres = m.nombres;
+      if (m.opciones) elegirTicket(m.opciones, nro, function () { pedirMesa(b64, archivo); }); else formMesa(m);
+    }).catch(function (e) { pedirMesa(b64, archivo, e.message); });
   };
 }
-function elegirTicket(ops, nro) {
+function elegirTicket(ops, nro, otra) {
   var B = $("box");
-  B.innerHTML = '<div class="top"><div><h3>Mesa ' + esc(nro) + '</h3><div class="sub">Paso 2: tocá el ticket que quedó sin pagar</div></div><button class="close" id="x">Cancelar</button></div><div class="list" id="tks"></div>';
-  $("x").onclick = cerrar;
+  B.innerHTML = '<div class="top"><div><h3>Mesa ' + esc(nro) + '</h3><div class="sub">Tocá el ticket que quedó sin pagar</div></div><button class="close" id="x">Cancelar</button></div>' +
+    '<button class="ghost" id="mOtra">Buscar otra mesa</button><div class="list" id="tks"></div>';
+  $("x").onclick = cerrar; $("mOtra").onclick = otra;
   ops.forEach(function (m) {
     var b = document.createElement("button"); b.type = "button"; b.className = "cli"; b.style.gridTemplateColumns = "1fr auto";
     var cosas = items(m.detalle).map(function (i) { return cant(i.c) + " " + i.n; });
