@@ -62,8 +62,8 @@
   .big button:disabled, .solo:disabled, .ghost:disabled { opacity: .3; cursor: default; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .consultas { display: grid; gap: 8px; margin-top: 10px; padding-top: 14px; border-top: 1px dashed var(--line); }
-  .consultas .two button { font: 600 15px var(--f-body); padding: 14px 8px; border: 0; border-radius: 14px; background: var(--info); color: var(--info-ink); cursor: pointer; }
-  .consultas .two button:disabled { opacity: .4; }
+  .consultas button { font: 600 15px var(--f-body); padding: 14px 8px; border: 0; border-radius: 14px; background: var(--info); color: var(--info-ink); cursor: pointer; }
+  .consultas button:disabled { opacity: .4; }
   .ghost { font: 600 14px var(--f-body); padding: 12px 8px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
   .close { font: 600 15px var(--f-body); background: none; border: 0; color: var(--muted); cursor: pointer; padding: 6px; }
   .msg { padding: 12px; border-radius: 12px; background: var(--in-bg); font-weight: 600; }
@@ -305,6 +305,23 @@ function abrir(n) {
 
   var verHoras = el("button", { type: "button", textContent: "🕒 Mis horas" });
   var verAdel = el("button", { type: "button", textContent: "💵 Mis adelantos" });
+  var verRet = el("button", { type: "button", textContent: "💰 Mi retiro de la semana" });
+  verRet.onclick = function () {
+    if (!pinOk()) return;
+    verRet.disabled = true;
+    zona.textContent = ""; zona.append(el("div", { className: "panel" }, el("p", { className: "hint", textContent: "Buscando tu retiro… puede tardar unos segundos." })));
+    google.script.run.withSuccessHandler(function (r) {
+      verRet.disabled = false; msg.hidden = true; zona.textContent = "";
+      if (!r.visible) { zona.append(el("div", { className: "panel" }, el("h4", { textContent: "Mi retiro de la semana" }), el("p", { className: "hint", textContent: "Los retiros de la semana todavía no están listos. Se publican cuando la tesorera termina de cargarlos." }))); return; }
+      if (r.error) { zona.append(el("div", { className: "panel" }, el("h4", { textContent: "Mi retiro de la semana" }), el("p", { className: "hint", textContent: r.error }))); return; }
+      var p = el("div", { className: "panel" }, el("h4", { textContent: "Mi retiro de la semana" })), t = el("table");
+      r.lineas.forEach(function (x) {
+        if (x.total) { p.append(t); p.append(el("div", { className: "total" }, el("span", { textContent: "Total" }), el("b", { textContent: x.monto }))); t = el("table"); return; }
+        var tr = t.insertRow(); tr.append(el("td", { textContent: x.concepto }), el("td", { className: "m", textContent: x.monto }));
+      });
+      p.append(t); zona.append(p);
+    }).withFailureHandler(function (err) { verRet.disabled = false; mostrar(err.message, true); }).misAdelantos(n, pin, "retiro");
+  };
   verHoras.onclick = function () {
     if (!pinOk()) return;
     verHoras.disabled = true;
@@ -348,7 +365,7 @@ function abrir(n) {
 
   var cerrarB = el("button", { type: "button", className: "close", textContent: "Cerrar" }); cerrarB.onclick = cerrar;
   box.append(el("h3", { textContent: n }), hint, dots, teclas, acciones, msg,
-    el("div", { className: "consultas" }, el("h2", { textContent: "Consultar (no marca nada)" }), el("div", { className: "two" }, verHoras, verAdel)), zona, cerrarB);
+    el("div", { className: "consultas" }, el("h2", { textContent: "Consultar (no marca nada)" }), el("div", { className: "two" }, verHoras, verAdel), verRet), zona, cerrarB);
   $("sheet").hidden = false;
 }
 

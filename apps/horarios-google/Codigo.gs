@@ -11,6 +11,7 @@
 
 const ZONA = "America/Argentina/Buenos_Aires";
 const HORA_CORTE = 6;   // ningún turno termina después de esta hora: una entrada de un día anterior todavía abierta es un olvido
+const PROPORCIONALES_ID = "1zvvw5Nfr1jyOYcvaqT1MgBnWlBmb8r3eaTL865E5ddE";   // planilla "Proporcionales" de la tesorera (pestaña MENSAJES)
 const ADELANTOS_ID = "1p9VNq6C5nrnmRZyosf9MEbMDYUmOQnypyrLVVa31oB8";   // planilla "ADELANTOS DEL …" (una pestaña por socio)
 const PRECIOS_ID = "1TG-ayAZoRvvg5-3rPSDjTfEaC5qzA-IubckD3AwAB9M";     // "Precios La Caleta (lista completa)", la que ven los socios
 const ICONO = "https://drive.google.com/uc?export=view&id=1CsDX9Co-9A2gbOiBk54I8uIMxCdlTJV-&ext=.png";  // icono-la-caleta.png (Drive, público)
@@ -159,7 +160,8 @@ function nuevoPin(p) { return p.nuevo ? " Tu PIN quedó guardado: " + p.pin + ".
 /* ---------------- adelantos y precios ---------------- */
 
 /** Adelantos de la última semana de la persona, solo si en CONFIG "Mostrar adelantos" dice SÍ. */
-function misAdelantos(nombre, pin) {
+function misAdelantos(nombre, pin, que) {
+  if (que === "retiro") return miRetiro(nombre, pin);   // mismo nombre de función para no tocar la página de WordPress
   const p = validar(nombre, pin);
   const ver = String(libro().getSheetByName("CONFIG").getRange("B5").getDisplayValue()).trim().toUpperCase();
   if (ver !== "SÍ" && ver !== "SI") return { visible: false };
@@ -189,6 +191,37 @@ function misAdelantos(nombre, pin) {
   const total = [...efectivo, ...consumos].reduce((a, x) => a + x.monto, 0) - aFavor.reduce((a, x) => a + x.monto, 0);
   const out = { visible: true, semana, efectivo, consumos, aFavor, total, listas: LISTAS_PDF };
   try { cache.put(clave, JSON.stringify(out), 600); } catch (e) {}
+  return out;
+}
+
+/**
+ * Retiro de la semana de la persona: sale de la pestaña MENSAJES de "Proporcionales" (la arma la tesorera).
+ * Solo se muestra si en CONFIG "Mostrar retiros" (B7) dice SÍ. Cada uno ve solo el suyo, con su PIN.
+ */
+function miRetiro(nombre, pin) {
+  const p = validar(nombre, pin);
+  const ver = String(libro().getSheetByName("CONFIG").getRange("B7").getDisplayValue()).trim().toUpperCase();
+  if (ver !== "SÍ" && ver !== "SI") return { visible: false };
+  const cache = CacheService.getScriptCache(), clave = "ret_" + p.fila, guardado = cache.get(clave);
+  if (guardado) return JSON.parse(guardado);
+  // el nombre como lo escribe la tesorera (hoja PARA PROPORCIONALES: columna A = Proporcionales, B = app)
+  let buscado = p.nombre;
+  const mapa = libro().getSheetByName("PARA PROPORCIONALES");
+  if (mapa) mapa.getRange(4, 1, Math.max(1, mapa.getLastRow() - 3), 2).getDisplayValues().forEach(r => { if (String(r[1]).trim() === p.nombre) buscado = String(r[0]).trim(); });
+  const clav = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+  const hoja = SpreadsheetApp.openById(PROPORCIONALES_ID).getSheetByName("MENSAJES");
+  if (!hoja) return { visible: true, error: "No encuentro la pestaña MENSAJES en la planilla de retiros." };
+  const v = hoja.getRange(4, 1, Math.max(1, hoja.getLastRow() - 3), 2).getDisplayValues();
+  const fila = v.find(r => clav(r[0]) === clav(buscado));
+  const texto = fila ? String(fila[1]).trim() : "";
+  if (!texto || texto.charAt(0) === "#") return { visible: true, error: "Todavía no está cargado tu retiro de esta semana." };
+  const lineas = texto.split("\n").map(l => l.trim()).filter(Boolean).slice(1).map(l => {
+    const total = /^\*.*\*$/.test(l); l = l.replace(/\*/g, "");
+    const k = l.lastIndexOf(": ");
+    return k > 0 ? { concepto: l.slice(0, k), monto: l.slice(k + 2), total: total } : { concepto: l, monto: "", total: total };
+  });
+  const out = { visible: true, lineas: lineas };
+  try { cache.put(clave, JSON.stringify(out), 300); } catch (e) {}
   return out;
 }
 
@@ -567,8 +600,8 @@ const PANTALLA = `<!DOCTYPE html>
   .big button:disabled, .solo:disabled, .ghost:disabled { opacity: .3; cursor: default; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .consultas { display: grid; gap: 8px; margin-top: 10px; padding-top: 14px; border-top: 1px dashed var(--line); }
-  .consultas .two button { font: 600 15px var(--f-body); padding: 14px 8px; border: 0; border-radius: 14px; background: var(--info); color: var(--info-ink); cursor: pointer; }
-  .consultas .two button:disabled { opacity: .4; }
+  .consultas button { font: 600 15px var(--f-body); padding: 14px 8px; border: 0; border-radius: 14px; background: var(--info); color: var(--info-ink); cursor: pointer; }
+  .consultas button:disabled { opacity: .4; }
   .ghost { font: 600 14px var(--f-body); padding: 12px 8px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
   .close { font: 600 15px var(--f-body); background: none; border: 0; color: var(--muted); cursor: pointer; padding: 6px; }
   .msg { padding: 12px; border-radius: 12px; background: var(--in-bg); font-weight: 600; }
@@ -810,6 +843,23 @@ function abrir(n) {
 
   var verHoras = el("button", { type: "button", textContent: "🕒 Mis horas" });
   var verAdel = el("button", { type: "button", textContent: "💵 Mis adelantos" });
+  var verRet = el("button", { type: "button", textContent: "💰 Mi retiro de la semana" });
+  verRet.onclick = function () {
+    if (!pinOk()) return;
+    verRet.disabled = true;
+    zona.textContent = ""; zona.append(el("div", { className: "panel" }, el("p", { className: "hint", textContent: "Buscando tu retiro… puede tardar unos segundos." })));
+    google.script.run.withSuccessHandler(function (r) {
+      verRet.disabled = false; msg.hidden = true; zona.textContent = "";
+      if (!r.visible) { zona.append(el("div", { className: "panel" }, el("h4", { textContent: "Mi retiro de la semana" }), el("p", { className: "hint", textContent: "Los retiros de la semana todavía no están listos. Se publican cuando la tesorera termina de cargarlos." }))); return; }
+      if (r.error) { zona.append(el("div", { className: "panel" }, el("h4", { textContent: "Mi retiro de la semana" }), el("p", { className: "hint", textContent: r.error }))); return; }
+      var p = el("div", { className: "panel" }, el("h4", { textContent: "Mi retiro de la semana" })), t = el("table");
+      r.lineas.forEach(function (x) {
+        if (x.total) { p.append(t); p.append(el("div", { className: "total" }, el("span", { textContent: "Total" }), el("b", { textContent: x.monto }))); t = el("table"); return; }
+        var tr = t.insertRow(); tr.append(el("td", { textContent: x.concepto }), el("td", { className: "m", textContent: x.monto }));
+      });
+      p.append(t); zona.append(p);
+    }).withFailureHandler(function (err) { verRet.disabled = false; mostrar(err.message, true); }).misAdelantos(n, pin, "retiro");
+  };
   verHoras.onclick = function () {
     if (!pinOk()) return;
     verHoras.disabled = true;
@@ -853,7 +903,7 @@ function abrir(n) {
 
   var cerrarB = el("button", { type: "button", className: "close", textContent: "Cerrar" }); cerrarB.onclick = cerrar;
   box.append(el("h3", { textContent: n }), hint, dots, teclas, acciones, msg,
-    el("div", { className: "consultas" }, el("h2", { textContent: "Consultar (no marca nada)" }), el("div", { className: "two" }, verHoras, verAdel)), zona, cerrarB);
+    el("div", { className: "consultas" }, el("h2", { textContent: "Consultar (no marca nada)" }), el("div", { className: "two" }, verHoras, verAdel), verRet), zona, cerrarB);
   $("sheet").hidden = false;
 }
 
