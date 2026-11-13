@@ -3522,14 +3522,8 @@ function cargar() {
   run("datos", TOKEN).then(function (d) {
     D = d; $("cargando").hidden = true; $("vApp").hidden = false;
     D.clientes.forEach(function (c) {
-      c.restoSoft = c.actual; c.recargoApp = c.recargoApp || 0; c.ajusteRec = 0;
-      // las actualizaciones de Resto Soft se recalculan al % que corresponde sobre el saldo de ese día
-      c.movs.forEach(function (m) {
-        if (m.tipo !== "Actualización" || isNaN(m.saldo)) return;
-        m.cargado = m.importe; m.importe = Math.round((m.saldo - m.cargado) * D.recargo); c.ajusteRec += m.cargado - m.importe;
-      });
-      if (c.restoSoft <= 0) c.ajusteRec = 0;   // si ya pagó todo, la cuenta queda cerrada: no hay saldo a favor
-      c.actual = c.actual - c.ajusteRec + c.recargoApp;
+      // el saldo y los recargos van tal cual vienen del Excel de Resto Soft; el 1,5 % solo se suma si alguien toca el botón
+      c.restoSoft = c.actual; c.recargoExtra = 0;
     });
     $("yo").innerHTML = esc(d.yo.nombre) + '<br><button id="bSalir">Salir</button>';
     $("bSalir").onclick = function () { TOKEN = null; entrarPantalla(); };
@@ -3642,7 +3636,7 @@ function pendiente(c) {
     else if (resto < m.importe - 0.5) debe.push({ fecha: m.fecha, tipo: m.tipo, detalle: m.detalle, importe: resto, aCuenta: m.importe - resto });   // pagado en parte
     else debe.push(m);
   });
-  recargo += c.recargoApp || 0;
+  recargo += c.recargoExtra || 0;
   return { previo: previo, dias: porDia(debe), recargo: recargo };
 }
 function ultimoPago(c) {
@@ -3752,11 +3746,8 @@ function abrir(c) {
       : !waOk ? '<button class="solo" id="env">Cargar el WhatsApp para mandar</button>' : '<a class="wa" id="env" href="https://wa.me/' + esc(c.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>') +
     '<div class="two"><button class="ghost' + (c.pago ? " ok" : "") + '" id="bPago">' + (c.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">' + (conPdf ? "Copiar como texto" : "Copiar mensaje") + '</button></div>' +
     '<div class="two"><button class="ghost" id="bFA">Factura A</button><button class="ghost" id="bFB">Factura B</button></div>' +
-    (c.recargoApp >= 1 ? '<div class="resumen"><div><span>Recargo que calculó la app (' + c.recargoSemanas.length + (c.recargoSemanas.length === 1 ? " miércoles" : " miércoles") + ')</span><b>' + pesos(c.recargoApp) + '</b></div>' +
-      '<p class="nota" style="margin:0">' + c.recargoSemanas.map(function (s) { return dia(s[0]) + ": " + pesos(s[1]); }).join(" · ") + '</p>' +
-      '<p class="nota" style="margin:0">Todavía no está en Resto Soft. Cuando pague, cargalo en Resto Soft y tocá el botón.</p>' +
-      '<button class="ghost" id="bRec">Ya cargué ' + pesos(c.recargoApp) + ' en Resto Soft</button></div>' : '') +
-    (Math.abs(c.ajusteRec) >= 1 ? '<p class="aviso">En Resto Soft el recargo quedó ' + (c.ajusteRec > 0 ? 'cargado de más' : 'cargado de menos') + ' por ' + pesos(Math.abs(c.ajusteRec)) + ' (no está al ' + String(D.recargo * 100).replace(".", ",") + ' %). El mensaje ya va con el recargo bien calculado. En Resto Soft hay que cargar ' + (c.ajusteRec > 0 ? 'una nota de crédito' : 'una actualización') + ' por ' + pesos(Math.abs(c.ajusteRec)) + '.</p>' : '') +
+    (c.restoSoft > 0 ? '<button class="ghost' + (c.recargoExtra ? " sel" : "") + '" id="bRec">' + (c.recargoExtra ? "✓ Recargo " + pct() + " sumado (" + pesos(c.recargoExtra) + ") · tocá para sacarlo" : "Sumar recargo " + pct() + " (" + pesos(Math.round(c.restoSoft * D.recargo)) + ")") + '</button>' +
+      (c.recargoExtra ? '<p class="nota">Acordate de cargar ' + pesos(c.recargoExtra) + ' en Resto Soft.</p>' : '') : '') +
     '<button class="ghost" id="bDatos">' + (c.revisado ? "Editar datos del cliente" : "Revisar datos del cliente") + '</button>' +
     (c.enviado ? '<p class="nota">Mensaje enviado el ' + esc(c.enviado) + ' por ' + esc(c.enviadoPor) + '.</p>' : '') +
     (c.pago ? '<p class="nota">Pago marcado el ' + esc(c.pago) + ' por ' + esc(c.pagoPor) + '.</p>' : '') +
@@ -3780,10 +3771,8 @@ function abrir(c) {
   $("bFB").onclick = function () { formFactura("B", c); };
   $("bDatos").onclick = function () { datosCliente(c); };
   if ($("bRec")) $("bRec").onclick = function () {
-    var b = this; b.disabled = true; b.textContent = "Guardando…";
-    run("marcarRecargoCargado", TOKEN, c.codigo, c.nombre, c.recargoApp, c.recargoSemanas.length).then(function () {
-      c.restoSoft = c.restoSoft + c.recargoApp; c.recargoApp = 0; c.recargoSemanas = []; abrir(c); dibujar();
-    }).catch(function (e) { b.disabled = false; alerta(e.message); });
+    c.recargoExtra = c.recargoExtra ? 0 : Math.round(c.restoSoft * D.recargo);
+    c.actual = c.restoSoft + c.recargoExtra; abrir(c); dibujar();
   };
 }
 function alerta(m) { var p = document.createElement("p"); p.className = "aviso"; p.textContent = m; $("box").appendChild(p); p.scrollIntoView({ block: "nearest" }); }
@@ -3938,13 +3927,67 @@ function vistaPdf(nombre, texto) {
     '<span style="width:30px;height:36px;border-radius:4px;background:#c0392b;color:#fff;font:700 10px var(--f-body);display:grid;place-items:center;flex:none">PDF</span>' +
     '<span><b style="display:block;font-size:13px">' + esc(nombre) + '</b><small class="nota">Resumen con el detalle de lo que debe</small></span></span>' + burbuja(texto) + '</div></div>';
 }
+/* El PDF se arma en la compu, con las mismas letras de la carta digital (Marcellus y Figtree). */
+var H2P = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js", cargandoH2P = null;
+function traerH2P() {
+  if (window.html2pdf) return Promise.resolve();
+  if (!cargandoH2P) cargandoH2P = new Promise(function (ok, mal) {
+    var sc = document.createElement("script"); sc.src = H2P; sc.onload = ok; sc.onerror = function () { cargandoH2P = null; mal(new Error("No se pudo cargar")); };
+    document.head.appendChild(sc);
+  });
+  return cargandoH2P;
+}
+function plata(n) { return (n < 0 ? "-$" : "$") + Math.abs(Math.round(Number(n))).toLocaleString("es-AR"); }
+function hojaPdf(r) {
+  var filas = "";
+  if (Number(r.previo) >= 1) filas += '<tr class="rec"><td></td><td>Saldo anterior pendiente</td><td class="m">' + plata(r.previo) + '</td></tr>';
+  (r.dias || []).forEach(function (d) {
+    filas += '<tr class="dia"><th colspan="3">' + esc(d.titulo) + '</th></tr>';
+    (d.filas || []).forEach(function (f) { filas += '<tr><td class="q">' + esc(f[0]) + '</td><td>' + esc(f[1]) + '</td><td class="m">' + esc(f[2]) + '</td></tr>'; });
+    filas += '<tr class="sub"><td></td><td>Total del día</td><td class="m">' + plata(d.total) + '</td></tr>';
+  });
+  if (Number(r.recargo) >= 1) filas += '<tr class="rec"><td></td><td>Recargo por saldo impago</td><td class="m">' + plata(r.recargo) + '</td></tr>';
+  var logo = document.querySelector(".logo") ? document.querySelector(".logo").src : "";
+  return '<div class="rpdf">' +
+    '<style>.rpdf{width:680px;padding:8px 6px;background:#fff;color:#1f2a26;font:15px/1.4 Figtree,Arial,sans-serif}' +
+    '.rpdf table{border-collapse:collapse;width:100%}.rpdf td,.rpdf th{padding:4px 0;vertical-align:baseline}' +
+    '.rpdf .cab{display:flex;gap:16px;align-items:center;border-bottom:1px solid #d6d0c2;padding-bottom:14px}.rpdf .cab img{height:66px}' +
+    '.rpdf .marca{font:34px/1 Marcellus,Georgia,serif;letter-spacing:2px}.rpdf .marca div{font:14px Figtree,Arial,sans-serif;letter-spacing:0;color:#5b625e;margin-top:6px}' +
+    '.rpdf .para{display:flex;justify-content:space-between;padding:14px 0 4px}' +
+    '.rpdf .dia th{text-align:left;font:16px Marcellus,Georgia,serif;letter-spacing:2px;text-transform:uppercase;color:#2f5d62;padding-top:16px;border-bottom:1px solid #e2dccf}' +
+    '.rpdf td.q{width:30px;color:#5b625e}.rpdf td.m{text-align:right;white-space:nowrap;padding-left:12px;font-variant-numeric:tabular-nums}' +
+    '.rpdf .sub td{font-size:14px;color:#5b625e;border-top:1px dotted #cfc9bb}.rpdf .rec td{padding-top:14px;font-weight:600}' +
+    '.rpdf .tot{display:flex;justify-content:space-between;border-top:2px solid #1f2a26;margin-top:6px;padding-top:12px;font:30px Marcellus,Georgia,serif}' +
+    '.rpdf .pie{margin-top:20px;text-align:center;color:#5b625e;font-size:14px;line-height:1.6}.rpdf tr{page-break-inside:avoid}</style>' +
+    '<div class="cab">' + (logo ? '<img src="' + logo + '">' : '') + '<div class="marca">LA CALETA<div>Yacht Club Rosario · ' + (r.tipo === "mesa" ? "Detalle de consumo pendiente" : "Resumen de cuenta corriente") + '</div></div></div>' +
+    '<div class="para"><span>' + (r.nombre ? 'Para: <b>' + esc(r.nombre) + '</b>' : '') + '</span><span>Al <b>' + esc(r.al) + '</b></span></div>' +
+    '<table>' + filas + '</table>' +
+    '<div class="tot"><span>Total a pagar</span><span>' + plata(r.total) + '</span></div>' +
+    '<div class="pie">' + (r.ultimo ? 'Último pago recibido: ' + esc(r.ultimo) + '<br>' : '') + 'Pagá en el salón o por transferencia al alias <b>' + esc(r.alias) + '</b><br>¡Gracias!</div></div>';
+}
+function nombreArchivo(r) { return "Resumen La Caleta - " + String(r.archivo || r.nombre || "cuenta").replace(new RegExp("[/:*?<>|]+", "g"), " ").trim() + " " + String(r.al || "").split("/").join("-") + ".pdf"; }
+function pdfCliente(r) {
+  return traerH2P().then(function () {
+    return Promise.all([document.fonts.load("34px Marcellus"), document.fonts.load("15px Figtree"), document.fonts.load("600 15px Figtree")]).catch(function () {});
+  }).then(function () {
+    var cont = document.createElement("div"); cont.style.cssText = "position:fixed;left:-10000px;top:0";
+    cont.innerHTML = hojaPdf(r); document.body.appendChild(cont);
+    var nombre = nombreArchivo(r);
+    return window.html2pdf().set({ margin: [12, 12, 12, 12], image: { type: "jpeg", quality: 0.96 }, html2canvas: { scale: 2, backgroundColor: "#ffffff" },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }, pagebreak: { mode: ["css", "legacy"] } })
+      .from(cont.firstChild).outputPdf("datauristring").then(function (uri) {
+        cont.remove(); return { nombre: nombre, b64: uri.slice(uri.indexOf(",") + 1) };
+      }, function (e) { cont.remove(); throw e; });
+  });
+}
 /** Botón que arma el PDF y muestra los dos pasos: bajarlo y abrir el chat. */
 function botonPdf(cont, r, wa, texto, alAbrirChat) {
   var b = document.createElement("button"); b.className = "wa"; b.textContent = "Mandar resumen en PDF";
   cont.textContent = ""; cont.appendChild(b);
   b.onclick = function () {
     b.disabled = true; b.textContent = "Armando el PDF…";
-    run("resumenPdf", TOKEN, r).then(function (d) { pasosPdf(cont, d, wa, texto, alAbrirChat); })
+    pdfCliente(r).catch(function () { return run("resumenPdf", TOKEN, r); })   // si no se puede en la compu, lo arma Google
+      .then(function (d) { pasosPdf(cont, d, wa, texto, alAbrirChat); })
       .catch(function (e) { b.disabled = false; b.textContent = "Mandar resumen en PDF"; var p = document.createElement("p"); p.className = "aviso"; p.textContent = e.message; cont.appendChild(p); });
   };
 }
