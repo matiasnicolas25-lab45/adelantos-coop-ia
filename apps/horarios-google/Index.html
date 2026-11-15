@@ -69,6 +69,7 @@
   .msg { padding: 12px; border-radius: 12px; background: var(--in-bg); font-weight: 600; }
   .msg.err { background: var(--warn-bg); color: var(--ink); border: 1px solid var(--warn); }
   .warn { padding: 12px; border-radius: 12px; border: 1px solid var(--warn); background: var(--warn-bg); margin: 0; }
+  input.hora { font: 34px var(--f-display); letter-spacing: .08em; text-align: center; padding: 12px; border: 2px solid var(--ink); border-radius: 14px; width: 100%; background: var(--paper); color: var(--ink); }
   input[type=time], input[type=search], input[type=tel] { font: 500 18px var(--f-body); padding: 12px; border: 1px solid var(--line); border-radius: 12px; width: 100%; background: var(--paper); color: var(--ink); }
   .ok { display: grid; justify-items: center; gap: 10px; padding: 18px 0 6px; text-align: center; }
   .ok .tick { width: 84px; height: 84px; border-radius: 50%; background: var(--in); color: #fff; display: grid; place-items: center; font-size: 46px; }
@@ -230,6 +231,17 @@ function exito(texto, detalle) {
   setTimeout(cerrar, detalle ? 6000 : 2200);
 }
 
+/* Campo de hora simple: se escriben los 4 números y los dos puntos se ponen solos (16:00). */
+function campoHora(id) {
+  var c = el("input", { type: "text", id: id, className: "hora", inputMode: "numeric", placeholder: "16:00", maxLength: 5, autocomplete: "off", enterKeyHint: "done" });
+  c.addEventListener("input", function () {
+    var d = c.value.replace(/[^0-9]/g, "").slice(0, 4);
+    c.value = d.length > 2 ? d.slice(0, 2) + ":" + d.slice(2) : d;
+  });
+  return c;
+}
+function horaOk(v) { return /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(v); }
+
 function abrir(n) {
   var a = estado.abiertos[n], olv = olvidada(a), nuevo = (estado.sinPin || []).indexOf(n) >= 0;
   var box = $("box"); box.textContent = "";
@@ -253,17 +265,17 @@ function abrir(n) {
 
   var acciones;
   if (olv) {
-    var hora = el("input", { type: "time", id: "horaOlvido" });
+    var hora = campoHora("horaOlvido");
     var guardar = el("button", { type: "button", className: "solo b-out", textContent: "Guardar salida" });
     guardar.onclick = function () {
       if (!pinOk()) return;
-      if (!hora.value) { mostrar("Poné la hora en que saliste.", true); return; }
+      if (!horaOk(hora.value)) { mostrar("Poné la hora en que saliste con 4 números, por ejemplo 16:00.", true); return; }
       guardar.disabled = true;
       google.script.run.withSuccessHandler(function (r) { if (r.ok) exito("Salida guardada a las " + hora.value, "Matías la va a revisar."); else { mostrar(r.texto, true); guardar.disabled = false; } })
         .withFailureHandler(function (err) { mostrar(err.message, true); guardar.disabled = false; }).marcar(n, pin, "olvido", null, hora.value);
     };
     hint = el("p", { className: "warn", textContent: "Te olvidaste de marcar la salida del " + diaTxt(a.fecha) + " (entraste a las " + a.entrada + "). Poné tu PIN y la hora en que saliste." });
-    acciones = el("div", { style: "display:grid;gap:10px" }, el("label", { className: "hint", htmlFor: "horaOlvido", textContent: "Hora de salida" }), hora, guardar);
+    acciones = el("div", { style: "display:grid;gap:10px" }, el("label", { className: "hint", htmlFor: "horaOlvido", textContent: "Hora de salida (4 números, ej. 16:00)" }), hora, guardar);
   } else {
     var pideCel = (estado.sinCel || []).indexOf(n) >= 0;
     var cel = el("input", { type: "tel", id: "cel", placeholder: "Ej: 341 5123456", inputMode: "numeric", autocomplete: "tel", enterKeyHint: "done" });
@@ -282,6 +294,21 @@ function abrir(n) {
     cel.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); cel.blur(); guardarCel.click(); } });
     var bin = el("button", { type: "button", className: "b-in", textContent: "Entré", disabled: !!a });
     var bout = el("button", { type: "button", className: "b-out", textContent: "Salí", disabled: !a });
+    // Salida desde afuera del club: el servidor pide la hora en que salió
+    var horaAfuera = campoHora("horaAfuera"), posAfuera = null;
+    var guardarAfuera = el("button", { type: "button", className: "solo b-out", textContent: "Guardar salida a esa hora" });
+    var cajaAfuera = el("div", { style: "display:grid;gap:10px", hidden: true },
+      el("label", { className: "hint", htmlFor: "horaAfuera", textContent: "Hora en que saliste (4 números, ej. 16:00)" }), horaAfuera, guardarAfuera);
+    guardarAfuera.onclick = function () {
+      if (!pinOk()) return;
+      if (!horaOk(horaAfuera.value)) { mostrar("Poné la hora en que saliste con 4 números, por ejemplo 16:00.", true); return; }
+      guardarAfuera.disabled = true;
+      google.script.run.withSuccessHandler(function (r) {
+        if (!r.ok) { mostrar(r.texto, true); guardarAfuera.disabled = false; return; }
+        exito("Salida guardada a las " + horaAfuera.value, "La cargaste desde afuera del club: Matías la va a revisar.");
+      }).withFailureHandler(function (err) { mostrar(err.message, true); guardarAfuera.disabled = false; }).marcar(n, pin, "out", posAfuera, horaAfuera.value, "");
+    };
+    horaAfuera.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); horaAfuera.blur(); guardarAfuera.click(); } });
     var enviar = function (tipo, btn) {
       if (!pinOk()) return;
       var numero = cel.value.replace(/[^0-9]/g, "");
@@ -289,6 +316,7 @@ function abrir(n) {
       btn.disabled = true; mostrar("Guardando… (buscando tu ubicación)", false);
       ubicacion(function (pos) {
         google.script.run.withSuccessHandler(function (r) {
+          if (!r.ok && r.pideHora) { posAfuera = pos; mostrar(r.texto, true); cajaAfuera.hidden = false; horaAfuera.focus(); return; }
           if (!r.ok) { mostrar(r.texto, true); btn.disabled = false; return; }
           var partes = r.texto.split(". ");
           exito(partes[0].replace("¡Listo " + n + "! ", ""), partes.slice(1).join(". "));
@@ -297,7 +325,7 @@ function abrir(n) {
     };
     bin.onclick = function () { enviar("in", bin); };
     bout.onclick = function () { enviar("out", bout); };
-    acciones = el("div", { className: "big" }, bin, bout);
+    acciones = el("div", { style: "display:grid;gap:14px" }, el("div", { className: "big" }, bin, bout), cajaAfuera);
     var cajaCel = el("div", { style: "display:grid;gap:10px" },
       el("label", { className: "hint", htmlFor: "cel", textContent: "Primero poné tu PIN y tu celular (una sola vez), para avisarte por WhatsApp si te olvidás de marcar:" }), cel, guardarCel);
     if (pideCel) acciones = el("div", { style: "display:grid;gap:14px" }, cajaCel, acciones);
