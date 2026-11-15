@@ -119,15 +119,17 @@ function marcar(nombre, pin, tipo, pos, horaOlvido, cel) {
       return { ok: true, texto: "¡Listo " + p.nombre + "! Quedó tu salida a las " + horaOlvido + ". Matías la va a revisar." };
     }
     // Fuera del club: no se toma la hora del momento, el socio pone la hora en que salió (nunca más tarde que ahora).
-    if (lugar.afuera) {
-      if (!horaOlvido) return { ok: false, pideHora: true, texto: "No estás en el club (" + lugar.dist + "). Poné la hora en que saliste." };
+    // Sin ubicación (permiso negado, compu sin GPS) se trata igual: no se puede saber si está en el club.
+    const sinDato = lugar.texto === "sin dato";
+    if (lugar.afuera || sinDato) {
+      if (!horaOlvido) return { ok: false, pideHora: true, texto: (sinDato ? "No pudimos ver tu ubicación" : "No estás en el club (" + lugar.dist + ")") + ". Poné la hora en que saliste." };
       const mal = horaMal(abierta, horaOlvido, ahora);
       if (mal) return { ok: false, pideHora: true, texto: mal };
       hoja.getRange(abierta.fila, 4).setValue("'" + horaOlvido).setBackground("#fff2cc");
-      hoja.getRange(abierta.fila, 6).setValue("afuera: salida cargada por el socio el " + Utilities.formatDate(ahora, ZONA, "dd/MM HH:mm")).setBackground("#fff2cc");
+      hoja.getRange(abierta.fila, 6).setValue((sinDato ? "sin ubicación" : "afuera") + ": salida cargada por el socio el " + Utilities.formatDate(ahora, ZONA, "dd/MM HH:mm")).setBackground("#fff2cc");
       hoja.getRange(abierta.fila, 9).setValue(lugar.texto);
       hoja.getRange(abierta.fila, 11).setValue(lugar.coord);
-      return { ok: true, texto: "¡Listo " + p.nombre + "! Quedó tu salida a las " + horaOlvido + ". Como la cargaste desde afuera del club, Matías la va a revisar." + nuevoPin(p) };
+      return { ok: true, texto: "¡Listo " + p.nombre + "! Quedó tu salida a las " + horaOlvido + ". Como la cargaste " + (sinDato ? "sin ubicación" : "desde afuera del club") + ", Matías la va a revisar." + nuevoPin(p) };
     }
     hoja.getRange(abierta.fila, 4).setValue("'" + hora(ahora));
     hoja.getRange(abierta.fila, 9).setValue(lugar.texto);
@@ -382,8 +384,8 @@ function avisoDiario(prueba) {
     const [f, nombre, entrada, salida, , origen, , lugarIn, lugarOut] = v[i];
     if (!nombre) continue;
     if (!salida && esOlvido(f, entrada)) olvidos.push({ nombre, f, entrada });
-    if (f === ayer && !/^afuera/.test(origen) && (/^NO/.test(lugarIn) || /^NO/.test(lugarOut))) afuera.push({ nombre, f, entrada, salida, lugar: /^NO/.test(lugarIn) ? lugarIn : lugarOut });
-    if (/^(olvido|afuera)/.test(origen) && origen.indexOf(Utilities.formatDate(new Date(Date.now() - 86400000), ZONA, "dd/MM")) >= 0) cargadas.push({ nombre, f, entrada, salida, afuera: /^afuera/.test(origen), lugar: lugarOut });
+    if (f === ayer && !/^(afuera|sin ubicación)/.test(origen) && (/^NO/.test(lugarIn) || /^NO/.test(lugarOut))) afuera.push({ nombre, f, entrada, salida, lugar: /^NO/.test(lugarIn) ? lugarIn : lugarOut });
+    if (/^(olvido|afuera|sin ubicación)/.test(origen) && origen.indexOf(Utilities.formatDate(new Date(Date.now() - 86400000), ZONA, "dd/MM")) >= 0) cargadas.push({ nombre, f, entrada, salida, afuera: /^afuera/.test(origen), sinUbic: /^sin ubicación/.test(origen), lugar: lugarOut });
   }
   if (!olvidos.length && !afuera.length && !cargadas.length && !prueba) return;
   const dia = f => f.slice(8) + "/" + f.slice(5, 7);
@@ -402,8 +404,8 @@ function avisoDiario(prueba) {
   if (cargadas.length) {
     html += "<h3>Salidas que cargaron ellos a mano (revisar)</h3><ul>";
     cargadas.forEach(o => html += "<li style='margin:8px 0'><b>" + o.nombre + "</b>: " + dia(o.f) + " de " + o.entrada + " a " + o.salida +
-      (o.afuera ? " · cargada desde afuera del club · " + o.lugar : " · salida olvidada") + "." +
-      wa(o.nombre, "Hola " + o.nombre + " 👋 vimos que la salida del " + dia(o.f) + " la cargaste a mano" + (o.afuera ? " desde afuera del club" : "") + ": pusiste que saliste a las " + o.salida +
+      (o.afuera ? " · cargada desde afuera del club · " + o.lugar : o.sinUbic ? " · cargada sin ubicación" : " · salida olvidada") + "." +
+      wa(o.nombre, "Hola " + o.nombre + " 👋 vimos que la salida del " + dia(o.f) + " la cargaste a mano" + (o.afuera ? " desde afuera del club" : o.sinUbic ? " sin la ubicación activada" : "") + ": pusiste que saliste a las " + o.salida +
         ". ¿Nos confirmás que fue a esa hora? Acordate de marcar la salida en la app antes de irte del club 🙏") + "</li>");
     html += "</ul>";
   }
@@ -876,7 +878,7 @@ function abrir(n) {
       guardarAfuera.disabled = true;
       google.script.run.withSuccessHandler(function (r) {
         if (!r.ok) { mostrar(r.texto, true); guardarAfuera.disabled = false; return; }
-        exito("Salida guardada a las " + horaAfuera.value, "La cargaste desde afuera del club: Matías la va a revisar.");
+        exito("Salida guardada a las " + horaAfuera.value, "Como la cargaste a mano, Matías la va a revisar.");
       }).withFailureHandler(function (err) { mostrar(err.message, true); guardarAfuera.disabled = false; }).marcar(n, pin, "out", posAfuera, horaAfuera.value, "");
     };
     horaAfuera.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); horaAfuera.blur(); guardarAfuera.click(); } });

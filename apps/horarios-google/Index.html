@@ -305,7 +305,7 @@ function abrir(n) {
       guardarAfuera.disabled = true;
       google.script.run.withSuccessHandler(function (r) {
         if (!r.ok) { mostrar(r.texto, true); guardarAfuera.disabled = false; return; }
-        exito("Salida guardada a las " + horaAfuera.value, "La cargaste desde afuera del club: Matías la va a revisar.");
+        exito("Salida guardada a las " + horaAfuera.value, "Como la cargaste a mano, Matías la va a revisar.");
       }).withFailureHandler(function (err) { mostrar(err.message, true); guardarAfuera.disabled = false; }).marcar(n, pin, "out", posAfuera, horaAfuera.value, "");
     };
     horaAfuera.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); horaAfuera.blur(); guardarAfuera.click(); } });
