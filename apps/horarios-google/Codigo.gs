@@ -382,8 +382,8 @@ function avisoDiario(prueba) {
     const [f, nombre, entrada, salida, , origen, , lugarIn, lugarOut] = v[i];
     if (!nombre) continue;
     if (!salida && esOlvido(f, entrada)) olvidos.push({ nombre, f, entrada });
-    if (f === ayer && (/^NO/.test(lugarIn) || /^NO/.test(lugarOut))) afuera.push({ nombre, f, entrada, salida, lugar: /^NO/.test(lugarIn) ? lugarIn : lugarOut });
-    if (/^(olvido|afuera)/.test(origen) && origen.indexOf(Utilities.formatDate(new Date(Date.now() - 86400000), ZONA, "dd/MM")) >= 0) cargadas.push({ nombre, f, entrada, salida });
+    if (f === ayer && !/^afuera/.test(origen) && (/^NO/.test(lugarIn) || /^NO/.test(lugarOut))) afuera.push({ nombre, f, entrada, salida, lugar: /^NO/.test(lugarIn) ? lugarIn : lugarOut });
+    if (/^(olvido|afuera)/.test(origen) && origen.indexOf(Utilities.formatDate(new Date(Date.now() - 86400000), ZONA, "dd/MM")) >= 0) cargadas.push({ nombre, f, entrada, salida, afuera: /^afuera/.test(origen), lugar: lugarOut });
   }
   if (!olvidos.length && !afuera.length && !cargadas.length && !prueba) return;
   const dia = f => f.slice(8) + "/" + f.slice(5, 7);
@@ -400,13 +400,18 @@ function avisoDiario(prueba) {
     html += "</ul>";
   }
   if (cargadas.length) {
-    html += "<h3>Salidas olvidadas que cargaron ellos (revisar)</h3><ul>";
-    cargadas.forEach(o => html += "<li><b>" + o.nombre + "</b>: " + dia(o.f) + " de " + o.entrada + " a " + o.salida + "</li>");
+    html += "<h3>Salidas que cargaron ellos a mano (revisar)</h3><ul>";
+    cargadas.forEach(o => html += "<li style='margin:8px 0'><b>" + o.nombre + "</b>: " + dia(o.f) + " de " + o.entrada + " a " + o.salida +
+      (o.afuera ? " · cargada desde afuera del club · " + o.lugar : " · salida olvidada") + "." +
+      wa(o.nombre, "Hola " + o.nombre + " 👋 vimos que la salida del " + dia(o.f) + " la cargaste a mano" + (o.afuera ? " desde afuera del club" : "") + ": pusiste que saliste a las " + o.salida +
+        ". ¿Nos confirmás que fue a esa hora? Acordate de marcar la salida en la app antes de irte del club 🙏") + "</li>");
     html += "</ul>";
   }
   if (afuera.length) {
     html += "<h3>Marcaron desde afuera del club (ayer)</h3><ul>";
-    afuera.forEach(o => html += "<li><b>" + o.nombre + "</b>: " + o.entrada + " a " + (o.salida || "…") + " · " + o.lugar + "</li>");
+    afuera.forEach(o => html += "<li style='margin:8px 0'><b>" + o.nombre + "</b>: " + o.entrada + " a " + (o.salida || "…") + " · " + o.lugar + "." +
+      wa(o.nombre, "Hola " + o.nombre + " 👋 el " + dia(o.f) + " marcaste en la app de La Caleta desde afuera del club (" + o.entrada + " a " + (o.salida || "…") +
+        "). Acordate de marcar la entrada y la salida estando en el club 🙏") + "</li>");
     html += "</ul>";
   }
   if (!olvidos.length && !afuera.length && !cargadas.length) html += "<p>Prueba: los avisos quedaron activados. Todos los días a las " + (Number(libro().getSheetByName("CONFIG").getRange("B6").getValue()) || 12) + " h te llega este mail si hay algo para revisar.</p>";
