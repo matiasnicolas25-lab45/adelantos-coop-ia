@@ -44,12 +44,13 @@ Temas que aparecen siempre y conviene entender por arriba:
 
 En Argentina, el equivalente es la facturación electrónica de ARCA.
 
-### 2. n8n (dos o tres semanas, de a poco)
+### 2. n8n: conocerlo, no pagarlo
 
-Es la herramienta que todos nombran y es gratis si se instala uno mismo.
+Mat ya usó n8n, armó un nodo y pagó un mes de la versión en la nube: es caro. Decisión: **no pagar n8n**.
 
-- **Meta**: rehacer una automatización tuya con n8n. Por ejemplo, que llegue una factura a una carpeta, Claude la lea y se cargue en la hoja de cálculo.
-- **Dónde aprender**: los cursos oficiales gratuitos de n8n (n8n.io, sección "Courses") y videos en YouTube buscando "n8n en español".
+- **Lo que ya usás es gratis y hace lo mismo**: Claude + Google Sheets + Apps Script (como el script de Resto Soft). Se vende igual: "automatizo con IA sobre tus planillas".
+- **Saber hablar de n8n alcanza**: qué es, para qué sirve y que existe una versión gratis que se instala en un servidor propio (unos 5 USD/mes de servidor). Si un cliente lo pide, la licencia o el servidor los paga el cliente.
+- **Si algún día hace falta**, se instala la versión gratis en un servidor y la armamos juntos.
 
 ### 3. Probar a la competencia (una semana)
 
@@ -80,5 +81,5 @@ Es la herramienta que todos nombran y es gratis si se instala uno mismo.
 |---|---|
 | 1 | Corregir el perfil y el demo, anotar los números del caso, aprender el vocabulario de España. |
 | 2 | Probar Lido con facturas viejas y pedir una demo de Apicbase o MarketMan. |
-| 3 y 4 | Curso de n8n y rehacer una automatización. |
+| 3 | Pulir una automatización propia (por ejemplo, la de facturas) para mostrarla en video. |
 | 4 | Armar los tres paquetes, grabar el video y publicar en LinkedIn. |
