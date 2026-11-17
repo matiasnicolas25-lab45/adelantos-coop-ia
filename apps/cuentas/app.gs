@@ -73,10 +73,11 @@ function cuentaOk() {
 
 function doGet() {
   if (!cuentaOk()) {
-    return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width, initial-scale=1"><p style="font:17px sans-serif;padding:24px">Esta app solo se abre con la cuenta de Google de La Caleta o la de Matías.</p>').setTitle("Cuentas La Caleta");
+    return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width, initial-scale=1"><p style="font:17px sans-serif;padding:24px">Esta app solo se abre con la cuenta de Google de La Caleta o la de Matías.</p>').setTitle("Cuentas La Caleta").setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
   return HtmlService.createHtmlOutput(PANTALLA).setTitle("Cuentas La Caleta")
-    .addMetaTag("viewport", "width=device-width, initial-scale=1, maximum-scale=1");
+    .addMetaTag("viewport", "width=device-width, initial-scale=1, maximum-scale=1")
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);   // para poder mostrarla dentro de una página de La Caleta (WordPress)
 }
 
 function nombresAcceso() {
