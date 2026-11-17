@@ -93,6 +93,7 @@ nav button.on{background:var(--ink);color:var(--paper)}
   </section>
 
   <section id="vApp" hidden style="display:grid;gap:16px">
+    <div id="avisoBloq" hidden></div>
     <div class="total"><span>Para cobrar</span><b id="tot">…</b><span id="totsub"></span></div>
     <div class="acc"><button class="ghost" id="bCargar">Cargar Excel nuevo</button><button class="ghost" id="bNueva">Nueva factura</button></div>
     <input id="busca" type="search" placeholder="Buscar cliente" autocomplete="off">
@@ -128,6 +129,20 @@ function run(fn) {
     })[fn].apply(null, args);
   });
 }
+/* Aviso para Matías: alguien quedó bloqueado por equivocarse 5 veces de PIN. */
+function avisoBloqueados() {
+  var a = $("avisoBloq"), bl = (D && D.bloqueados) || [];
+  a.hidden = !bl.length; a.textContent = "";
+  if (!bl.length) return;
+  var p = document.createElement("div"); p.className = "aviso"; p.style.cssText = "display:grid;gap:8px";
+  var t = document.createElement("span"); t.textContent = "Usuarios bloqueados por PIN equivocado: " + bl.join(", ") + ". Si fueron ellos, desbloquealos:"; p.appendChild(t);
+  bl.forEach(function (n) {
+    var b = document.createElement("button"); b.className = "ghost"; b.type = "button"; b.textContent = "Desbloquear a " + n;
+    b.onclick = function () { b.disabled = true; run("desbloquear", TOKEN, n).then(function () { D.bloqueados = D.bloqueados.filter(function (x) { return x !== n; }); avisoBloqueados(); }).catch(function (e) { b.disabled = false; b.textContent = e.message; }); };
+    p.appendChild(b);
+  });
+  a.appendChild(p);
+}
 function cerrar() { $("sheet").hidden = true; $("box").textContent = ""; }
 $("sheet").addEventListener("click", function (e) { if (e.target === this) cerrar(); });
 
@@ -142,7 +157,7 @@ function entrarPantalla() {
         usuario = n.nombre; pin = ""; puntos();
         Array.prototype.forEach.call(c.children, function (x) { x.classList.toggle("sel", x === b); });
         $("pinBox").hidden = false; $("pinErr").hidden = true;
-        $("pinTxt").textContent = n.nuevo ? "Es tu primera vez: elegí un PIN de 4 números y acordátelo." : "Poné tu PIN.";
+        $("pinTxt").textContent = "Poné tu PIN.";
       };
       c.appendChild(b);
     });
@@ -201,6 +216,7 @@ function cargar() {
     $("per").textContent = d.periodo ? "Cuentas corrientes · " + dm(d.periodo.desde) + " al " + dm(d.periodo.hasta) : "Cuentas corrientes";
     dibujar();
     traerCuits();   // la lista de CUIT queda lista para la factura A
+    avisoBloqueados();
   }).catch(function (e) { $("cargando").textContent = e.message; });
 }
 function saldo(c) { return c.actual; }
