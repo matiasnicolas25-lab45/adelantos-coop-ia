@@ -67,3 +67,27 @@ Rojo = algo falló (el detalle está adentro).
 - Horarios (socios): https://lacaleta.ycr.com.ar/app — por detrás usa
   https://script.google.com/macros/s/AKfycbwE-GsuQSuWV1dz8LhSAwIjbbUee5PL8Upl4-0bCuVJkecL7kzwfHM6HfpzoJqC8IRh/exec
 - Cuentas (caja): https://script.google.com/macros/s/AKfycbysdjenNpB6LOcR7soGVgwoJWvX2gcU1QDME3joX5RB6XR7NW3ocByEdcIWR6oikUECSg/exec
+
+## Glosario (palabras para entender lo técnico)
+
+- **Símbolo del sistema (cmd):** la ventana negra de Windows donde se escriben órdenes. Se abre con la tecla Windows y escribiendo `cmd`.
+- **Terminal o consola:** el nombre general de esa ventana. En Windows se llama Símbolo del sistema; en Mac, Terminal.
+- **Comando:** cada orden que se escribe en la terminal y se ejecuta con Enter. Por ejemplo `winget install …` o `npx … login`.
+- **Interfaz gráfica:** lo contrario de la terminal: ventanas, botones y menús que se usan con el mouse.
+- **Instalar un paquete:** bajar un programa desde una "tienda" por comando. **winget** es la tienda de Windows; **npm** es la tienda de programas para Node.
+- **Node.js:** programa que hace correr JavaScript en la compu, fuera del navegador.
+- **JavaScript:** el lenguaje de programación de las páginas web. Las dos apps de La Caleta están escritas en él.
+- **Apps Script:** el lugar de Google donde viven los programas de las apps, pegados a las planillas.
+- **Repositorio (repo):** la carpeta en GitHub donde está guardado todo el código de las apps, con el historial de cada cambio.
+- **GitHub:** el sitio donde está el repositorio.
+- **Commit:** cada cambio guardado en el repositorio, con una nota de qué se hizo.
+- **Rama (branch):** una línea de trabajo dentro del repositorio. La nuestra se llama `ccr-e008e6de-2fulh4`.
+- **Deploy (implementar o publicar):** poner una versión nueva del programa en funcionamiento para que la gente la use.
+- **Versión:** cada foto del programa publicada. Google guarda todas; el link `/exec` muestra la última.
+- **Token:** llave digital que reemplaza a la contraseña para que un programa actúe en tu nombre.
+- **OAuth:** el sistema de "Iniciar sesión con Google" que se usó para dar ese token.
+- **Secreto:** un dato privado (como el token) guardado cifrado en GitHub. Nadie lo puede volver a leer.
+- **API:** la puerta por la que un programa habla con otro. "Activar la API de Apps Script" fue abrir esa puerta.
+- **Automatización o pipeline:** pasos que la compu hace sola cuando pasa algo. Acá: GitHub publica las apps cuando se guarda un cambio.
+- **GitHub Actions:** la parte de GitHub que corre esas automatizaciones.
+- **Workflow:** el archivo con la receta de una automatización (`.github/workflows/subir-apps.yml`).
