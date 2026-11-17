@@ -121,14 +121,15 @@ function apuntarMensajes() {
 function conectarHoras(hoja, inicio) {
   const u = '"' + HORARIOS_ID + '"';
   hoja.getRange("L1").setValue("HS según la app → semana desde:");
-  hoja.getRange("M1").setValue(inicio).setNumberFormat("d/m/yyyy");
+  // la fecha va como fórmula para que no la corra la zona horaria; la planilla está en español: separador ";"
+  hoja.getRange("M1").setFormula("=DATE(" + inicio.getFullYear() + ";" + (inicio.getMonth() + 1) + ";" + inicio.getDate() + ")").setNumberFormat("d/m/yyyy");
   hoja.getRange("N1").setValue("✓ conectada con la app de horarios");
   const nombres = hoja.getRange(2, 1, 20, 1).getDisplayValues();
   for (let i = 0; i < nombres.length; i++) {
     if (!String(nombres[i][0]).trim()) continue;
     const f = i + 2;
-    const formula = "=IFERROR(INDEX(IMPORTRANGE(" + u + ",\"PARA PROPORCIONALES!C4:Z25\"),MATCH(TRIM($A" + f + "),IMPORTRANGE(" + u +
-      ",\"PARA PROPORCIONALES!A4:A25\"),0),MATCH($M$1,IMPORTRANGE(" + u + ",\"PARA PROPORCIONALES!C3:Z3\"),0)),\"\")";
+    const formula = "=IFERROR(INDEX(IMPORTRANGE(" + u + ";\"PARA PROPORCIONALES!C4:Z25\");MATCH(TRIM($A" + f + ");IMPORTRANGE(" + u +
+      ";\"PARA PROPORCIONALES!A4:A25\");0);MATCH($M$1;IMPORTRANGE(" + u + ";\"PARA PROPORCIONALES!C3:Z3\");0));\"\")";
     try { if (hoja.getRange(f, 12).getFormula() !== formula) hoja.getRange(f, 12).setFormula(formula); } catch (e) {}   // una celda combinada (nota de Belén) se saltea
   }
 }
