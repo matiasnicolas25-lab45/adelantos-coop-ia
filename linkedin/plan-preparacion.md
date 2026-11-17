@@ -44,13 +44,14 @@ Temas que aparecen siempre y conviene entender por arriba:
 
 En Argentina, el equivalente es la facturación electrónica de ARCA.
 
-### 2. n8n: conocerlo, no pagarlo
+### 2. n8n: aprenderlo sin pagar la nube
 
-Mat ya usó n8n, armó un nodo y pagó un mes de la versión en la nube: es caro. Decisión: **no pagar n8n**.
+Mat ya usó n8n y pagó un mes de la versión en la nube, que es cara. Pero los pedidos de trabajo lo piden, así que hay que saberlo usar.
 
-- **Lo que ya usás es gratis y hace lo mismo**: Claude + Google Sheets + Apps Script (como el script de Resto Soft). Se vende igual: "automatizo con IA sobre tus planillas".
-- **Saber hablar de n8n alcanza**: qué es, para qué sirve y que existe una versión gratis que se instala en un servidor propio (unos 5 USD/mes de servidor). Si un cliente lo pide, la licencia o el servidor los paga el cliente.
-- **Si algún día hace falta**, se instala la versión gratis en un servidor y la armamos juntos.
+- **Practicar gratis en la computadora propia**: n8n tiene una versión gratis que se instala en la PC. Sirve para aprender y para armar ejemplos; no se paga nada.
+- **Para un cliente**: se instala la versión gratis en un servidor (unos 5 USD/mes) o en la nube de n8n, y ese costo lo paga el cliente.
+- **Meta**: rehacer el circuito de facturas en n8n (llega la factura, Claude la lee, se carga en la planilla y avisa los aumentos) y guardarlo como ejemplo para mostrar.
+- **Cómo venderlo**: "Trabajo con n8n, Claude y Google Sheets; elijo la herramienta según lo que ya usa tu negocio y lo que quieras gastar por mes."
 
 ### 3. Probar a la competencia (una semana)
 
@@ -81,5 +82,5 @@ Mat ya usó n8n, armó un nodo y pagó un mes de la versión en la nube: es caro
 |---|---|
 | 1 | Corregir el perfil y el demo, anotar los números del caso, aprender el vocabulario de España. |
 | 2 | Probar Lido con facturas viejas y pedir una demo de Apicbase o MarketMan. |
-| 3 | Pulir una automatización propia (por ejemplo, la de facturas) para mostrarla en video. |
+| 3 y 4 | Instalar n8n gratis en la computadora y rehacer el circuito de facturas con n8n + Claude. |
 | 4 | Armar los tres paquetes, grabar el video y publicar en LinkedIn. |
