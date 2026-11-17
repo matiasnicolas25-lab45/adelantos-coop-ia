@@ -17,5 +17,11 @@
       "executeAs": "USER_ACCESSING",
       "access": "ANYONE"
     }
+  },
+  "proporcionales": {
+    "codigo": "apps/proporcionales/Codigo.gs",
+    "scriptId": "",
+    "parentId": "1zvvw5Nfr1jyOYcvaqT1MgBnWlBmb8r3eaTL865E5ddE",
+    "deploymentId": ""
   }
 }

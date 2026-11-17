@@ -47,6 +47,17 @@ if (H) {
   prueba("hora mal escrita: no vale", () => { si(H.horaMal(entrada("2026-11-15", "09:00"), "25:00", ahora("2026-11-15T18:30")) !== ""); si(H.horaMal(entrada("2026-11-15", "09:00"), "1600", ahora("2026-11-15T18:30")) !== ""); });
 }
 
+console.log("Proporcionales (botón Nueva semana)");
+let P;
+prueba("el programa no tiene errores de escritura", () => { P = new Function(fs.readFileSync(path.join(raiz, "apps/proporcionales/Codigo.gs"), "utf8") + ";return {leerHoras, leerDetalle, nombreHoras, nombreDetalle, sabadoDe};")(); });
+if (P) {
+  const d = (y, m, dd) => new Date(y, m - 1, dd), f = x => x && (x.getFullYear() + "-" + (x.getMonth() + 1) + "-" + x.getDate());
+  prueba("lee los nombres de Belén", () => { igual(f(P.leerHoras("7 al 13-11-26").inicio), "2026-11-7"); igual(f(P.leerHoras("31-10 AL 6-11-26").inicio), "2026-10-31"); igual(P.leerHoras("EXTRA FER. 9.11.26"), null); });
+  prueba("arma los nombres como ella", () => { igual(P.nombreHoras(d(2026, 11, 21)), "21 al 27-11-26"); igual(P.nombreHoras(d(2026, 11, 28)), "28-11 al 4-12-26"); igual(P.nombreDetalle(d(2026, 11, 28)), "detalle 28-11"); });
+  prueba("la semana va de sábado a viernes", () => { igual(f(P.sabadoDe(d(2026, 11, 17))), "2026-11-14"); igual(f(P.sabadoDe(d(2026, 11, 21))), "2026-11-21"); igual(f(P.sabadoDe(d(2026, 11, 20))), "2026-11-14"); });
+  prueba("detalle de enero queda en el año que viene", () => igual(f(P.leerDetalle("detalle 2-1", d(2026, 12, 28))), "2027-1-2"));
+}
+
 console.log("Cuentas");
 prueba("el programa no tiene errores de escritura", () => { new Function(fs.readFileSync(path.join(raiz, "apps/cuentas/Codigo.gs"), "utf8")); });
 prueba("la pantalla no tiene errores de escritura", () => {
