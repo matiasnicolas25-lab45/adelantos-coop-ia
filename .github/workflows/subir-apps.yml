@@ -13,7 +13,7 @@ jobs:
         with: { node-version: 20 }
       - run: npm install -g @google/clasp@2.4.2
       - name: Llave de Google (secreto CLASPRC_JSON)
-        env: { CLASPRC_JSON: "${{ secrets.CLASPRC_JSON }}" }
+        env: { CLASPRC_JSON: "${{ secrets.CLASPRC_JSON || secrets.CLAPSPRC_JSON }}" }
         run: |
           if [ -z "$CLASPRC_JSON" ]; then echo "Falta el secreto CLASPRC_JSON"; exit 1; fi
           printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
