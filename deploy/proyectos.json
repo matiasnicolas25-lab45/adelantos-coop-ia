@@ -2,14 +2,20 @@
   "_leeme": "Los dos programas de Apps Script que se suben solos. scriptId: Apps Script → Configuración del proyecto → ID de la secuencia de comandos. deploymentId: el código que está en el link /exec de cada app.",
   "horarios": {
     "codigo": "apps/horarios-google/Codigo.gs",
-    "scriptId": "",
+    "scriptId": "179FWloV9sS966m5Hw0txZHqZRMZUjyccozy9SW6YATEPId5mJF6A3wVF",
     "deploymentId": "AKfycbwE-GsuQSuWV1dz8LhSAwIjbbUee5PL8Upl4-0bCuVJkecL7kzwfHM6HfpzoJqC8IRh",
-    "webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" }
+    "webapp": {
+      "executeAs": "USER_DEPLOYING",
+      "access": "ANYONE_ANONYMOUS"
+    }
   },
   "cuentas": {
     "codigo": "apps/cuentas/Codigo.gs",
     "scriptId": "",
     "deploymentId": "AKfycbysdjenNpB6LOcR7soGVgwoJWvX2gcU1QDME3joX5RB6XR7NW3ocByEdcIWR6oikUECSg",
-    "webapp": { "executeAs": "USER_ACCESSING", "access": "ANYONE" }
+    "webapp": {
+      "executeAs": "USER_ACCESSING",
+      "access": "ANYONE"
+    }
   }
 }
