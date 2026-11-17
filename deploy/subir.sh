@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Sube cada programa a su proyecto de Apps Script y publica una versión nueva en el MISMO link (/exec).
-# Lo corre GitHub Actions (.github/workflows/subir-apps.yml). Necesita ~/.clasprc.json (secreto CLASPRC_JSON).
+# Lo corre GitHub Actions al guardar cambios (.github/workflows/subir-apps.yml). Necesita ~/.clasprc.json (secreto CLASPRC_JSON).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 for app in horarios cuentas; do
