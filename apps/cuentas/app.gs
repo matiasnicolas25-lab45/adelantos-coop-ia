@@ -436,7 +436,8 @@ function facturar(token, f) {
   const neto = dosDec(total / 1.21), iva = dosDec(total - neto);
   const lock = LockService.getScriptLock(); lock.waitLock(30000);
   try {
-    const ult = Number(xmlTag(wsfe("FECompUltimoAutorizado", "<ar:PtoVta>" + PUNTO_VENTA + "</ar:PtoVta><ar:CbteTipo>" + tipo + "</ar:CbteTipo>"), "CbteNro"));
+    const ult = ultimoAutorizado(tipo);
+    recuperarFaltantes(tipo, ult);   // si una factura anterior quedó aprobada en ARCA pero no anotada, la anota antes de seguir
     const n = ult + 1, hoy = Utilities.formatDate(new Date(), ZONA, "yyyyMMdd");
     // Igual que en Comprobantes en línea: "Productos y Servicios" (concepto 3), período facturado y vto. del pago = día de la factura.
     const desde = hoy, hasta = hoy;
@@ -473,6 +474,131 @@ function facturar(token, f) {
       sh.getRange(filaFac, 16).setValue(pdf);
     } catch (e) { errPdf = "La factura está hecha en ARCA, pero no se pudo armar el PDF: " + e.message; }
     return { numero: numero, cae: cae, vence: vto.slice(6, 8) + "/" + vto.slice(4, 6) + "/" + vto.slice(0, 4), total: total, neto: neto, iva: iva, tipo: f.tipo, pdf: pdf, errPdf: errPdf, wa: waFac };
+  } finally { lock.releaseLock(); }
+}
+
+/* ---------- comprobantes: último número, recuperar los que no quedaron anotados, nota de crédito ---------- */
+
+const ETIQUETA_CBTE = { 1: "Factura A", 6: "Factura B", 3: "Nota de crédito A", 8: "Nota de crédito B" };
+function numeroCbte(n) { return ("0000" + PUNTO_VENTA).slice(-5) + "-" + ("0000000" + n).slice(-8); }
+function ultimoAutorizado(tipo) {
+  return Number(xmlTag(wsfe("FECompUltimoAutorizado", "<ar:PtoVta>" + PUNTO_VENTA + "</ar:PtoVta><ar:CbteTipo>" + tipo + "</ar:CbteTipo>"), "CbteNro"));
+}
+function aaaammdd(t) { t = String(t || ""); return t.slice(6, 8) + "/" + t.slice(4, 6) + "/" + t.slice(0, 4); }
+
+/**
+ * Compara los últimos 10 números que ARCA aprobó con la hoja FACTURAS. Si alguno no está anotado
+ * (por ejemplo, se cortó internet justo después de que ARCA lo aprobó), lo trae de ARCA y lo anota.
+ * Devuelve los números que agregó.
+ */
+function recuperarFaltantes(tipo, ult) {
+  const etiqueta = ETIQUETA_CBTE[tipo], anotados = {};
+  filas("FACTURAS").forEach(r => { if (String(r[2]) === etiqueta) anotados[String(r[4]).trim()] = true; });
+  const agregados = [];
+  for (let n = Math.max(1, ult - 9); n <= ult; n++) {
+    const numero = numeroCbte(n);
+    if (anotados[numero]) continue;
+    const r = xmlTag(wsfe("FECompConsultar", "<ar:FeCompConsReq><ar:CbteTipo>" + tipo + "</ar:CbteTipo><ar:CbteNro>" + n + "</ar:CbteNro><ar:PtoVta>" + PUNTO_VENTA + "</ar:PtoVta></ar:FeCompConsReq>"), "ResultGet");
+    if (!r) continue;
+    const docTipo = xmlTag(r, "DocTipo"), docNro = xmlTag(r, "DocNro"), cond = xmlTag(r, "CondicionIVAReceptorId");
+    const conCuit = docTipo === "80" ? filas("CUIT").filter(x => String(x[1]).replace(/\D/g, "") === docNro)[0] : null;
+    const receptor = conCuit ? String(conCuit[0]).replace(/[\d-]{9,}/g, "").trim() : docTipo === "99" ? "Consumidor final" : "(recuperada de ARCA)";
+    hoja("FACTURAS").appendRow([aaaammdd(xmlTag(r, "CbteFch")), "ARCA (recuperada)", etiqueta, PUNTO_VENTA, numero, "", receptor,
+      (DOC[docTipo] || "") + (docTipo !== "99" ? " " + docNro : ""), COND_IVA[cond] || "", Number(xmlTag(r, "ImpNeto")), Number(xmlTag(r, "ImpIVA")),
+      Number(xmlTag(r, "ImpTotal")), xmlTag(r, "CodAutorizacion"), aaaammdd(xmlTag(r, "FchVto")),
+      "Recuperada de ARCA: estaba aprobada pero no había quedado anotada", "", ""]);
+    registrar("App", "Recuperó de ARCA " + etiqueta + " " + numero, receptor, "$" + fmt(Number(xmlTag(r, "ImpTotal"))) + " · CAE " + xmlTag(r, "CodAutorizacion"));
+    agregados.push(etiqueta + " " + numero);
+  }
+  return agregados;
+}
+
+/** Botón "Revisar con ARCA": busca en los cuatro tipos de comprobante si quedó alguno sin anotar. */
+function revisarConArca(token) {
+  quien(token);
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    let todos = [];
+    [1, 6, 3, 8].forEach(t => { todos = todos.concat(recuperarFaltantes(t, ultimoAutorizado(t))); });
+    return todos;
+  } finally { lock.releaseLock(); }
+}
+
+/** Fecha de la hoja ("11/11/2026 19:28" o fecha de Sheets) → "20261111". */
+function fechaArca(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, ZONA, "yyyyMMdd");
+  const m = String(v || "").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!m) throw new Error("No entiendo la fecha de la factura: " + v);
+  return m[3] + ("0" + m[2]).slice(-2) + ("0" + m[1]).slice(-2);
+}
+
+/**
+ * Nota de crédito sobre una factura de la hoja FACTURAS (total o parcial).
+ * f = {numero: "00005-00000001", tipo: "A"|"B", monto, motivo, wa}
+ */
+function notaCredito(token, f) {
+  const yo = quien(token);
+  const tipoFac = f.tipo === "A" ? "A" : f.tipo === "B" ? "B" : "";
+  if (!tipoFac) throw new Error("No sé de qué factura es la nota de crédito.");
+  const v = filas("FACTURAS");
+  const fac = v.filter(r => String(r[2]) === "Factura " + tipoFac && String(r[4]).trim() === String(f.numero).trim())[0];
+  if (!fac) throw new Error("No encontré la factura " + tipoFac + " " + f.numero + " en la hoja FACTURAS.");
+  const totalFac = dosDec(Number(fac[11]));
+  const asoc = "Factura " + tipoFac + " " + String(fac[4]).trim();
+  const ya = v.filter(r => /^Nota de crédito/.test(String(r[2])) && String(r[14]).indexOf(asoc) >= 0).reduce((a, r) => a + Number(r[11]), 0);
+  const queda = dosDec(totalFac - ya);
+  if (queda < 0.01) throw new Error("Esa factura ya está anulada entera con notas de crédito.");
+  const monto = dosDec(Number(f.monto || queda));
+  if (!(monto > 0)) throw new Error("Poné el importe de la nota de crédito.");
+  if (monto > queda + 0.001) throw new Error("La nota de crédito no puede ser mayor que lo que queda de la factura (" + fmt(queda) + ").");
+  const waNc = String(f.wa || "").trim() ? normalizarWa(f.wa) : String(fac[16] || "");
+  if (String(f.wa || "").trim() && !waNc) throw new Error("Ese WhatsApp no parece válido. Ponelo con característica, por ejemplo 341 5123456, o dejalo vacío.");
+  const docTxt = String(fac[7] || "");
+  const docTipo = /^CUIT/i.test(docTxt) ? "80" : /^DNI/i.test(docTxt) ? "96" : "99";
+  const docNro = docTipo === "99" ? "0" : docTxt.replace(/\D/g, "");
+  const cond = Object.keys(COND_IVA).filter(k => COND_IVA[k] === String(fac[8]))[0] || (tipoFac === "A" ? "1" : "5");
+  const tipo = tipoFac === "A" ? 3 : 8, tipoAsoc = tipoFac === "A" ? 1 : 6;
+  const nAsoc = Number(String(fac[4]).split("-")[1]), fchAsoc = fechaArca(fac[0]);
+  const neto = dosDec(monto / 1.21), iva = dosDec(monto - neto);
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const ult = ultimoAutorizado(tipo);
+    recuperarFaltantes(tipo, ult);
+    const n = ult + 1, hoy = Utilities.formatDate(new Date(), ZONA, "yyyyMMdd");
+    const det = "<ar:FECAEDetRequest><ar:Concepto>3</ar:Concepto><ar:DocTipo>" + docTipo + "</ar:DocTipo><ar:DocNro>" + docNro + "</ar:DocNro>" +
+      "<ar:CbteDesde>" + n + "</ar:CbteDesde><ar:CbteHasta>" + n + "</ar:CbteHasta><ar:CbteFch>" + hoy + "</ar:CbteFch>" +
+      "<ar:ImpTotal>" + fmt(monto) + "</ar:ImpTotal><ar:ImpTotConc>0</ar:ImpTotConc><ar:ImpNeto>" + fmt(neto) + "</ar:ImpNeto>" +
+      "<ar:ImpOpEx>0</ar:ImpOpEx><ar:ImpTrib>0</ar:ImpTrib><ar:ImpIVA>" + fmt(iva) + "</ar:ImpIVA>" +
+      "<ar:FchServDesde>" + fchAsoc + "</ar:FchServDesde><ar:FchServHasta>" + fchAsoc + "</ar:FchServHasta><ar:FchVtoPago>" + hoy + "</ar:FchVtoPago>" +
+      "<ar:MonId>PES</ar:MonId><ar:MonCotiz>1</ar:MonCotiz><ar:CondicionIVAReceptorId>" + cond + "</ar:CondicionIVAReceptorId>" +
+      "<ar:CbtesAsoc><ar:CbteAsoc><ar:Tipo>" + tipoAsoc + "</ar:Tipo><ar:PtoVta>" + PUNTO_VENTA + "</ar:PtoVta><ar:Nro>" + nAsoc + "</ar:Nro>" +
+      "<ar:Cuit>" + CUIT + "</ar:Cuit><ar:CbteFch>" + fchAsoc + "</ar:CbteFch></ar:CbteAsoc></ar:CbtesAsoc>" +
+      "<ar:Iva><ar:AlicIva><ar:Id>5</ar:Id><ar:BaseImp>" + fmt(neto) + "</ar:BaseImp><ar:Importe>" + fmt(iva) + "</ar:Importe></ar:AlicIva></ar:Iva>" +
+      "</ar:FECAEDetRequest>";
+    const r = wsfe("FECAESolicitar", "<ar:FeCAEReq><ar:FeCabReq><ar:CantReg>1</ar:CantReg><ar:PtoVta>" + PUNTO_VENTA + "</ar:PtoVta><ar:CbteTipo>" + tipo +
+      "</ar:CbteTipo></ar:FeCabReq><ar:FeDetReq>" + det + "</ar:FeDetReq></ar:FeCAEReq>");
+    const resp = xmlTag(r, "FECAEDetResponse");
+    if (xmlTag(resp, "Resultado") !== "A") {
+      const obs = xmlTag(resp, "Observaciones");
+      throw new Error("ARCA rechazó la nota de crédito: " + (desescapar(xmlTag(obs, "Msg")) || "sin detalle") + (obs ? " (código " + xmlTag(obs, "Code") + ")" : ""));
+    }
+    const cae = xmlTag(resp, "CAE"), vto = xmlTag(resp, "CAEFchVto"), numero = numeroCbte(n);
+    const receptor = String(fac[6] || "Consumidor final");
+    const motivo = String(f.motivo || "").trim();
+    const sh = hoja("FACTURAS");
+    sh.appendRow([ahoraTxt(), yo.nombre, "Nota de crédito " + tipoFac, PUNTO_VENTA, numero, fac[5] || "", receptor, docTxt, String(fac[8] || ""),
+      neto, iva, monto, cae, aaaammdd(vto), "Sobre " + asoc + (motivo ? " · " + motivo : ""), "", waNc]);
+    const filaNc = sh.getLastRow();
+    registrar(yo.nombre, "Hizo la nota de crédito " + tipoFac + " " + numero, receptor, "$" + fmt(monto) + " sobre " + asoc + " · CAE " + cae);
+    let pdf = "", errPdf = "";
+    try {
+      pdf = facturaPdf({ tipo: tipoFac, nc: true, asociado: asoc, n: n, fecha: new Date(), docTipo: docTipo, docNro: docNro, nombre: receptor, domicilio: "",
+        cond: cond, neto: neto, iva: iva, total: monto, cae: cae, vto: vto, detalle: "Nota de crédito sobre " + asoc + (motivo ? " (" + motivo + ")" : ""),
+        desde: fchAsoc, hasta: fchAsoc, vtoPago: hoy, venta: "Otra" });
+      sh.getRange(filaNc, 16).setValue(pdf);
+    } catch (e) { errPdf = "La nota de crédito está hecha en ARCA, pero no se pudo armar el PDF: " + e.message; }
+    return { numero: numero, cae: cae, vence: aaaammdd(vto), total: monto, neto: neto, iva: iva, tipo: tipoFac, etiqueta: "nota de crédito " + tipoFac,
+      pdf: pdf, errPdf: errPdf, wa: waNc, asociado: asoc };
   } finally { lock.releaseLock(); }
 }
 

@@ -48,7 +48,8 @@ function cuitGuiones(c) { c = String(c); return c.length === 11 ? c.slice(0, 2) 
  * x = {tipo "A"|"B", n (número), fecha (Date), docTipo, docNro, nombre, domicilio, cond, neto, iva, total, cae, vto (yyyymmdd), detalle}
  */
 function facturaPdf(x) {
-  const cod = x.tipo === "A" ? "01" : "06", tipoCmp = x.tipo === "A" ? 1 : 6;
+  // x.nc = nota de crédito (código 03 para A, 08 para B), con x.asociado = "Factura A 00005-…"
+  const cod = x.nc ? (x.tipo === "A" ? "03" : "08") : (x.tipo === "A" ? "01" : "06"), tipoCmp = Number(cod);
   const numero = ("0000" + PUNTO_VENTA).slice(-5) + "-" + ("0000000" + x.n).slice(-8);
   const fecha = Utilities.formatDate(x.fecha, ZONA, "dd/MM/yyyy"), fechaIso = Utilities.formatDate(x.fecha, ZONA, "yyyy-MM-dd");
   const qr = {
@@ -94,7 +95,7 @@ function facturaPdf(x) {
     "<div><b>Razón Social:</b> COOPERATIVA DE TRABAJO LA CALETA LIMITADA</div><div><b>Domicilio Comercial:</b> " + escH(DOMICILIO) + "</div>" +
     "<div style='margin-top:4px'><b>Condición frente al IVA: IVA Responsable Inscripto</b></div></td>" +
     "<td style='width:8%' class='c'><div class='letra' style='margin:0 auto'>" + x.tipo + "<div>COD. " + cod + "</div></div></td>" +
-    "<td class='p' style='width:46%'><div class='factura'>FACTURA</div>" +
+    "<td class='p' style='width:46%'><div class='factura'>" + (x.nc ? "NOTA DE CRÉDITO" : "FACTURA") + "</div>" +
     "<div style='margin-top:6px'><b>Punto de Venta: &nbsp;" + numero.slice(0, 5) + "</b> &nbsp;&nbsp; <b>Comp. Nro: &nbsp;" + numero.slice(6) + "</b></div>" +
     "<div><b>Fecha de Emisión: &nbsp;" + fecha + "</b></div><div style='margin-top:6px'><b>CUIT:</b> " + CUIT + "</div>" +
     (iibb ? "<div><b>Ingresos Brutos:</b> " + escH(iibb) + "</div>" : "") + (inicio ? "<div><b>Fecha de Inicio de Actividades:</b> " + escH(inicio) + "</div>" : "") + "</td>" +
@@ -116,7 +117,7 @@ function facturaPdf(x) {
     "<div class='chico' style='margin-top:6px'>Esta Agencia no se responsabiliza por los datos ingresados en el detalle de la operación</div></td>" +
     "<td class='n' style='padding-top:14px;font-size:11px'><div><b>CAE N°:</b> " + escH(x.cae) + "</div><div><b>Fecha de Vto. de CAE:</b> " + vto + "</div></td></tr></table>" +
     "</body></html>";
-  const nombreArchivo = "Factura " + x.tipo + " " + numero + " - " + String(x.nombre || "Consumidor final").replace(/[\/\\:*?"<>|]/g, " ") + ".pdf";
+  const nombreArchivo = (x.nc ? "Nota de crédito " : "Factura ") + x.tipo + " " + numero + " - " + String(x.nombre || "Consumidor final").replace(/[\/\\:*?"<>|]/g, " ") + ".pdf";
   const pdf = Utilities.newBlob(html, "text/html", "f.html").getAs("application/pdf").setName(nombreArchivo);
   return DriveApp.getFolderById(FACTURAS_CARPETA).createFile(pdf).getUrl();
 }

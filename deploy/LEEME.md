@@ -52,6 +52,24 @@ con la llave de Mat.
 Para ver si una subida anduvo: GitHub → pestaña **Actions** → "Subir apps a Google". Verde = publicado.
 Rojo = algo falló (el detalle está adentro).
 
+## Pruebas antes de publicar
+
+Antes de subir nada, GitHub corre `deploy/probar.js`: revisa que los programas no tengan errores de escritura
+y prueba lo delicado (horas de salida, facturas, notas de crédito, recuperar facturas de ARCA) con datos
+simulados, sin tocar ARCA ni las planillas de verdad. **Si una prueba falla, no se publica nada** y las apps
+siguen con la versión anterior. En GitHub → Actions se ve cuál falló.
+
+## Volver atrás (si una versión sale mal)
+
+Cada publicación queda en GitHub → **Actions** → "Subir apps a Google", una por cambio, con su fecha.
+Para volver a una versión anterior:
+1. Entrar a esa lista y abrir la **última publicación que andaba bien** (en verde).
+2. Arriba a la derecha: **Re-run all jobs** (Volver a ejecutar).
+3. En unos 30 segundos las dos apps vuelven a ese código, en el mismo link.
+
+También se le puede pedir a Claude "volvé atrás": deshace el último cambio en el repositorio y se publica solo.
+Ojo: el próximo cambio que se guarde vuelve a publicar lo último.
+
 ## Cuándo hay que tocar algo
 
 - **Si Mat cambia la contraseña de Google o saca el permiso:** la llave deja de servir. Se repite el login

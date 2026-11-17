@@ -695,7 +695,7 @@ function pasosPdf(cont, d, wa, texto, alAbrirChat) {
   if (alAbrirChat) $("paso2").addEventListener("click", alAbrirChat);
 }
 function botonWhatsApp(cont, x) {
-  var t = "Hola" + (x.saludo ? " " + x.saludo : "") + "! Te enviamos tu factura " + x.tipo + " N° " + x.numero + " de La Caleta por " + pesos2(x.total) + ". ¡Gracias!";
+  var t = "Hola" + (x.saludo ? " " + x.saludo : "") + "! Te enviamos tu " + (x.etiqueta || "factura " + x.tipo) + " N° " + x.numero + " de La Caleta por " + pesos2(x.total) + ". ¡Gracias!";
   var b = document.createElement("button"); b.className = "wa"; b.textContent = "Mandar por WhatsApp";
   cont.textContent = ""; cont.appendChild(b);
   b.onclick = function () {
@@ -843,22 +843,69 @@ function abrirMesa(m) {
   $("bCopiar").onclick = function () { var b = this; if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { b.textContent = "Copiado ✓"; }, function () { b.textContent = "No se pudo copiar"; }); };
 }
 $("bNueva").onclick = function () { $("sheet").hidden = false; formFactura("B", null); };
-$("bFacturas").onclick = function () {
+$("bFacturas").onclick = verFacturas;
+function verFacturas(aviso) {
   var B = $("box"); $("sheet").hidden = false;
   B.innerHTML = '<div class="top"><h3>Últimas facturas</h3><button class="close" id="x">Cerrar</button></div><p class="nota">Cargando…</p>';
   $("x").onclick = cerrar;
   run("ultimasFacturas", TOKEN).then(function (fs) {
-    B.innerHTML = '<div class="top"><h3>Últimas facturas</h3><button class="close" id="x">Cerrar</button></div>' + (fs.length ? fs.map(function (f) {
-      return '<div class="resumen"><div><b>' + esc(f.tipo + " " + f.numero) + '</b><b>' + pesos2(f.total) + '</b></div><div><span>' + esc(f.receptor) + '</span><span class="nota">' + esc(f.fecha + " · " + f.quien) + '</span></div>' +
-        (f.pdf ? '<div class="envF" data-i="' + fs.indexOf(f) + '"></div>' : '') + '</div>';
+    B.innerHTML = '<div class="top"><h3>Últimas facturas</h3><button class="close" id="x">Cerrar</button></div>' +
+      (typeof aviso === "string" && aviso ? '<p class="bien">' + esc(aviso) + '</p>' : '') +
+      '<button class="ghost" id="bArca">Revisar con ARCA que estén todas</button>' +
+      (fs.length ? fs.map(function (f, i) {
+      var esNc = /^Nota de crédito/.test(f.tipo);
+      return '<div class="resumen"><div><b>' + esc(f.tipo + " " + f.numero) + '</b><b>' + (esNc ? "-" : "") + pesos2(f.total) + '</b></div><div><span>' + esc(f.receptor) + '</span><span class="nota">' + esc(f.fecha + " · " + f.quien) + '</span></div>' +
+        (f.pdf ? '<div class="envF" data-i="' + i + '"></div>' : '') +
+        (!esNc && f.cae ? '<button class="ghost bNc" data-i="' + i + '">Hacer nota de crédito</button>' : '') + '</div>';
     }).join("") : '<p class="nota">Todavía no se hizo ninguna factura.</p>');
     $("x").onclick = cerrar;
     Array.prototype.forEach.call(B.querySelectorAll(".envF"), function (d) {
-      var f = fs[Number(d.dataset.i)];
-      botonWhatsApp(d, { pdf: f.pdf, wa: f.wa, tipo: f.tipo.replace("Factura ", ""), numero: f.numero, total: f.total, saludo: "" });
+      var f = fs[Number(d.dataset.i)], esNc = /^Nota de crédito/.test(f.tipo), letra = f.tipo.slice(-1);
+      botonWhatsApp(d, { pdf: f.pdf, wa: f.wa, tipo: letra, etiqueta: esNc ? "nota de crédito " + letra : "", numero: f.numero, total: f.total, saludo: "" });
     });
-  });
-};
+    Array.prototype.forEach.call(B.querySelectorAll(".bNc"), function (b) { b.onclick = function () { formNotaCredito(fs[Number(b.dataset.i)]); }; });
+    $("bArca").onclick = function () {
+      var b = this; b.disabled = true; b.textContent = "Revisando con ARCA…";
+      run("revisarConArca", TOKEN).then(function (r) {
+        verFacturas(r.length ? "Se recuperaron de ARCA: " + r.join(", ") + "." : "Está todo bien: todas las facturas de ARCA están anotadas.");
+      }).catch(function (e) { b.disabled = false; b.textContent = "Revisar con ARCA que estén todas"; alerta(e.message); });
+    };
+  }).catch(function (e) { B.innerHTML = '<div class="top"><h3>Últimas facturas</h3><button class="close" id="x">Cerrar</button></div><p class="aviso">' + esc(e.message) + '</p>'; $("x").onclick = cerrar; });
+}
+/* ---------- nota de crédito: anula una factura entera o una parte ---------- */
+function formNotaCredito(f) {
+  var B = $("box"), letra = f.tipo.slice(-1);
+  B.innerHTML = '<div class="top"><div><h3>Nota de crédito ' + esc(letra) + '</h3><div class="sub">Sobre ' + esc(f.tipo + " " + f.numero) + ' · ' + esc(f.receptor) + '</div></div><button class="close" id="x">Volver</button></div>' +
+    '<p class="nota">La nota de crédito anula la factura en ARCA, entera o una parte. Va al mismo cliente que la factura.</p>' +
+    '<label>Importe <small>Total de la factura: ' + pesos2(f.total) + '. Si anulás todo, dejalo así.</small><input id="ncMonto" inputmode="decimal" value="' + String(f.total).replace(".", ",") + '"></label>' +
+    '<label>Motivo <small>Opcional, sale en el PDF. Ej: error en el importe</small><input id="ncMotivo"></label>' +
+    '<label>WhatsApp del cliente <small>Opcional</small><input id="ncWa" type="tel" value="' + esc(f.wa || "") + '"></label>' +
+    '<button class="solo" id="ncRev">Revisar</button>';
+  $("x").onclick = function () { verFacturas(); };
+  $("ncRev").onclick = function () {
+    var monto = Number(String($("ncMonto").value).replace(/[^0-9,.]/g, "").replace(/[.](?=[0-9]{3}([^0-9]|$))/g, "").replace(",", "."));
+    if (!(monto > 0)) { alerta("Poné el importe de la nota de crédito."); return; }
+    if (monto > f.total + 0.001) { alerta("No puede ser mayor que la factura (" + pesos2(f.total) + ")."); return; }
+    var x = { numero: f.numero, tipo: letra, monto: monto, motivo: $("ncMotivo").value, wa: $("ncWa").value };
+    B.innerHTML = '<div class="top"><h3>¿Hacemos la nota de crédito?</h3><button class="close" id="x">Volver</button></div>' +
+      '<div class="resumen"><div><span>Anula</span><b>' + esc(f.tipo + " " + f.numero) + '</b></div><div><span>Cliente</span><b>' + esc(f.receptor) + '</b></div>' +
+      '<div><span>Importe</span><b class="grande">' + pesos2(monto) + '</b></div>' + (x.motivo ? '<div><span>Motivo</span><b>' + esc(x.motivo) + '</b></div>' : '') + '</div>' +
+      '<p class="aviso">Esto queda informado en ARCA y no se puede deshacer.</p>' +
+      '<button class="solo" id="ncOk">Confirmar y hacer la nota de crédito</button>';
+    $("x").onclick = function () { formNotaCredito(f); };
+    $("ncOk").onclick = function () {
+      var b = this; b.disabled = true; b.textContent = "Pidiendo el CAE a ARCA…";
+      run("notaCredito", TOKEN, x).then(function (r) {
+        B.innerHTML = '<div class="top"><div><h3>Nota de crédito ' + esc(r.tipo) + ' hecha</h3><div class="sub">' + esc(f.receptor) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
+          '<p class="bien">Número ' + esc(r.numero) + ' · ' + pesos2(r.total) + ' · sobre ' + esc(r.asociado) + '</p><div class="resumen"><div><span>CAE</span><b>' + esc(r.cae) + '</b></div><div><span>Vence el CAE</span><b>' + esc(r.vence) + '</b></div></div>' +
+          (r.pdf ? '<div id="envNc"></div><p class="nota"><a href="' + esc(r.pdf) + '">Ver el PDF en Drive</a></p>' : '<p class="aviso">' + esc(r.errPdf) + '</p>') +
+          '<p class="nota">Quedó anotada en la hoja FACTURAS de la planilla.</p>';
+        $("x").onclick = function () { verFacturas(); };
+        if (r.pdf) botonWhatsApp($("envNc"), { pdf: r.pdf, wa: r.wa, tipo: r.tipo, etiqueta: r.etiqueta, numero: r.numero, total: r.total, saludo: "" });
+      }).catch(function (e) { b.disabled = false; b.textContent = "Confirmar y hacer la nota de crédito"; alerta(e.message); });
+    };
+  };
+}
 $("bCargar").onclick = function () {
   var b = this, inp = document.createElement("input"); inp.type = "file"; inp.accept = ".xls,.xlsx";
   inp.onchange = function () {
