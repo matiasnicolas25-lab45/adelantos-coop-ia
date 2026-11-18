@@ -99,6 +99,7 @@ nav button.on{background:var(--ink);color:var(--paper)}
     <nav id="filtros"><button class="on" data-f="deben">Deben</button><button data-f="enviados">Enviados</button><button data-f="pagaron">Pagaron</button><button data-f="todos">Todos</button><button data-f="mesas">Mesas</button></nav>
     <div class="list" id="lista"></div>
     <button class="ghost" id="bFacturas">Ver últimas facturas</button>
+    <button class="ghost" id="bRecCob" hidden></button>
   </section>
   <p class="nota" id="cargando">Cargando…</p>
 </div>
@@ -194,12 +195,12 @@ function cargar() {
     D = d; $("cargando").hidden = true; $("vApp").hidden = false;
     D.clientes.forEach(function (c) {
       // el saldo y los recargos van tal cual vienen del Excel de Resto Soft; el 2,5 % solo se suma si alguien toca el botón
-      c.restoSoft = c.actual; c.recargoExtra = 0;
+      c.restoSoft = c.actual; c.recargoExtra = c.restoSoft > 0 ? c.recargoSumado || 0 : 0; c.actual = c.restoSoft + c.recargoExtra;
     });
     $("yo").innerHTML = esc(d.yo.nombre) + '<br><button id="bSalir">Salir</button>';
     $("bSalir").onclick = function () { TOKEN = null; entrarPantalla(); };
     $("per").textContent = d.periodo ? "Cuentas corrientes · " + dm(d.periodo.desde) + " al " + dm(d.periodo.hasta) : "Cuentas corrientes";
-    dibujar();
+    dibujar(); botonRecargos();
     traerCuits();   // la lista de CUIT queda lista para la factura A
   }).catch(function (e) { $("cargando").textContent = e.message; });
 }
@@ -418,7 +419,7 @@ function abrir(c) {
     '<div class="two"><button class="ghost' + (c.pago ? " ok" : "") + '" id="bPago">' + (c.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">' + (conPdf ? "Copiar como texto" : "Copiar mensaje") + '</button></div>' +
     '<div class="two"><button class="ghost" id="bFA">Factura A</button><button class="ghost" id="bFB">Factura B</button></div>' +
     (c.restoSoft > 0 ? '<button class="ghost' + (c.recargoExtra ? " sel" : "") + '" id="bRec">' + (c.recargoExtra ? "✓ Recargo " + pct() + " sumado (" + pesos(c.recargoExtra) + ") · tocá para sacarlo" : "Sumar recargo " + pct() + " (" + pesos(Math.round(c.restoSoft * D.recargo)) + ")") + '</button>' +
-      (c.recargoExtra ? '<p class="nota">Acordate de cargar ' + pesos(c.recargoExtra) + ' en Resto Soft.</p>' : '') : '') +
+      (c.recargoExtra ? '<p class="nota">Cuando marques que pagó, el recargo queda anotado en "Recargos cobrados" para cargarlos todos juntos en Resto Soft.</p>' : '') : '') +
     '<button class="ghost" id="bDatos">' + (c.revisado ? "Editar datos del cliente" : "Revisar datos del cliente") + '</button>' +
     (c.enviado ? '<p class="nota">Mensaje enviado el ' + esc(c.enviado) + ' por ' + esc(c.enviadoPor) + '.</p>' : '') +
     (c.pago ? '<p class="nota">Pago marcado el ' + esc(c.pago) + ' por ' + esc(c.pagoPor) + '.</p>' : '') +
@@ -431,7 +432,7 @@ function abrir(c) {
   else $("env").onclick = enviado;
   $("bPago").onclick = function () {
     var nuevo = !c.pago; this.disabled = true;
-    run("marcar", TOKEN, c.codigo, c.nombre, "pago", nuevo).then(function () { c.pago = nuevo ? "recién" : ""; c.pagoPor = D.yo.nombre; cerrar(); dibujar(); })
+    run("marcar", TOKEN, c.codigo, c.nombre, "pago", nuevo).then(function () { c.pago = nuevo ? "recién" : ""; c.pagoPor = D.yo.nombre; cerrar(); dibujar(); refrescarRecargos(); })
       .catch(function (e) { alerta(e.message); });
   };
   $("bCopiar").onclick = function () {
@@ -444,6 +445,7 @@ function abrir(c) {
   if ($("bRec")) $("bRec").onclick = function () {
     c.recargoExtra = c.recargoExtra ? 0 : Math.round(c.restoSoft * D.recargo);
     c.actual = c.restoSoft + c.recargoExtra; abrir(c); dibujar();
+    run("guardarRecargo", TOKEN, c.codigo, c.nombre, c.recargoExtra).then(refrescarRecargos).catch(function (e) { alerta(e.message); });
   };
 }
 function alerta(m) { var p = document.createElement("p"); p.className = "aviso"; p.textContent = m; $("box").appendChild(p); p.scrollIntoView({ block: "nearest" }); }
@@ -844,6 +846,30 @@ function abrirMesa(m) {
 }
 $("bNueva").onclick = function () { $("sheet").hidden = false; formFactura("B", null); };
 $("bFacturas").onclick = verFacturas;
+/* ---------- recargos cobrados: se juntan para cargarlos de una vez en Resto Soft ---------- */
+function botonRecargos() {
+  var rs = D.recargosCobrados || [], b = $("bRecCob"), t = 0;
+  rs.forEach(function (r) { t += r.monto; });
+  b.hidden = !rs.length;
+  b.textContent = "Recargos cobrados para cargar en Resto Soft: " + pesos(t) + " (" + rs.length + ")";
+}
+function refrescarRecargos() { run("datos", TOKEN).then(function (d) { D.recargosCobrados = d.recargosCobrados; botonRecargos(); }).catch(function () {}); }
+$("bRecCob").onclick = function () {
+  var rs = D.recargosCobrados || [], B = $("box"), t = 0;
+  rs.forEach(function (r) { t += r.monto; });
+  $("sheet").hidden = false;
+  B.innerHTML = '<div class="top"><div><h3>Recargos cobrados</h3><div class="sub">Todavía no cargados en Resto Soft</div></div><button class="close" id="x">Cerrar</button></div>' +
+    rs.map(function (r) { return '<div class="resumen"><div><b>' + esc(r.cliente) + '</b><b>' + pesos(r.monto) + '</b></div><div><span class="nota">Pagó el ' + esc(r.fecha) + ' · ' + esc(r.quien) + '</span></div></div>'; }).join("") +
+    '<div class="resumen"><div><b>Total para cargar</b><b>' + pesos(t) + '</b></div></div>' +
+    '<p class="nota">Cargalo en Resto Soft como una sola entrada por ' + pesos(t) + ' y después tocá el botón.</p>' +
+    '<button class="solo" id="bYaRec">Ya lo cargué en Resto Soft</button>';
+  $("x").onclick = cerrar;
+  $("bYaRec").onclick = function () {
+    var b = this; b.disabled = true; b.textContent = "Guardando…";
+    run("cargarRecargos", TOKEN).then(function (r) { D.recargosCobrados = []; botonRecargos(); cerrar(); })
+      .catch(function (e) { b.disabled = false; b.textContent = "Ya lo cargué en Resto Soft"; alerta(e.message); });
+  };
+};
 function verFacturas(aviso) {
   var B = $("box"); $("sheet").hidden = false;
   B.innerHTML = '<div class="top"><h3>Últimas facturas</h3><button class="close" id="x">Cerrar</button></div><p class="nota">Cargando…</p>';

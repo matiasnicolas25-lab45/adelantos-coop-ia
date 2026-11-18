@@ -14,7 +14,8 @@ const HOJAS = {
   CLIENTES: ["Código", "Nombre en Resto Soft", "Saludo", "WhatsApp", "CUIT", "Condición IVA", "Revisado", "Teléfono en Resto Soft"],
   SALDOS: ["Período", "Código", "Nombre", "Teléfono", "Saldo anterior", "Saldo actual", "Desde", "Hasta"],
   MOVIMIENTOS: ["Período", "Código", "Fecha", "Comprobante", "Tipo", "Debe", "Haber", "Saldo", "Detalle"],
-  ESTADO: ["Período", "Código", "Mensaje enviado", "Enviado por", "Pagó", "Marcado por"],
+  ESTADO: ["Período", "Código", "Mensaje enviado", "Enviado por", "Pagó", "Marcado por", "Recargo sumado"],
+  "RECARGOS COBRADOS": ["Fecha del pago", "Período", "Código", "Cliente", "Recargo", "Marcó el pago", "Cargado en Resto Soft el", "Cargado por"],
   FACTURAS: ["Fecha", "Quién", "Tipo", "Punto de venta", "Número", "Código cliente", "Receptor", "Documento", "Condición IVA",
     "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle", "PDF", "WhatsApp"],
   REGISTRO: ["Fecha", "Quién", "Acción", "Cliente", "Detalle"],
@@ -331,10 +332,10 @@ function datos(token) {
       cond: String(c[5] || ""), revisado: String(c[6] || "") === "SÍ", tel: String(r[3] || ""),
       anterior: Number(r[4]), actual: Number(r[5]), movs: conDetalle, ultimoPago: todos[k] || "",
       enviado: hTxt(e[2] || ""), enviadoPor: String(e[3] || ""), pago: hTxt(e[4] || ""), pagoPor: String(e[5] || ""),
-      facturas: fac[k] || [], recargoApp: rec.total, recargoSemanas: rec.semanas,
+      facturas: fac[k] || [], recargoApp: rec.total, recargoSemanas: rec.semanas, recargoSumado: Number(e[6]) || 0,
     };
   });
-  return { yo: yo, periodo: { desde: desde, hasta: hasta }, clientes: lista, alias: ALIAS_PAGO, recargo: RECARGO, nombres: mapaNombres() };
+  return { yo: yo, periodo: { desde: desde, hasta: hasta }, clientes: lista, alias: ALIAS_PAGO, recargo: RECARGO, nombres: mapaNombres(), recargosCobrados: recargosSinCargar() };
 }
 
 function guardarCliente(token, codigo, d) {
@@ -360,7 +361,54 @@ function marcar(token, codigo, nombre, que, valor) {
   const col = que === "enviado" ? 3 : 5;
   sh.getRange(fila, col, 1, 2).setValues([[valor ? ahoraTxt() : "", valor ? yo.nombre : ""]]);
   registrar(yo.nombre, que === "enviado" ? "Mandó el WhatsApp" : (valor ? "Marcó que pagó" : "Sacó la marca de pago"), nombre, "período " + periodo);
+  if (que === "pago") anotarRecargoCobrado(periodo, codigo, nombre, valor ? Number(sh.getRange(fila, 7).getValue()) || 0 : 0, yo.nombre);
   return true;
+}
+
+/* ---------- recargos 2,5 % cobrados: se juntan para cargarlos todos juntos en Resto Soft ---------- */
+
+/** Guarda el recargo que se sumó con el botón (0 = se sacó), para que quede aunque se cierre la app. */
+function guardarRecargo(token, codigo, nombre, monto) {
+  const yo = quien(token), periodo = filas("SALDOS").map(r => fTxt(r[0])).sort().pop() || "";
+  if (!periodo) throw new Error("Primero cargá el Excel de Resto Soft.");
+  const sh = hoja("ESTADO"), v = sh.getDataRange().getValues();
+  if (!String(v[0][6] || "")) sh.getRange(1, 7).setValue("Recargo sumado").setFontWeight("bold");
+  let fila = 0; for (let i = 1; i < v.length; i++) if (fTxt(v[i][0]) === periodo && String(v[i][1]) === String(codigo)) fila = i + 1;
+  if (!fila) { sh.appendRow([periodo, codigo, "", "", "", "", ""]); fila = sh.getLastRow(); }
+  monto = Math.round(Number(monto) || 0);
+  sh.getRange(fila, 7).setValue(monto > 0 ? monto : "");
+  registrar(yo.nombre, monto > 0 ? "Sumó el recargo " + (RECARGO * 100) + "%" : "Sacó el recargo", nombre, monto > 0 ? "$" + fmt(monto) : "");
+  // si ya estaba marcado como pagado, el recargo cobrado se actualiza
+  if (String(v[fila - 1] ? v[fila - 1][4] || "" : "")) anotarRecargoCobrado(periodo, codigo, nombre, monto, yo.nombre);
+  return true;
+}
+
+/** Deja un renglón por cliente y período con el recargo cobrado (o lo saca si ya no corresponde). Los ya cargados en Resto Soft no se tocan. */
+function anotarRecargoCobrado(periodo, codigo, nombre, monto, quienNombre) {
+  const sh = hoja("RECARGOS COBRADOS"), v = sh.getDataRange().getValues();
+  let fila = 0;
+  for (let i = 1; i < v.length; i++) if (fTxt(v[i][1]) === periodo && String(v[i][2]) === String(codigo) && !String(v[i][6] || "")) fila = i + 1;
+  if (monto > 0) {
+    const r = [[ahoraTxt(), periodo, codigo, nombre, monto, quienNombre, "", ""]];
+    if (fila) sh.getRange(fila, 1, 1, 8).setValues(r); else sh.getRange(sh.getLastRow() + 1, 1, 1, 8).setValues(r);
+  } else if (fila) sh.deleteRow(fila);
+}
+
+function recargosSinCargar() {
+  const out = [];
+  filas("RECARGOS COBRADOS").forEach(r => { if (!String(r[6] || "") && Number(r[4]) > 0) out.push({ fecha: hTxt(r[0]), cliente: String(r[3]), monto: Number(r[4]), quien: String(r[5]) }); });
+  return out;
+}
+
+/** "Ya los cargué en Resto Soft": marca todos los pendientes como cargados. */
+function cargarRecargos(token) {
+  const yo = quien(token), sh = hoja("RECARGOS COBRADOS"), v = sh.getDataRange().getValues();
+  let n = 0, total = 0;
+  for (let i = 1; i < v.length; i++) if (!String(v[i][6] || "") && Number(v[i][4]) > 0) {
+    sh.getRange(i + 1, 7, 1, 2).setValues([[ahoraTxt(), yo.nombre]]); n++; total += Number(v[i][4]);
+  }
+  if (n) registrar(yo.nombre, "Cargó los recargos cobrados en Resto Soft", "", n + " recargos · $" + fmt(total));
+  return { n: n, total: total };
 }
 
 /* ---------- CUIT ---------- */

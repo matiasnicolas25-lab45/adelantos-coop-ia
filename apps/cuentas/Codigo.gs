@@ -195,7 +195,8 @@ const HOJAS = {
   CLIENTES: ["Código", "Nombre en Resto Soft", "Saludo", "WhatsApp", "CUIT", "Condición IVA", "Revisado", "Teléfono en Resto Soft"],
   SALDOS: ["Período", "Código", "Nombre", "Teléfono", "Saldo anterior", "Saldo actual", "Desde", "Hasta"],
   MOVIMIENTOS: ["Período", "Código", "Fecha", "Comprobante", "Tipo", "Debe", "Haber", "Saldo", "Detalle"],
-  ESTADO: ["Período", "Código", "Mensaje enviado", "Enviado por", "Pagó", "Marcado por"],
+  ESTADO: ["Período", "Código", "Mensaje enviado", "Enviado por", "Pagó", "Marcado por", "Recargo sumado"],
+  "RECARGOS COBRADOS": ["Fecha del pago", "Período", "Código", "Cliente", "Recargo", "Marcó el pago", "Cargado en Resto Soft el", "Cargado por"],
   FACTURAS: ["Fecha", "Quién", "Tipo", "Punto de venta", "Número", "Código cliente", "Receptor", "Documento", "Condición IVA",
     "Neto", "IVA 21%", "Total", "CAE", "Vence CAE", "Detalle", "PDF", "WhatsApp"],
   REGISTRO: ["Fecha", "Quién", "Acción", "Cliente", "Detalle"],
@@ -512,10 +513,10 @@ function datos(token) {
       cond: String(c[5] || ""), revisado: String(c[6] || "") === "SÍ", tel: String(r[3] || ""),
       anterior: Number(r[4]), actual: Number(r[5]), movs: conDetalle, ultimoPago: todos[k] || "",
       enviado: hTxt(e[2] || ""), enviadoPor: String(e[3] || ""), pago: hTxt(e[4] || ""), pagoPor: String(e[5] || ""),
-      facturas: fac[k] || [], recargoApp: rec.total, recargoSemanas: rec.semanas,
+      facturas: fac[k] || [], recargoApp: rec.total, recargoSemanas: rec.semanas, recargoSumado: Number(e[6]) || 0,
     };
   });
-  return { yo: yo, periodo: { desde: desde, hasta: hasta }, clientes: lista, alias: ALIAS_PAGO, recargo: RECARGO, nombres: mapaNombres() };
+  return { yo: yo, periodo: { desde: desde, hasta: hasta }, clientes: lista, alias: ALIAS_PAGO, recargo: RECARGO, nombres: mapaNombres(), recargosCobrados: recargosSinCargar() };
 }
 
 function guardarCliente(token, codigo, d) {
@@ -541,7 +542,54 @@ function marcar(token, codigo, nombre, que, valor) {
   const col = que === "enviado" ? 3 : 5;
   sh.getRange(fila, col, 1, 2).setValues([[valor ? ahoraTxt() : "", valor ? yo.nombre : ""]]);
   registrar(yo.nombre, que === "enviado" ? "Mandó el WhatsApp" : (valor ? "Marcó que pagó" : "Sacó la marca de pago"), nombre, "período " + periodo);
+  if (que === "pago") anotarRecargoCobrado(periodo, codigo, nombre, valor ? Number(sh.getRange(fila, 7).getValue()) || 0 : 0, yo.nombre);
   return true;
+}
+
+/* ---------- recargos 2,5 % cobrados: se juntan para cargarlos todos juntos en Resto Soft ---------- */
+
+/** Guarda el recargo que se sumó con el botón (0 = se sacó), para que quede aunque se cierre la app. */
+function guardarRecargo(token, codigo, nombre, monto) {
+  const yo = quien(token), periodo = filas("SALDOS").map(r => fTxt(r[0])).sort().pop() || "";
+  if (!periodo) throw new Error("Primero cargá el Excel de Resto Soft.");
+  const sh = hoja("ESTADO"), v = sh.getDataRange().getValues();
+  if (!String(v[0][6] || "")) sh.getRange(1, 7).setValue("Recargo sumado").setFontWeight("bold");
+  let fila = 0; for (let i = 1; i < v.length; i++) if (fTxt(v[i][0]) === periodo && String(v[i][1]) === String(codigo)) fila = i + 1;
+  if (!fila) { sh.appendRow([periodo, codigo, "", "", "", "", ""]); fila = sh.getLastRow(); }
+  monto = Math.round(Number(monto) || 0);
+  sh.getRange(fila, 7).setValue(monto > 0 ? monto : "");
+  registrar(yo.nombre, monto > 0 ? "Sumó el recargo " + (RECARGO * 100) + "%" : "Sacó el recargo", nombre, monto > 0 ? "$" + fmt(monto) : "");
+  // si ya estaba marcado como pagado, el recargo cobrado se actualiza
+  if (String(v[fila - 1] ? v[fila - 1][4] || "" : "")) anotarRecargoCobrado(periodo, codigo, nombre, monto, yo.nombre);
+  return true;
+}
+
+/** Deja un renglón por cliente y período con el recargo cobrado (o lo saca si ya no corresponde). Los ya cargados en Resto Soft no se tocan. */
+function anotarRecargoCobrado(periodo, codigo, nombre, monto, quienNombre) {
+  const sh = hoja("RECARGOS COBRADOS"), v = sh.getDataRange().getValues();
+  let fila = 0;
+  for (let i = 1; i < v.length; i++) if (fTxt(v[i][1]) === periodo && String(v[i][2]) === String(codigo) && !String(v[i][6] || "")) fila = i + 1;
+  if (monto > 0) {
+    const r = [[ahoraTxt(), periodo, codigo, nombre, monto, quienNombre, "", ""]];
+    if (fila) sh.getRange(fila, 1, 1, 8).setValues(r); else sh.getRange(sh.getLastRow() + 1, 1, 1, 8).setValues(r);
+  } else if (fila) sh.deleteRow(fila);
+}
+
+function recargosSinCargar() {
+  const out = [];
+  filas("RECARGOS COBRADOS").forEach(r => { if (!String(r[6] || "") && Number(r[4]) > 0) out.push({ fecha: hTxt(r[0]), cliente: String(r[3]), monto: Number(r[4]), quien: String(r[5]) }); });
+  return out;
+}
+
+/** "Ya los cargué en Resto Soft": marca todos los pendientes como cargados. */
+function cargarRecargos(token) {
+  const yo = quien(token), sh = hoja("RECARGOS COBRADOS"), v = sh.getDataRange().getValues();
+  let n = 0, total = 0;
+  for (let i = 1; i < v.length; i++) if (!String(v[i][6] || "") && Number(v[i][4]) > 0) {
+    sh.getRange(i + 1, 7, 1, 2).setValues([[ahoraTxt(), yo.nombre]]); n++; total += Number(v[i][4]);
+  }
+  if (n) registrar(yo.nombre, "Cargó los recargos cobrados en Resto Soft", "", n + " recargos · $" + fmt(total));
+  return { n: n, total: total };
 }
 
 /* ---------- CUIT ---------- */
@@ -3556,6 +3604,7 @@ nav button.on{background:var(--ink);color:var(--paper)}
     <nav id="filtros"><button class="on" data-f="deben">Deben</button><button data-f="enviados">Enviados</button><button data-f="pagaron">Pagaron</button><button data-f="todos">Todos</button><button data-f="mesas">Mesas</button></nav>
     <div class="list" id="lista"></div>
     <button class="ghost" id="bFacturas">Ver últimas facturas</button>
+    <button class="ghost" id="bRecCob" hidden></button>
   </section>
   <p class="nota" id="cargando">Cargando…</p>
 </div>
@@ -3651,12 +3700,12 @@ function cargar() {
     D = d; $("cargando").hidden = true; $("vApp").hidden = false;
     D.clientes.forEach(function (c) {
       // el saldo y los recargos van tal cual vienen del Excel de Resto Soft; el 2,5 % solo se suma si alguien toca el botón
-      c.restoSoft = c.actual; c.recargoExtra = 0;
+      c.restoSoft = c.actual; c.recargoExtra = c.restoSoft > 0 ? c.recargoSumado || 0 : 0; c.actual = c.restoSoft + c.recargoExtra;
     });
     $("yo").innerHTML = esc(d.yo.nombre) + '<br><button id="bSalir">Salir</button>';
     $("bSalir").onclick = function () { TOKEN = null; entrarPantalla(); };
     $("per").textContent = d.periodo ? "Cuentas corrientes · " + dm(d.periodo.desde) + " al " + dm(d.periodo.hasta) : "Cuentas corrientes";
-    dibujar();
+    dibujar(); botonRecargos();
     traerCuits();   // la lista de CUIT queda lista para la factura A
   }).catch(function (e) { $("cargando").textContent = e.message; });
 }
@@ -3875,7 +3924,7 @@ function abrir(c) {
     '<div class="two"><button class="ghost' + (c.pago ? " ok" : "") + '" id="bPago">' + (c.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">' + (conPdf ? "Copiar como texto" : "Copiar mensaje") + '</button></div>' +
     '<div class="two"><button class="ghost" id="bFA">Factura A</button><button class="ghost" id="bFB">Factura B</button></div>' +
     (c.restoSoft > 0 ? '<button class="ghost' + (c.recargoExtra ? " sel" : "") + '" id="bRec">' + (c.recargoExtra ? "✓ Recargo " + pct() + " sumado (" + pesos(c.recargoExtra) + ") · tocá para sacarlo" : "Sumar recargo " + pct() + " (" + pesos(Math.round(c.restoSoft * D.recargo)) + ")") + '</button>' +
-      (c.recargoExtra ? '<p class="nota">Acordate de cargar ' + pesos(c.recargoExtra) + ' en Resto Soft.</p>' : '') : '') +
+      (c.recargoExtra ? '<p class="nota">Cuando marques que pagó, el recargo queda anotado en "Recargos cobrados" para cargarlos todos juntos en Resto Soft.</p>' : '') : '') +
     '<button class="ghost" id="bDatos">' + (c.revisado ? "Editar datos del cliente" : "Revisar datos del cliente") + '</button>' +
     (c.enviado ? '<p class="nota">Mensaje enviado el ' + esc(c.enviado) + ' por ' + esc(c.enviadoPor) + '.</p>' : '') +
     (c.pago ? '<p class="nota">Pago marcado el ' + esc(c.pago) + ' por ' + esc(c.pagoPor) + '.</p>' : '') +
@@ -3888,7 +3937,7 @@ function abrir(c) {
   else $("env").onclick = enviado;
   $("bPago").onclick = function () {
     var nuevo = !c.pago; this.disabled = true;
-    run("marcar", TOKEN, c.codigo, c.nombre, "pago", nuevo).then(function () { c.pago = nuevo ? "recién" : ""; c.pagoPor = D.yo.nombre; cerrar(); dibujar(); })
+    run("marcar", TOKEN, c.codigo, c.nombre, "pago", nuevo).then(function () { c.pago = nuevo ? "recién" : ""; c.pagoPor = D.yo.nombre; cerrar(); dibujar(); refrescarRecargos(); })
       .catch(function (e) { alerta(e.message); });
   };
   $("bCopiar").onclick = function () {
@@ -3901,6 +3950,7 @@ function abrir(c) {
   if ($("bRec")) $("bRec").onclick = function () {
     c.recargoExtra = c.recargoExtra ? 0 : Math.round(c.restoSoft * D.recargo);
     c.actual = c.restoSoft + c.recargoExtra; abrir(c); dibujar();
+    run("guardarRecargo", TOKEN, c.codigo, c.nombre, c.recargoExtra).then(refrescarRecargos).catch(function (e) { alerta(e.message); });
   };
 }
 function alerta(m) { var p = document.createElement("p"); p.className = "aviso"; p.textContent = m; $("box").appendChild(p); p.scrollIntoView({ block: "nearest" }); }
@@ -4301,6 +4351,30 @@ function abrirMesa(m) {
 }
 $("bNueva").onclick = function () { $("sheet").hidden = false; formFactura("B", null); };
 $("bFacturas").onclick = verFacturas;
+/* ---------- recargos cobrados: se juntan para cargarlos de una vez en Resto Soft ---------- */
+function botonRecargos() {
+  var rs = D.recargosCobrados || [], b = $("bRecCob"), t = 0;
+  rs.forEach(function (r) { t += r.monto; });
+  b.hidden = !rs.length;
+  b.textContent = "Recargos cobrados para cargar en Resto Soft: " + pesos(t) + " (" + rs.length + ")";
+}
+function refrescarRecargos() { run("datos", TOKEN).then(function (d) { D.recargosCobrados = d.recargosCobrados; botonRecargos(); }).catch(function () {}); }
+$("bRecCob").onclick = function () {
+  var rs = D.recargosCobrados || [], B = $("box"), t = 0;
+  rs.forEach(function (r) { t += r.monto; });
+  $("sheet").hidden = false;
+  B.innerHTML = '<div class="top"><div><h3>Recargos cobrados</h3><div class="sub">Todavía no cargados en Resto Soft</div></div><button class="close" id="x">Cerrar</button></div>' +
+    rs.map(function (r) { return '<div class="resumen"><div><b>' + esc(r.cliente) + '</b><b>' + pesos(r.monto) + '</b></div><div><span class="nota">Pagó el ' + esc(r.fecha) + ' · ' + esc(r.quien) + '</span></div></div>'; }).join("") +
+    '<div class="resumen"><div><b>Total para cargar</b><b>' + pesos(t) + '</b></div></div>' +
+    '<p class="nota">Cargalo en Resto Soft como una sola entrada por ' + pesos(t) + ' y después tocá el botón.</p>' +
+    '<button class="solo" id="bYaRec">Ya lo cargué en Resto Soft</button>';
+  $("x").onclick = cerrar;
+  $("bYaRec").onclick = function () {
+    var b = this; b.disabled = true; b.textContent = "Guardando…";
+    run("cargarRecargos", TOKEN).then(function (r) { D.recargosCobrados = []; botonRecargos(); cerrar(); })
+      .catch(function (e) { b.disabled = false; b.textContent = "Ya lo cargué en Resto Soft"; alerta(e.message); });
+  };
+};
 function verFacturas(aviso) {
   var B = $("box"); $("sheet").hidden = false;
   B.innerHTML = '<div class="top"><h3>Últimas facturas</h3><button class="close" id="x">Cerrar</button></div><p class="nota">Cargando…</p>';
