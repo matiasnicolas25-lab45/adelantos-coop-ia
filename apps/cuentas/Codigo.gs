@@ -185,7 +185,7 @@ const LIBRO_ID = "1o9hwDQ5Yww8bs38ue48hwM-nSSsrh-vwcL2f0c_32oM";
 const RESTOSOFT_ID = "1wO-WdCuwm0PtuFtz_MdcFj-uZwXlMsmZ";   // carpeta donde se suben los Excel de Resto Soft
 const ARCHIVO_CUENTAS = "DETALLE DE CONSUMOS DE CUENTAS CORRIENTES";
 const ALIAS_PAGO = "caleta.ycr";
-const RECARGO = 0.015;
+const RECARGO = 0.025;
 const ZONA = "America/Argentina/Buenos_Aires";
 const USUARIOS = [["Matías", "admin"], ["Raquel", "usuario"], ["Yoana", "usuario"], ["Belén", "usuario"], ["Romi", "usuario"], ["Yasmila", "usuario"], ["Ana", "usuario"]];
 
@@ -448,7 +448,7 @@ function importar(token, base64, nombreArchivo) {
   } finally { lock.releaseLock(); }
 }
 
-/* ---------- recargo semanal calculado por la app (1,5 % cada miércoles sobre todo lo que se debe) ---------- */
+/* ---------- recargo semanal calculado por la app (2,5 % cada miércoles sobre todo lo que se debe) ---------- */
 
 const DATO_INICIO_RECARGO = "La app calcula los recargos desde (un miércoles)";
 function fechaDato(nombre) {
@@ -462,7 +462,7 @@ function masDias(f, n) { const d = new Date(f + "T12:00:00Z"); d.setUTCDate(d.ge
 function miercolesDesde(f) { const d = new Date(f + "T12:00:00Z"); return masDias(f, (3 - d.getUTCDay() + 7) % 7); }
 
 /**
- * Recargos de los miércoles que todavía no están en Resto Soft. Cada miércoles: 1,5 % de lo que debe ese día
+ * Recargos de los miércoles que todavía no están en Resto Soft. Cada miércoles: 2,5 % de lo que debe ese día
  * (saldo de Resto Soft a esa fecha + los recargos de la app de las semanas anteriores). Se reinicia cuando
  * alguien marca "Ya lo cargué en Resto Soft".
  */
@@ -3650,7 +3650,7 @@ function cargar() {
   run("datos", TOKEN).then(function (d) {
     D = d; $("cargando").hidden = true; $("vApp").hidden = false;
     D.clientes.forEach(function (c) {
-      // el saldo y los recargos van tal cual vienen del Excel de Resto Soft; el 1,5 % solo se suma si alguien toca el botón
+      // el saldo y los recargos van tal cual vienen del Excel de Resto Soft; el 2,5 % solo se suma si alguien toca el botón
       c.restoSoft = c.actual; c.recargoExtra = 0;
     });
     $("yo").innerHTML = esc(d.yo.nombre) + '<br><button id="bSalir">Salir</button>';

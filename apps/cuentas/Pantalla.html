@@ -193,7 +193,7 @@ function cargar() {
   run("datos", TOKEN).then(function (d) {
     D = d; $("cargando").hidden = true; $("vApp").hidden = false;
     D.clientes.forEach(function (c) {
-      // el saldo y los recargos van tal cual vienen del Excel de Resto Soft; el 1,5 % solo se suma si alguien toca el botón
+      // el saldo y los recargos van tal cual vienen del Excel de Resto Soft; el 2,5 % solo se suma si alguien toca el botón
       c.restoSoft = c.actual; c.recargoExtra = 0;
     });
     $("yo").innerHTML = esc(d.yo.nombre) + '<br><button id="bSalir">Salir</button>';
