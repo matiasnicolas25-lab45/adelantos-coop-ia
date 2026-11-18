@@ -4476,7 +4476,7 @@ $("bRecSem").onclick = function () {
   rs.forEach(function (r) { t += r.rec; });
   var txt = rs.map(function (r) { return r.codigo + "  " + r.nombre + "  " + pesos(r.rec); }).join(NL) + NL + NL + "TOTAL " + pesos(t);
   $("sheet").hidden = false;
-  B.innerHTML = '<div class="top"><div><h3>Recargos ' + pct() + ' para cargar</h3><div class="sub">' + rs.length + ' clientes · total ' + pesos(t) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
+  B.innerHTML = '<div class="top"><div><h3>Recargos ' + pct() + ' para cargar</h3><div class="sub">' + rs.length + (rs.length === 1 ? ' cliente' : ' clientes') + ' · total ' + pesos(t) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
     '<p class="nota">Cargá cada uno en Resto Soft (código, cliente y monto). Cuando termines, exportá el Excel de nuevo y cargalo en la app: los recargos ya van a venir adentro y esta lista queda vacía.</p>' +
     rs.map(function (r) { return '<div class="resumen"><div><b>' + esc(r.nombre) + '</b><b>' + pesos(r.rec) + '</b></div><div><span class="nota">Código ' + esc(r.codigo) + ' · debe ' + pesos(r.saldo) + '</span></div></div>'; }).join("") +
     '<div class="resumen"><div><b>Total</b><b>' + pesos(t) + '</b></div></div>' +
