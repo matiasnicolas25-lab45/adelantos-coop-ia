@@ -70,13 +70,15 @@ prueba("la pantalla no tiene errores de escritura", () => {
 function armarCuentas(planilla, arca) {
   const enviados = [];
   const src = fs.readFileSync(path.join(raiz, "apps/cuentas/Codigo.gs"), "utf8");
-  const C = new Function("Utilities", "LockService", "PLANILLA", "ARCA", "ENVIADOS", src + `
-    ;hoja = function (n) { const t = PLANILLA[n] = PLANILLA[n] || [["encabezado"]]; return { appendRow: r => t.push(r), getLastRow: () => t.length, getRange: (f, c) => ({ setValue: v => { t[f - 1][c - 1] = v; } }) }; };
+  const C = new Function("Utilities", "LockService", "PLANILLA", "ARCA", "ENVIADOS", "var CacheService;" + src + `
+    ;hoja = function (n) { const t = PLANILLA[n] = PLANILLA[n] || [["encabezado"]]; return { appendRow: r => t.push(r), getLastRow: () => t.length, getDataRange: () => ({ getValues: () => t.map(r => r.slice()) }),
+      getRange: (f, c, nf, nc) => ({ setValue: v => { t[f - 1][c - 1] = v; }, setValues: vs => { vs[0].forEach((v, k) => { t[f - 1][c - 1 + k] = v; }); } }) }; };
     filas = function (n) { return (PLANILLA[n] || [["encabezado"]]).slice(1); };
     quien = function () { return { nombre: "Prueba", rol: "admin" }; };
     facturaPdf = function () { return "https://drive.google.com/file/d/prueba/view"; };
     wsfe = function (metodo, cuerpo) { ENVIADOS.push([metodo, cuerpo]); return ARCA(metodo, cuerpo); };
-    return { facturar, notaCredito, recuperarFaltantes, revisarConArca, fechaArca, PLANILLA };`)(Utilities, LockService, planilla, arca, enviados);
+    CacheService = { getScriptCache: () => ({ put() {}, get() { return null; } }) };
+    return { facturar, notaCredito, recuperarFaltantes, revisarConArca, fechaArca, entrar, PLANILLA };`)(Utilities, LockService, planilla, arca, enviados);
   C.enviados = enviados;
   return C;
 }
@@ -142,6 +144,25 @@ prueba("nota de crédito: no deja anular más que la factura", () => {
   si(/no puede ser mayor/.test(error), "dejó anular de más: " + error);
   const r = C.notaCredito("t", { numero: "00005-00000001", tipo: "B" });
   igual(r.total, 6000, "lo que quedaba");
+});
+prueba("PIN: bloquea al quinto error y no deja entrar ni con el PIN bueno", () => {
+  const P = { ACCESO: [["Nombre", "PIN", "Rol", "Errores", "Bloqueado"], ["Raquel", "0201", "usuario", 0, ""]], REGISTRO: [["enc"]] };
+  const C = armarCuentas(P, arcaFalsa({}));
+  for (let k = 1; k <= 4; k++) { let e = ""; try { C.entrar("Raquel", "1111"); } catch (x) { e = x.message; } si(/Te quedan/.test(e), "intento " + k + ": " + e); }
+  let e = ""; try { C.entrar("Raquel", "1111"); } catch (x) { e = x.message; } si(/bloqueado/.test(e), "no bloqueó: " + e);
+  e = ""; try { C.entrar("Raquel", "0201"); } catch (x) { e = x.message; } si(/bloqueado/.test(e), "entró estando bloqueada");
+});
+prueba("PIN: el bueno entra y reinicia los errores", () => {
+  const P = { ACCESO: [["Nombre", "PIN", "Rol", "Errores", "Bloqueado"], ["Yoana", "2210", "usuario", 3, ""]], REGISTRO: [["enc"]] };
+  const C = armarCuentas(P, arcaFalsa({}));
+  igual(C.entrar("Yoana", "2210").nombre, "Yoana");
+  igual(P.ACCESO[1][3], 0, "errores");
+});
+prueba("PIN: sin PIN cargado no puede elegir uno (lo carga Matías)", () => {
+  const P = { ACCESO: [["Nombre", "PIN", "Rol"], ["Nueva", "", "usuario"]], REGISTRO: [["enc"]] };
+  const C = armarCuentas(P, arcaFalsa({}));
+  let e = ""; try { C.entrar("Nueva", "1234"); } catch (x) { e = x.message; } si(/Pedile a Matías/.test(e), e);
+  igual(P.ACCESO[1][1], "", "se guardó un PIN");
 });
 prueba("fecha de la factura para ARCA", () => {
   const C = armarCuentas({}, arcaFalsa({}));

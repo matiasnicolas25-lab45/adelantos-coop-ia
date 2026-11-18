@@ -9,7 +9,7 @@ const ZONA = "America/Argentina/Buenos_Aires";
 const USUARIOS = [["Matías", "admin"], ["Raquel", "usuario"], ["Yoana", "usuario"], ["Belén", "usuario"], ["Romi", "usuario"], ["Yasmila", "usuario"], ["Ana", "usuario"]];
 
 const HOJAS = {
-  ACCESO: ["Nombre", "PIN", "Rol"],
+  ACCESO: ["Nombre", "PIN", "Rol", "PIN equivocados seguidos", "Bloqueado (borrar para desbloquear)"],
   CONFIG: ["Dato", "Valor"],
   CLIENTES: ["Código", "Nombre en Resto Soft", "Saludo", "WhatsApp", "CUIT", "Condición IVA", "Revisado", "Teléfono en Resto Soft"],
   SALDOS: ["Período", "Código", "Nombre", "Teléfono", "Saldo anterior", "Saldo actual", "Desde", "Hasta"],
@@ -67,40 +67,89 @@ function cuentasPermitidas() {
   const f = filas("CONFIG").filter(r => String(r[0]).indexOf("Cuentas de Google") === 0)[0];
   return String(f ? f[1] : "").toLowerCase().split(",").map(s => s.trim()).filter(Boolean);
 }
-function cuentaOk() {
-  const mail = String(Session.getActiveUser().getEmail() || "").toLowerCase();
-  return !!mail && cuentasPermitidas().indexOf(mail) >= 0;
-}
+/**
+ * La app ya no pide cuenta de Google: vive en la página de La Caleta (WordPress) y corre con la cuenta de Mat.
+ * La protege el PIN de cada persona: a los 5 PIN equivocados seguidos ese usuario queda bloqueado
+ * hasta que Matías lo desbloquee (desde la app o borrando la columna E de ACCESO).
+ */
+function cuentaOk() { return true; }
+const MAX_ERRORES_PIN = 5;
 
-function doGet() {
-  if (!cuentaOk()) {
-    return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width, initial-scale=1"><p style="font:17px sans-serif;padding:24px">Esta app solo se abre con la cuenta de Google de La Caleta o la de Matías.</p>').setTitle("Cuentas La Caleta").setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+/** Funciones que la pantalla puede pedir desde la página de La Caleta: {fn, args} → {ok, valor} o {ok:false, error}. */
+const API = { nombresAcceso: nombresAcceso, entrar: entrar, datos: datos, importar: importar, marcar: marcar, guardarCliente: guardarCliente,
+  listaCuit: listaCuit, sugerirCuit: sugerirCuit, facturar: facturar, ultimasFacturas: ultimasFacturas, pdfParaEnviar: pdfParaEnviar,
+  notaCredito: notaCredito, revisarConArca: revisarConArca, leerMesa: leerMesa, guardarMesa: guardarMesa, pendientes: pendientes,
+  marcarMesa: marcarMesa, resumenPdf: resumenPdf, desbloquear: desbloquear, guardarRecargo: guardarRecargo, cargarRecargos: cargarRecargos };
+
+function doGet(e) {
+  if (e && e.parameter && e.parameter.pantalla) {   // la página de La Caleta pide la pantalla y la muestra ella misma (así no sale el cartel de Google)
+    return ContentService.createTextOutput(PANTALLA).setMimeType(ContentService.MimeType.TEXT);
   }
   return HtmlService.createHtmlOutput(PANTALLA).setTitle("Cuentas La Caleta")
     .addMetaTag("viewport", "width=device-width, initial-scale=1, maximum-scale=1")
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);   // para poder mostrarla dentro de una página de La Caleta (WordPress)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function doPost(e) {
+  let r;
+  try {
+    const q = JSON.parse(e.postData.contents);
+    const f = Object.prototype.hasOwnProperty.call(API, q.fn) ? API[q.fn] : null;
+    if (!f) throw new Error("Pedido desconocido.");
+    r = { ok: true, valor: f.apply(null, Array.isArray(q.args) ? q.args : []) };
+  } catch (err) {
+    r = { ok: false, error: String((err && err.message) || err) };
+  }
+  return ContentService.createTextOutput(JSON.stringify(r)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function nombresAcceso() {
-  if (!cuentaOk()) throw new Error("Esta cuenta de Google no tiene permiso.");
-  return filas("ACCESO").filter(r => r[0]).map(r => ({ nombre: String(r[0]), nuevo: !String(r[1]).trim() }));
+  return filas("ACCESO").filter(r => r[0]).map(r => ({ nombre: String(r[0]), nuevo: false }));
 }
 
 function entrar(nombre, pin) {
-  if (!cuentaOk()) throw new Error("Esta cuenta de Google no tiene permiso.");
   pin = String(pin || "");
   if (!/^\d{4}$/.test(pin)) throw new Error("El PIN son 4 números.");
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
   const sh = hoja("ACCESO"), v = sh.getDataRange().getValues();
   for (let i = 1; i < v.length; i++) {
     if (String(v[i][0]) !== nombre) continue;
-    const guardado = String(v[i][1]).trim();
-    if (!guardado) { sh.getRange(i + 1, 2).setValue(pin); registrar(nombre, "Eligió su PIN"); }
-    else if (guardado !== pin) { registrar(nombre, "PIN equivocado"); throw new Error("PIN equivocado."); }
+    const guardado = String(v[i][1]).trim().replace(/^'/, "");
+    if (String(v[i][4] || "").trim()) throw new Error("Tu usuario está bloqueado por " + MAX_ERRORES_PIN + " PIN equivocados seguidos. Pedile a Matías que te desbloquee.");
+    if (!guardado) throw new Error("Todavía no tenés PIN. Pedile a Matías que te lo cargue.");
+    if (guardado !== pin) {
+      const errores = (Number(v[i][3]) || 0) + 1;
+      sh.getRange(i + 1, 4).setValue(errores);
+      if (errores >= MAX_ERRORES_PIN) {
+        sh.getRange(i + 1, 5).setValue("Bloqueado el " + ahoraTxt());
+        registrar(nombre, "Usuario bloqueado", "", MAX_ERRORES_PIN + " PIN equivocados seguidos");
+        throw new Error("PIN equivocado " + MAX_ERRORES_PIN + " veces seguidas: tu usuario quedó bloqueado. Pedile a Matías que te desbloquee.");
+      }
+      registrar(nombre, "PIN equivocado", "", errores + " de " + MAX_ERRORES_PIN);
+      throw new Error("PIN equivocado. Te quedan " + (MAX_ERRORES_PIN - errores) + " intentos antes de que se bloquee.");
+    }
+    if (Number(v[i][3])) sh.getRange(i + 1, 4).setValue(0);
     const token = Utilities.getUuid();
     CacheService.getScriptCache().put("t_" + token, JSON.stringify({ nombre: nombre, rol: String(v[i][2] || "usuario") }), 6 * 3600);
-    return { token: token, nombre: nombre, rol: String(v[i][2] || "usuario"), nuevo: !guardado };
+    return { token: token, nombre: nombre, rol: String(v[i][2] || "usuario"), nuevo: false };
   }
   throw new Error("Ese nombre no está en la lista de acceso.");
+  } finally { lock.releaseLock(); }
+}
+
+/** Matías (admin) desbloquea a alguien que se equivocó 5 veces de PIN. */
+function desbloquear(token, nombre) {
+  const yo = quien(token);
+  if (yo.rol !== "admin") throw new Error("Solo Matías puede desbloquear.");
+  const sh = hoja("ACCESO"), v = sh.getDataRange().getValues();
+  for (let i = 1; i < v.length; i++) {
+    if (String(v[i][0]) !== nombre) continue;
+    sh.getRange(i + 1, 4, 1, 2).setValues([[0, ""]]);
+    registrar(yo.nombre, "Desbloqueó a " + nombre);
+    return true;
+  }
+  throw new Error("No encontré a " + nombre + ".");
 }
 
 function quien(token) {
@@ -313,7 +362,7 @@ function marcarRecargoCargado(token, codigo, nombre, monto, semanas) {
 function datos(token) {
   const yo = quien(token);
   const s = filas("SALDOS");
-  if (!s.length) return { yo: yo, periodo: null, clientes: [] };
+  if (!s.length) return { yo: yo, periodo: null, clientes: [], bloqueados: [] };
   const periodo = s.map(r => fTxt(r[0])).sort().pop();
   const cli = {}; filas("CLIENTES").forEach(r => cli[String(r[0])] = r);
   const est = {}; filas("ESTADO").forEach(r => { if (fTxt(r[0]) === periodo) est[String(r[1])] = r; });
@@ -336,7 +385,8 @@ function datos(token) {
       facturas: fac[k] || [], recargoApp: rec.total, recargoSemanas: rec.semanas, recargoSumado: Number(e[6]) || 0,
     };
   });
-  return { yo: yo, periodo: { desde: desde, hasta: hasta }, clientes: lista, alias: ALIAS_PAGO, recargo: RECARGO, nombres: mapaNombres(), recargosCobrados: recargosSinCargar() };
+  const bloqueados = yo.rol === "admin" ? filas("ACCESO").filter(r => r[0] && String(r[4] || "").trim()).map(r => String(r[0])) : [];
+  return { yo: yo, periodo: { desde: desde, hasta: hasta }, clientes: lista, alias: ALIAS_PAGO, recargo: RECARGO, nombres: mapaNombres(), recargosCobrados: recargosSinCargar(), bloqueados: bloqueados };
 }
 
 function guardarCliente(token, codigo, d) {

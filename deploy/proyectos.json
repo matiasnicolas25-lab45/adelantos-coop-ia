@@ -14,8 +14,8 @@
     "scriptId": "1KrUV4pSVZOoEHifT-A1K4IiuHUOgvJ0mMdL794fNG_Gh-NZ8uAHswiU5",
     "deploymentId": "AKfycbysdjenNpB6LOcR7soGVgwoJWvX2gcU1QDME3joX5RB6XR7NW3ocByEdcIWR6oikUECSg",
     "webapp": {
-      "executeAs": "USER_ACCESSING",
-      "access": "ANYONE"
+      "executeAs": "USER_DEPLOYING",
+      "access": "ANYONE_ANONYMOUS"
     }
   },
   "proporcionales": {
