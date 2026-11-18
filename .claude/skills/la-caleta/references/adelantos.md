@@ -142,7 +142,8 @@ Nombres exactos de pestaña (varios tienen espacio al final):
 1. Al empezar a cargar, poner CONFIG B5 en NO (así nadie ve la semana a medio cargar).
 2. Cargar la semana. A Mat se le pasa UN solo mensaje con lo que falta (sin precio, sin receta, no se entiende, efectivo > $150.000), con socio, fecha y lo que escribió. Nunca le pidas que revise pestañas.
 3. Mat contesta los faltantes en el chat; completarlos en la planilla.
-4. Cuando no queda nada pendiente: CONFIG B5 en SÍ y darle a Mat un mensaje corto para el grupo "La Caleta" avisando que ya pueden ver sus adelantos en la app.
+4. Cuando no queda nada pendiente: CONFIG B5 en SÍ y darle a Mat un mensaje corto para el grupo "La Caleta" avisando que ya pueden ver sus adelantos en la app. Texto de Mat:
+   `¡Ya pueden ver sus adelantos de la semana en la app! 📲 Entran con su PIN y tocan "Adelantos".`
 
 El formato de abajo queda solo como referencia histórica (y lo que muestra la app).
 
