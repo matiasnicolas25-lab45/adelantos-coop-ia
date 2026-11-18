@@ -23,7 +23,8 @@ Germar, Unión, Vía Dulce (kiosco), Arcor, Coca-Cola, Bettamar (soda), CCU, Cam
 ## Cómo procesar una carpeta de facturas
 
 1. Listar los archivos nuevos desde el último informe.
-2. PDF con texto: leer con Drive. Escaneados o fotos: bajar la imagen y mirarla.
+2. Se leen todos los formatos (desde el 18/11/2026): PDF con texto, leer con Drive; PDF escaneados y fotos, bajar la imagen y mirarla. **Todas las listas de precios** de proveedores que aparezcan (Cepro, Drobandi, etc.) se leen y se comparan para ver aumentos.
+2b. Productos nuevos de una factura: se cargan siempre (hoja del proveedor y las dos listas de socios) y se le avisa a Matías en el informe, con producto, proveedor, presentación y precio.
 3. Por comprobante: proveedor, fecha, número, renglones, subtotal, impuestos, total. Verificar sumas.
 4. Precio por unidad de uso con IVA y descuento; comparar con la lista; marcar variaciones de más de 5%.
 5. Separar lo que no es mercadería (servicios, arreglos, limpieza de campana, dispensers).
