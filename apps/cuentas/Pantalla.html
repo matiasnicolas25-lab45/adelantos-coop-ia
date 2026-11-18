@@ -98,8 +98,8 @@ nav button.on{background:var(--ink);color:var(--paper)}
     <input id="busca" type="search" placeholder="Buscar cliente" autocomplete="off">
     <nav id="filtros"><button class="on" data-f="deben">Deben</button><button data-f="enviados">Enviados</button><button data-f="pagaron">Pagaron</button><button data-f="todos">Todos</button><button data-f="mesas">Mesas</button></nav>
     <div class="list" id="lista"></div>
-    <button class="ghost" id="bFacturas">Ver últimas facturas</button>
     <button class="ghost" id="bRecCob" hidden></button>
+    <button class="ghost" id="bFacturas">Ver últimas facturas</button>
   </section>
   <p class="nota" id="cargando">Cargando…</p>
 </div>
@@ -849,10 +849,11 @@ $("bNueva").onclick = function () { $("sheet").hidden = false; formFactura("B", 
 $("bFacturas").onclick = verFacturas;
 /* ---------- recargos cobrados: se juntan para cargarlos de una vez en Resto Soft ---------- */
 function botonRecargos() {
-  var rs = D.recargosCobrados || [], b = $("bRecCob"), t = 0;
+  var rs = (D && D.recargosCobrados) || [], b = $("bRecCob"), t = 0;
   rs.forEach(function (r) { t += r.monto; });
-  b.hidden = !rs.length || filtro !== "pagaron";   // se ve en "Pagaron", abajo de todo
-  b.textContent = "Recargos cobrados para cargar en Resto Soft: " + pesos(t) + " (" + rs.length + ")";
+  b.hidden = !D || filtro !== "pagaron";   // siempre se ve en "Pagaron", abajo de la lista
+  b.innerHTML = "<b>Recargos 2,5 % cobrados: " + pesos(t) + "</b><br><small>" + (rs.length ? rs.length + (rs.length === 1 ? " recargo" : " recargos") + " para cargar en Resto Soft · tocá para ver" : "Todavía no hay recargos cobrados para cargar") + "</small>";
+  b.disabled = !rs.length;
 }
 function refrescarRecargos() { run("datos", TOKEN).then(function (d) { D.recargosCobrados = d.recargosCobrados; botonRecargos(); }).catch(function () {}); }
 $("bRecCob").onclick = function () {
