@@ -96,6 +96,7 @@ nav button.on{background:var(--ink);color:var(--paper)}
     <div id="avisoBloq" hidden></div>
     <div class="total"><span>Para cobrar</span><b id="tot">…</b><span id="totsub"></span></div>
     <div class="acc"><button class="ghost" id="bCargar">Cargar Excel nuevo</button><button class="ghost" id="bNueva">Nueva factura</button></div>
+    <button class="ghost" id="bRecSem" hidden></button>
     <input id="busca" type="search" placeholder="Buscar cliente" autocomplete="off">
     <nav id="filtros"><button class="on" data-f="deben">Deben</button><button data-f="enviados">Enviados</button><button data-f="pagaron">Pagaron</button><button data-f="todos">Todos</button><button data-f="mesas">Mesas</button></nav>
     <div class="list" id="lista"></div>
@@ -215,7 +216,7 @@ function cargar() {
     $("yo").innerHTML = esc(d.yo.nombre) + '<br><button id="bSalir">Salir</button>';
     $("bSalir").onclick = function () { TOKEN = null; entrarPantalla(); };
     $("per").textContent = d.periodo ? "Cuentas corrientes · " + dm(d.periodo.desde) + " al " + dm(d.periodo.hasta) : "Cuentas corrientes";
-    dibujar(); botonRecargos();
+    dibujar();
     traerCuits();   // la lista de CUIT queda lista para la factura A
     avisoBloqueados();
   }).catch(function (e) { $("cargando").textContent = e.message; });
@@ -228,7 +229,7 @@ function diasSinPagar(c) {
   return Math.round((new Date(D.periodo.hasta + "T12:00:00") - new Date(c.ultimoPago + "T12:00:00")) / 86400000);
 }
 function dibujar() {
-  botonRecargos();
+  botonRecargos(); if (D) botonRecargosSemana();
   if (filtro === "mesas") return dibujarMesas();
   var L = $("lista"), q = $("busca").value.trim().toLowerCase(), tot = 0, n = 0;
   L.textContent = "";
@@ -435,7 +436,7 @@ function abrir(c) {
       : !waOk ? '<button class="solo" id="env">Cargar el WhatsApp para mandar</button>' : '<a class="wa" id="env" href="https://wa.me/' + esc(c.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>') +
     '<div class="two"><button class="ghost' + (c.pago ? " ok" : "") + '" id="bPago">' + (c.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">' + (conPdf ? "Copiar como texto" : "Copiar mensaje") + '</button></div>' +
     '<div class="two"><button class="ghost" id="bFA">Factura A</button><button class="ghost" id="bFB">Factura B</button></div>' +
-    (c.restoSoft > 0 ? '<button class="ghost' + (c.recargoExtra ? " sel" : "") + '" id="bRec">' + (c.recargoExtra ? "✓ Recargo " + pct() + " sumado (" + pesos(c.recargoExtra) + ") · tocá para sacarlo" : "Sumar recargo " + pct() + " (" + pesos(Math.round(c.restoSoft * D.recargo)) + ")") + '</button>' +
+    (c.restoSoft > 0 && (c.recargoExtra || !recargoEstaSemana(c)) ? '<button class="ghost' + (c.recargoExtra ? " sel" : "") + '" id="bRec">' + (c.recargoExtra ? "✓ Recargo " + pct() + " sumado (" + pesos(c.recargoExtra) + ") · tocá para sacarlo" : "Sumar recargo " + pct() + " (" + pesos(Math.round(c.restoSoft * D.recargo)) + ")") + '</button>' +
       (c.recargoExtra ? '<p class="nota">Cuando marques que pagó, el recargo queda anotado en "Recargos cobrados" para cargarlos todos juntos en Resto Soft.</p>' : '') : '') +
     '<button class="ghost" id="bDatos">' + (c.revisado ? "Editar datos del cliente" : "Revisar datos del cliente") + '</button>' +
     (c.enviado ? '<p class="nota">Mensaje enviado el ' + esc(c.enviado) + ' por ' + esc(c.enviadoPor) + '.</p>' : '') +
@@ -863,6 +864,44 @@ function abrirMesa(m) {
 }
 $("bNueva").onclick = function () { $("sheet").hidden = false; formFactura("B", null); };
 $("bFacturas").onclick = verFacturas;
+/* ---------- recargos 2,5 % de la semana para cargar en Resto Soft, cliente por cliente ---------- */
+/** ¿Resto Soft ya tiene un recargo (ACTUALIZACION) de esta semana para este cliente? (últimos 6 días del Excel) */
+function recargoEstaSemana(c) {
+  if (!D.periodo) return false;
+  var desde = new Date(D.periodo.hasta + "T12:00:00"); desde.setDate(desde.getDate() - 6);
+  var d = desde.toISOString().slice(0, 10);
+  return c.movs.some(function (m) { return m.tipo === "Actualización" && m.fecha >= d; });
+}
+function recargosSemana() {
+  return D.clientes.filter(function (c) { return !c.pago && c.restoSoft >= 1 && !recargoEstaSemana(c); })
+    .map(function (c) { return { codigo: c.codigo, nombre: c.nombre, saldo: c.restoSoft, rec: Math.round(c.restoSoft * D.recargo) }; })
+    .filter(function (r) { return r.rec >= 1; })
+    .sort(function (a, b) { return a.nombre < b.nombre ? -1 : 1; });
+}
+function botonRecargosSemana() {
+  var b = $("bRecSem"); if (!D || !D.periodo) { b.hidden = true; return; }
+  var rs = recargosSemana(), t = 0; rs.forEach(function (r) { t += r.rec; });
+  b.hidden = false;
+  b.innerHTML = rs.length ? "<b>Recargos " + pct() + " para cargar en Resto Soft: " + rs.length + "</b><br><small>Total " + pesos(t) + " · tocá para ver la lista</small>"
+    : "<b>Recargos " + pct() + " de esta semana: ya están todos en Resto Soft ✓</b>";
+  b.disabled = !rs.length;
+}
+$("bRecSem").onclick = function () {
+  var rs = recargosSemana(), B = $("box"), t = 0;
+  rs.forEach(function (r) { t += r.rec; });
+  var txt = rs.map(function (r) { return r.codigo + "  " + r.nombre + "  " + pesos(r.rec); }).join(NL) + NL + NL + "TOTAL " + pesos(t);
+  $("sheet").hidden = false;
+  B.innerHTML = '<div class="top"><div><h3>Recargos ' + pct() + ' para cargar</h3><div class="sub">' + rs.length + ' clientes · total ' + pesos(t) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
+    '<p class="nota">Cargá cada uno en Resto Soft (código, cliente y monto). Cuando termines, exportá el Excel de nuevo y cargalo en la app: los recargos ya van a venir adentro y esta lista queda vacía.</p>' +
+    rs.map(function (r) { return '<div class="resumen"><div><b>' + esc(r.nombre) + '</b><b>' + pesos(r.rec) + '</b></div><div><span class="nota">Código ' + esc(r.codigo) + ' · debe ' + pesos(r.saldo) + '</span></div></div>'; }).join("") +
+    '<div class="resumen"><div><b>Total</b><b>' + pesos(t) + '</b></div></div>' +
+    '<button class="ghost" id="bCopRec">Copiar la lista</button>';
+  $("x").onclick = cerrar;
+  $("bCopRec").onclick = function () {
+    var b = this;
+    if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function () { b.textContent = "Copiada ✓"; }, function () { b.textContent = "No se pudo copiar"; });
+  };
+};
 /* ---------- recargos cobrados: se juntan para cargarlos de una vez en Resto Soft ---------- */
 function botonRecargos() {
   var rs = (D && D.recargosCobrados) || [], b = $("bRecCob"), t = 0;
