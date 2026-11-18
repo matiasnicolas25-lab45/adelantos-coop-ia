@@ -138,6 +138,15 @@ Nombres exactos de pestaña (varios tienen espacio al final):
 
 ## 7. Mensajes semanales a los socios
 
+**Desde el 18/11/2026 ya NO se mandan mensajes por socio**: cada uno ve sus adelantos en la app (Horarios La Caleta → CONFIG B5). Flujo nuevo del jueves:
+1. Al empezar a cargar, poner CONFIG B5 en NO (así nadie ve la semana a medio cargar).
+2. Cargar la semana. A Mat se le pasa UN solo mensaje con lo que falta (sin precio, sin receta, no se entiende, efectivo > $150.000), con socio, fecha y lo que escribió. Nunca le pidas que revise pestañas.
+3. Mat contesta los faltantes en el chat; completarlos en la planilla.
+4. Cuando no queda nada pendiente: CONFIG B5 en SÍ y darle a Mat un mensaje corto para el grupo "La Caleta" avisando que ya pueden ver sus adelantos en la app.
+
+El formato de abajo queda solo como referencia histórica (y lo que muestra la app).
+
+
 - Se mandan al chat de WhatsApp **"La Caleta"** (no por privado). Mat los copia desde el chat: entregarlos listos para copiar, nunca como .txt.
 - Movimientos tal cual están en la planilla, ordenados por fecha. **Sin devolución, sin saldo anterior, sin explicar saldos a favor.**
 - Formato:
