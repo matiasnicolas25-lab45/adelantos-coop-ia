@@ -28,3 +28,5 @@ Nunca cambies un precio sin el OK de Mat. Con el OK, cargá en la hoja del prove
 - Antes de agregar columnas, revisá qué fórmulas apuntan a columnas de esa hoja (LISTA, AUMENTOS, fichas, 'Conexión recetas' de las listas de socios): insertar columnas corre las referencias. Después verificá que LISTA y las listas de socios den lo mismo que antes, salvo los precios que cambiaron.
 - Los precios que cambian se **pintan con el color que usa la jefa de cocina** (crema claro #FFF2CC en FINAL y en la columna nueva). Productos nuevos: fila al final con el **mismo formato que la de arriba** (copiá formato), con todas las columnas de fórmulas completas.
 - En AUMENTOS, los precios de carta que cambian van **en amarillo** y con el mismo formato de moneda que la columna anterior.
+
+**Verdulería (regla de Mat, 18/11):** no le des tantas vueltas. El precio del último remito es el que vale, suba o baje; no preguntes por bolsas "más chicas" ni por remitos con cambios. La pata muslo de la carnicería (PIALA) y la pata muslo Camelia de Frío Net son productos distintos: no se mezclan.
