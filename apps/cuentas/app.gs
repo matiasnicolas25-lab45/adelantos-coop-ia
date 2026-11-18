@@ -241,6 +241,7 @@ function importar(token, base64, nombreArchivo) {
         m.items.map(i => i.cant + "× " + i.desc + " = " + i.importe).join(" | ")]));
     });
     reemplazarPeriodo(hoja("SALDOS"), periodo, fs, [1, 7, 8]);
+    arrastrarEstado(periodo, fs, yo.nombre);
     reemplazarPeriodo(hoja("MOVIMIENTOS"), periodo, fm, [1, 3]);
 
     const cs = hoja("CLIENTES"), cv = cs.getDataRange().getValues(), ya = {};
@@ -392,6 +393,35 @@ function anotarRecargoCobrado(periodo, codigo, nombre, monto, quienNombre) {
     const r = [[ahoraTxt(), periodo, codigo, nombre, monto, quienNombre, "", ""]];
     if (fila) sh.getRange(fila, 1, 1, 8).setValues(r); else sh.getRange(sh.getLastRow() + 1, 1, 1, 8).setValues(r);
   } else if (fila) sh.deleteRow(fila);
+}
+
+/**
+ * Al cargar un Excel nuevo, lo que se hizo con el anterior no se pierde: si el cliente sigue debiendo,
+ * pasan la marca de "mensaje enviado" y el recargo sumado. Si pagó todo con el recargo (en Resto Soft queda
+ * a favor justo el recargo), el recargo se anota solo como cobrado.
+ */
+function arrastrarEstado(periodo, saldos, quienNombre) {
+  const sh = hoja("ESTADO"), v = sh.getDataRange().getValues(), ya = {}, ult = {}, cli = {};
+  saldos.forEach(r => cli[String(r[1])] = { nombre: String(r[2]), actual: Number(r[5]) });
+  for (let i = 1; i < v.length; i++) {
+    const p = fTxt(v[i][0]), k = String(v[i][1]);
+    if (p === periodo) ya[k] = true;
+    else if (p < periodo && (!ult[k] || p >= fTxt(ult[k][0]))) ult[k] = v[i];
+  }
+  const antes = {}; filas("SALDOS").forEach(r => { const p = fTxt(r[0]); if (p !== periodo) antes[p + "|" + String(r[1])] = Number(r[5]); });
+  const nuevas = [];
+  Object.keys(ult).forEach(function (k) {
+    const e = ult[k], c = cli[k];
+    if (ya[k] || !c || String(e[4] || "")) return;          // ya está, no figura más, o ya se marcó que pagó
+    const rec = Number(e[6]) || 0;
+    if (rec > 0 && c.actual <= -rec + 1) { anotarRecargoCobrado(fTxt(e[0]), k, c.nombre, rec, quienNombre + " (automático: pagó con el recargo)"); return; }
+    if (c.actual < 1) return;                                 // pagó sin el recargo, o está al día
+    const previo = antes[fTxt(e[0]) + "|" + k];
+    if (previo == null || Math.abs(previo - c.actual) >= 1) return;   // la deuda cambió: hay que mandarle el resumen nuevo
+    if (!String(e[2] || "") && !rec) return;
+    nuevas.push([periodo, Number(k), e[2], e[3], "", "", rec || ""]);
+  });
+  if (nuevas.length) sh.getRange(sh.getLastRow() + 1, 1, nuevas.length, 7).setValues(nuevas);
 }
 
 function recargosSinCargar() {
