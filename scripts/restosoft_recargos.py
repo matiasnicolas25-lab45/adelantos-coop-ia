@@ -9,8 +9,9 @@ Usa como molde una exportación de ventas de Resto Soft del mismo día
 formato de las tablas FacEnc y FacDet, el nombre y la condición de IVA de
 cada cliente y el número de caja abierta (idCierre).
 
-Las facturas van con punto de venta 0099 (X-0099-AAMMDDnn) para no pisar
-nunca la numeración real (X-0001-...).
+Las facturas van con punto de venta 0099 (X-0099-DDDDCCCC: días desde el 1/1/2026
+y código de cliente) para no pisar nunca la numeración real (X-0001-...).
+Misma lógica que scripts/restosoft_recargos.gs (la versión que corre en la app).
 
 Uso: python3 restosoft_recargos.py ventas.exp recargos.csv salida.exp
      recargos.csv: una línea por socio, "codigo,monto" (código de cliente de Resto Soft).
@@ -74,7 +75,7 @@ def main():
             sys.exit(f"El código {cod} no está en los clientes de Resto Soft.")
         if attr(cli, "ACtaCte") != "TRUE":
             sys.exit(f"{attr(cli, 'Nombre').strip()} ({cod}) no tiene cuenta corriente habilitada.")
-        nro = f"X-{PTO_VTA}-{ahora:%y%m%d}{i:02d}"
+        nro = f"X-{PTO_VTA}-{(ahora - dt.datetime(2026, 1, 1)).days:04d}{int(cod):04d}"
         neto = monto / 1.21
         nombre = esc(attr(cli, "Nombre").strip()[:30])
         enc.append(
