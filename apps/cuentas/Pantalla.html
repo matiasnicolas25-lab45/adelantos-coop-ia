@@ -919,7 +919,7 @@ $("bRecSem").onclick = function () {
   $("x").onclick = cerrar;
   $("bArchRS").onclick = function () {
     var bt = this; bt.disabled = true; bt.textContent = "Armando el archivo…";
-    run("archivoRecargos", TOKEN, rs.map(function (r) { return { codigo: r.codigo, nombre: r.nombre, rec: r.rec }; })).then(function (d) {
+    run("cargarRecargos", TOKEN, rs.map(function (r) { return { codigo: r.codigo, nombre: r.nombre, rec: r.rec }; })).then(function (d) {
       bt.hidden = true;
       var c = $("archRS");
       c.innerHTML = '<div class="resumen" style="gap:10px"><p class="bien" style="margin:0">Archivo listo: ' + d.cantidad + ' clientes, ' + pesos(d.total) + ' (caja ' + esc(d.caja) + ').</p>' +

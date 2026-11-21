@@ -662,7 +662,10 @@ function recargosSinCargar() {
 }
 
 /** "Ya los cargué en Resto Soft": marca todos los pendientes como cargados. */
-function cargarRecargos(token) {
+function cargarRecargos(token, lista) {
+  // Con lista: arma el archivo de recargos para Resto Soft (pasa por acá porque la página /caja de WordPress
+  // solo deja llamar a las funciones de su lista, y esta ya estaba).
+  if (Array.isArray(lista)) return archivoRecargos(token, lista);
   const yo = quien(token), sh = hoja("RECARGOS COBRADOS"), v = sh.getDataRange().getValues();
   let n = 0, total = 0;
   for (let i = 1; i < v.length; i++) if (!String(v[i][6] || "") && Number(v[i][4]) > 0) {
@@ -4584,7 +4587,7 @@ $("bRecSem").onclick = function () {
   $("x").onclick = cerrar;
   $("bArchRS").onclick = function () {
     var bt = this; bt.disabled = true; bt.textContent = "Armando el archivo…";
-    run("archivoRecargos", TOKEN, rs.map(function (r) { return { codigo: r.codigo, nombre: r.nombre, rec: r.rec }; })).then(function (d) {
+    run("cargarRecargos", TOKEN, rs.map(function (r) { return { codigo: r.codigo, nombre: r.nombre, rec: r.rec }; })).then(function (d) {
       bt.hidden = true;
       var c = $("archRS");
       c.innerHTML = '<div class="resumen" style="gap:10px"><p class="bien" style="margin:0">Archivo listo: ' + d.cantidad + ' clientes, ' + pesos(d.total) + ' (caja ' + esc(d.caja) + ').</p>' +

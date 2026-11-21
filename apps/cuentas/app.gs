@@ -481,7 +481,10 @@ function recargosSinCargar() {
 }
 
 /** "Ya los cargué en Resto Soft": marca todos los pendientes como cargados. */
-function cargarRecargos(token) {
+function cargarRecargos(token, lista) {
+  // Con lista: arma el archivo de recargos para Resto Soft (pasa por acá porque la página /caja de WordPress
+  // solo deja llamar a las funciones de su lista, y esta ya estaba).
+  if (Array.isArray(lista)) return archivoRecargos(token, lista);
   const yo = quien(token), sh = hoja("RECARGOS COBRADOS"), v = sh.getDataRange().getValues();
   let n = 0, total = 0;
   for (let i = 1; i < v.length; i++) if (!String(v[i][6] || "") && Number(v[i][4]) > 0) {
