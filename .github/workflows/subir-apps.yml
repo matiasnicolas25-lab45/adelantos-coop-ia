@@ -1,7 +1,7 @@
 name: Subir apps a Google
 on:
   push:
-    branches: [ccr-e008e6de-2fulh4]
+    branches: [ccr-e008e6de-2fulh4, apps-la-caleta]
     paths: ["apps/horarios-google/Codigo.gs", "apps/cuentas/Codigo.gs", "apps/proporcionales/Codigo.gs", "deploy/**", ".github/workflows/subir-apps.yml"]
   workflow_dispatch:
 jobs:
