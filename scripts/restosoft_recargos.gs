@@ -1,20 +1,16 @@
-// Recargos de cuenta corriente → archivo para importar en Resto Soft.
-// Va pegado como archivo APARTE en la planilla "Cuentas La Caleta" (Extensiones → Apps Script → + → Script),
-// sin tocar el código de la app. Todo lo de acá empieza con RRS_ para no chocar con la app.
+// Recargos de cuenta corriente → archivo para importar en Resto Soft (todos los socios de una vez).
+// Va como archivo APARTE (Recargos.gs) en el Apps Script de "Cuentas La Caleta", al lado de Codigo.gs.
+// Usa el cálculo de la app (recargosApp de Codigo.gs: 2,5 % cada miércoles sobre lo que se debe, hasta que se carga
+// en Resto Soft). Todo lo de acá empieza con RRS_ para no chocar con la app.
 // Instalar una sola vez: pegar, guardar y correr RRS_instalar().
-// Uso (el miércoles): 1) en Resto Soft, Utiles → Sincronizar Datos → Exportar Datos de Ventas del día y subirlo
-// a la carpeta RESTOSOFT de Drive (.exp o .zip, con "venta" en el nombre); 2) tildar la casilla de la hoja
-// "RESTO SOFT" (lo pasado queda anotado ahí desde la fila 12) de esta planilla; 3) bajar el archivo "RECARGOS RESTO SOFT dd-mm.exp" que aparece en RESTOSOFT e
-// importarlo en Resto Soft (Utiles → Sincronizar Datos → Importar Datos), con backup antes.
-// Toma el último período de la hoja ESTADO y, por cada socio con "Recargo sumado" (lo que pone el botón
-// "Sumar recargo" de la app) que no se haya pasado ya en los últimos 6 días, arma una factura X a cuenta corriente con el
-// producto ACTUALIZACION (idPlato 1986, $1) y cantidad = monto. Igual que lo que hacen a mano.
-// Numeración aparte X-0099-DDDDCCCC (DDDD = días desde el 1/1/2026, CCCC = código del cliente): nunca pisa
-// la numeración real y, si se importa dos veces el mismo día, el mismo socio no queda con dos recargos.
+// Uso (miércoles): 1) Raquel carga el Excel de cuentas corrientes en la app; 2) en Resto Soft, Exportar Datos de
+// Ventas y subirlo (.zip) a RESTOSOFT; 3) tildar la casilla B1 de la hoja "RESTO SOFT"; 4) importar en Resto Soft
+// el archivo "RECARGOS RESTO SOFT ...exp" que aparece en RESTOSOFT (Utiles → Sincronizar Datos → Importar Datos).
+// Al armar el archivo, cada recargo queda anotado en la hoja RECARGOS (como "Ya lo cargué en Resto Soft"),
+// así la app lo deja de sumar y no se repite.
+// Cada recargo va como una factura X a cuenta corriente con el producto ACTUALIZACION (idPlato 1986, $1),
+// cantidad = monto, numeración aparte X-0099-DDDDCCCC (DDDD = días desde el 1/1/2026, CCCC = código del cliente).
 var RRS_CARPETA = '1wO-WdCuwm0PtuFtz_MdcFj-uZwXlMsmZ';
-var RRS_HOJA_ESTADO = 'ESTADO';
-var RRS_FILA_LOG = 12;      // desde acá, en la hoja RESTO SOFT, queda anotado qué se pasó a Resto Soft
-var RRS_DIAS_YA_HECHO = 6;   // un socio que ya se pasó hace menos de 6 días no se vuelve a pasar
 var RRS_HOJA_PANEL = 'RESTO SOFT';
 var RRS_CASILLA = 'B1';
 var RRS_ID_ACTUALIZACION = '1986';
@@ -72,10 +68,6 @@ function RRS_attr(row, k) {
   return m ? m[1] : '';
 }
 
-function RRS_texto(v) {
-  return v instanceof Date ? Utilities.formatDate(v, 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd') : String(v).trim();
-}
-
 function RRS_num(x) {
   x = Math.round(x * 100) / 100;
   return x % 1 === 0 ? String(x) : x.toFixed(2);
@@ -94,33 +86,27 @@ function RRS_generar() {
   var clientes = {};
   (RRS_tabla(ventas, 'CLIENTES').match(/<ROW [^>]*\/>/g) || []).forEach(function (r) { clientes[RRS_attr(r, 'idCliente')] = r; });
 
-  var ss = SpreadsheetApp.getActive();
-  var datos = ss.getSheetByName(RRS_HOJA_ESTADO).getDataRange().getValues(), enc = datos[0].map(String);
-  var cPer = enc.indexOf('Período'), cCod = enc.indexOf('Código'), cRec = enc.indexOf('Recargo sumado');
-  if (cPer < 0 || cCod < 0 || cRec < 0) throw new Error('No encuentro las columnas Período / Código / Recargo sumado en ESTADO.');
-  var periodo = datos.slice(1).reduce(function (m, f) { var p = RRS_texto(f[cPer]); return p > m ? p : m; }, '');
-
-  var ahora = new Date(), tz = 'America/Argentina/Buenos_Aires';
-  var panel = ss.getSheetByName(RRS_HOJA_PANEL);
-  var hechos = {};
-  if (panel.getLastRow() >= RRS_FILA_LOG) {
-    panel.getRange(RRS_FILA_LOG, 1, panel.getLastRow() - RRS_FILA_LOG + 1, 4).getValues().forEach(function (f) {
-      var cuando = f[3] instanceof Date ? f[3] : null;
-      if (f[0] !== '' && cuando && (ahora - cuando) / 864e5 < RRS_DIAS_YA_HECHO) hechos[String(f[0]).trim()] = true;
-    });
-  }
-  var porCliente = {}, problemas = [];
-  datos.slice(1).forEach(function (f) {
-    var cod = String(f[cCod]).trim(), monto = RRS_monto(f[cRec]);
-    if (RRS_texto(f[cPer]) !== periodo || !cod || monto <= 0 || hechos[cod]) return;
+  // Mismo cálculo que la pantalla de la app (función datos de Codigo.gs).
+  var periodo = filas('SALDOS').map(function (r) { return fTxt(r[0]); }).sort().pop();
+  if (!periodo) throw new Error('Primero cargá el Excel de cuentas corrientes en la app.');
+  var inicio = fechaDato(DATO_INICIO_RECARGO), ahora = new Date(), tz = ZONA, hoy = Utilities.formatDate(ahora, tz, 'yyyy-MM-dd');
+  var cargados = {};
+  filas('RECARGOS').forEach(function (r) { var k = String(r[0]), f = fTxt(r[2]); if (!cargados[k] || f > cargados[k]) cargados[k] = f; });
+  var mv = {};
+  filas('MOVIMIENTOS').forEach(function (r) { if (fTxt(r[0]) === periodo) (mv[String(r[1])] = mv[String(r[1])] || []).push({ fecha: fTxt(r[2]), saldo: Number(r[7]) }); });
+  var porCliente = {}, nombres = {}, semanas = {}, salteados = [];
+  filas('SALDOS').forEach(function (r) {
+    if (fTxt(r[0]) !== periodo) return;
+    var cod = String(r[1]), rec = recargosApp(inicio, cargados[cod] || '', Number(r[4]), mv[cod] || [], hoy);
+    if (rec.total < 1) return;
     var cli = clientes[cod];
-    if (!cli) return problemas.push(cod + ' no está en Resto Soft');
-    if (RRS_attr(cli, 'ACtaCte') !== 'TRUE') return problemas.push(RRS_attr(cli, 'Nombre').trim() + ' no tiene cuenta corriente');
-    porCliente[cod] = monto;
+    if (!cli) return salteados.push(String(r[2]) + ' (no está en Resto Soft)');
+    if (RRS_attr(cli, 'ACtaCte') !== 'TRUE') return salteados.push(String(r[2]) + ' (sin cuenta corriente en Resto Soft)');
+    porCliente[cod] = rec.total; nombres[cod] = String(r[2]); semanas[cod] = rec.semanas.length;
   });
-  if (problemas.length) throw new Error(problemas.join('; '));
   var cods = Object.keys(porCliente);
-  if (!cods.length) return 'No hay recargos nuevos: en ESTADO (período ' + periodo + ') no hay "Recargo sumado" que no se haya pasado ya a Resto Soft en los últimos ' + RRS_DIAS_YA_HECHO + ' días.';
+  if (!cods.length) return 'No hay recargos para cargar' + (inicio ? ' (la app calcula desde el ' + inicio + ')' : ' (falta la fecha de inicio en CONFIG)') + '.' +
+    (salteados.length ? ' Salteados: ' + salteados.join(', ') : '');
 
   var fecha = Utilities.formatDate(ahora, tz, 'yyyyMMdd'), hora = Utilities.formatDate(ahora, tz, 'HH:mm');
   var fechaHora = Utilities.formatDate(ahora, tz, "yyyyMMdd'T'HH:mm:ss") + '000';
@@ -150,8 +136,11 @@ function RRS_generar() {
   }
   var nombreArchivo = 'RECARGOS RESTO SOFT ' + Utilities.formatDate(ahora, tz, 'dd-MM HH.mm') + '.exp';
   DriveApp.getFolderById(RRS_CARPETA).createFile(Utilities.newBlob(bytes, 'application/octet-stream', nombreArchivo));
-  var log = cods.map(function (cod) { return [Number(cod), porCliente[cod], nombreArchivo, ahora]; });
-  panel.getRange(Math.max(panel.getLastRow() + 1, RRS_FILA_LOG), 1, log.length, 4).setValues(log);
-  return 'Listo: "' + nombreArchivo + '" en RESTOSOFT — ' + cods.length + ' socios, $ ' + RRS_num(total) + ' (caja ' + idCierre + '). ' +
-    'Importalo en Resto Soft (Utiles → Sincronizar Datos → Importar Datos).';
+  var dia = Utilities.formatDate(ahora, tz, 'yyyy-MM-dd');
+  var anotar = cods.map(function (cod) { return [Number(cod), nombres[cod], dia, porCliente[cod], semanas[cod], 'Archivo Resto Soft']; });
+  var hr = hoja('RECARGOS');
+  hr.getRange(hr.getLastRow() + 1, 1, anotar.length, 6).setValues(anotar);
+  registrar('Sistema', 'Armó el archivo de recargos para Resto Soft', '', nombreArchivo + ' (' + cods.length + ' socios, $' + RRS_num(total) + ')');
+  return 'Listo: "' + nombreArchivo + '" en RESTOSOFT — ' + cods.length + ' socios, $ ' + RRS_num(total) + ' (caja ' + idCierre + '). Importalo en Resto Soft (Utiles → Sincronizar Datos → Importar Datos).' +
+    (salteados.length ? ' Salteados: ' + salteados.join(', ') : '');
 }
