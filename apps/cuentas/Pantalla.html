@@ -912,20 +912,20 @@ $("bRecSem").onclick = function () {
   B.innerHTML = '<div class="top"><div><h3>Recargos ' + pct() + ' para cargar</h3><div class="sub">' + rs.length + (rs.length === 1 ? ' cliente' : ' clientes') + ' · total ' + pesos(t) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
     '<button class="solo" id="bArchRS">Armar archivo para Resto Soft (todos de una vez)</button>' +
     '<div id="archRS"></div>' +
-    '<p class="nota">Antes: en Resto Soft hacé el backup y Exportar Datos de Ventas, comprimilo en .zip y subilo a la carpeta RESTOSOFT de Drive. Después de importar el archivo, exportá el Excel de cuentas corrientes de nuevo y cargalo en la app: los recargos ya vienen adentro y esta lista queda vacía.</p>' +
+    '<p class="nota">En Resto Soft: Utiles → Sincronizar Datos → Importar Datos → elegí el archivo. La próxima vez que cargues el Excel de cuentas corrientes, los recargos ya vienen adentro y esta lista queda vacía.</p>' +
     rs.map(function (r) { return '<div class="resumen"><div><b>' + esc(r.nombre) + '</b><b>' + pesos(r.rec) + '</b></div><div><span class="nota">Código ' + esc(r.codigo) + ' · debe ' + pesos(r.saldo) + '</span></div></div>'; }).join("") +
     '<div class="resumen"><div><b>Total</b><b>' + pesos(t) + '</b></div></div>' +
     '<button class="ghost" id="bCopRec">Copiar la lista</button>';
   $("x").onclick = cerrar;
   $("bArchRS").onclick = function () {
     var bt = this; bt.disabled = true; bt.textContent = "Armando el archivo…";
-    run("archivoRecargos", TOKEN, rs.map(function (r) { return { codigo: r.codigo, rec: r.rec }; })).then(function (d) {
+    run("archivoRecargos", TOKEN, rs.map(function (r) { return { codigo: r.codigo, nombre: r.nombre, rec: r.rec }; })).then(function (d) {
       bt.hidden = true;
       var c = $("archRS");
       c.innerHTML = '<div class="resumen" style="gap:10px"><p class="bien" style="margin:0">Archivo listo: ' + d.cantidad + ' clientes, ' + pesos(d.total) + ' (caja ' + esc(d.caja) + ').</p>' +
         (d.salteados.length ? '<p class="aviso" style="margin:0">No entraron (cargalos a mano): ' + esc(d.salteados.join(", ")) + '</p>' : '') +
         '<button class="solo" id="bBajRS" type="button">Bajar el archivo a la compu</button>' +
-        '<p class="nota" style="margin:0">También quedó en la carpeta RESTOSOFT de Drive como <b>' + esc(d.nombre) + '</b>. En Resto Soft: Utiles → Sincronizar Datos → Importar Datos → elegí ese archivo.</p></div>';
+        '<p class="nota" style="margin:0">También quedó en la carpeta RESTOSOFT de Drive como <b>' + esc(d.nombre) + '</b>.</p></div>';
       $("bBajRS").onclick = function () { bajarArchivo(d, "application/octet-stream"); };
     }).catch(function (e) { bt.disabled = false; bt.textContent = "Armar archivo para Resto Soft (todos de una vez)"; alerta(e.message); });
   };
