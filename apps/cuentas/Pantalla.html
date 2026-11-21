@@ -686,6 +686,24 @@ function botonPdf(cont, r, wa, texto, alAbrirChat) {
  * Baja el PDF. La app de Google corre "encerrada" y no deja bajar archivos desde adentro,
  * así que se abre una pestaña nueva (que sí puede) y el PDF se baja desde ahí.
  */
+/** Igual que bajarPdf, para cualquier archivo (por ejemplo el .exp de recargos para Resto Soft). */
+function bajarArchivo(d, tipo) {
+  var w = null;
+  try { w = window.open("", "_blank"); } catch (e) { w = null; }
+  var donde = w || window, bin = atob(d.b64), arr = new donde.Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  var url = donde.URL.createObjectURL(new donde.Blob([arr], { type: tipo }));
+  var doc = donde.document, a = doc.createElement("a");
+  a.href = url; a.download = d.nombre; a.textContent = "Bajar de nuevo";
+  if (w) {
+    doc.title = d.nombre;
+    doc.body.style.cssText = "font:18px system-ui,sans-serif;padding:40px;text-align:center;color:#1c211e";
+    doc.body.innerHTML = "<p>✅ Listo, el archivo <b></b> se bajó a la compu (está en Descargas).</p><p>Ya podés cerrar esta pestaña.</p><p></p>";
+    doc.body.querySelector("b").textContent = d.nombre;
+    doc.body.lastChild.appendChild(a);
+  } else { a.style.display = "none"; doc.body.appendChild(a); }
+  a.click();
+}
 function bajarPdf(d) {
   var w = null;
   try { w = window.open("", "_blank"); } catch (e) { w = null; }
@@ -892,11 +910,25 @@ $("bRecSem").onclick = function () {
   var txt = rs.map(function (r) { return r.codigo + "  " + r.nombre + "  " + pesos(r.rec); }).join(NL) + NL + NL + "TOTAL " + pesos(t);
   $("sheet").hidden = false;
   B.innerHTML = '<div class="top"><div><h3>Recargos ' + pct() + ' para cargar</h3><div class="sub">' + rs.length + (rs.length === 1 ? ' cliente' : ' clientes') + ' · total ' + pesos(t) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
-    '<p class="nota">Cargá cada uno en Resto Soft (código, cliente y monto). Cuando termines, exportá el Excel de nuevo y cargalo en la app: los recargos ya van a venir adentro y esta lista queda vacía.</p>' +
+    '<button class="solo" id="bArchRS">Armar archivo para Resto Soft (todos de una vez)</button>' +
+    '<div id="archRS"></div>' +
+    '<p class="nota">Antes: en Resto Soft hacé el backup y Exportar Datos de Ventas, comprimilo en .zip y subilo a la carpeta RESTOSOFT de Drive. Después de importar el archivo, exportá el Excel de cuentas corrientes de nuevo y cargalo en la app: los recargos ya vienen adentro y esta lista queda vacía.</p>' +
     rs.map(function (r) { return '<div class="resumen"><div><b>' + esc(r.nombre) + '</b><b>' + pesos(r.rec) + '</b></div><div><span class="nota">Código ' + esc(r.codigo) + ' · debe ' + pesos(r.saldo) + '</span></div></div>'; }).join("") +
     '<div class="resumen"><div><b>Total</b><b>' + pesos(t) + '</b></div></div>' +
     '<button class="ghost" id="bCopRec">Copiar la lista</button>';
   $("x").onclick = cerrar;
+  $("bArchRS").onclick = function () {
+    var bt = this; bt.disabled = true; bt.textContent = "Armando el archivo…";
+    run("archivoRecargos", TOKEN, rs.map(function (r) { return { codigo: r.codigo, rec: r.rec }; })).then(function (d) {
+      bt.hidden = true;
+      var c = $("archRS");
+      c.innerHTML = '<div class="resumen" style="gap:10px"><p class="bien" style="margin:0">Archivo listo: ' + d.cantidad + ' clientes, ' + pesos(d.total) + ' (caja ' + esc(d.caja) + ').</p>' +
+        (d.salteados.length ? '<p class="aviso" style="margin:0">No entraron (cargalos a mano): ' + esc(d.salteados.join(", ")) + '</p>' : '') +
+        '<button class="solo" id="bBajRS" type="button">Bajar el archivo a la compu</button>' +
+        '<p class="nota" style="margin:0">También quedó en la carpeta RESTOSOFT de Drive como <b>' + esc(d.nombre) + '</b>. En Resto Soft: Utiles → Sincronizar Datos → Importar Datos → elegí ese archivo.</p></div>';
+      $("bBajRS").onclick = function () { bajarArchivo(d, "application/octet-stream"); };
+    }).catch(function (e) { bt.disabled = false; bt.textContent = "Armar archivo para Resto Soft (todos de una vez)"; alerta(e.message); });
+  };
   $("bCopRec").onclick = function () {
     var b = this;
     if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function () { b.textContent = "Copiada ✓"; }, function () { b.textContent = "No se pudo copiar"; });

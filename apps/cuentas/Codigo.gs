@@ -260,7 +260,7 @@ const MAX_ERRORES_PIN = 5;
 const API = { nombresAcceso: nombresAcceso, entrar: entrar, datos: datos, importar: importar, marcar: marcar, guardarCliente: guardarCliente,
   listaCuit: listaCuit, sugerirCuit: sugerirCuit, facturar: facturar, ultimasFacturas: ultimasFacturas, pdfParaEnviar: pdfParaEnviar,
   notaCredito: notaCredito, revisarConArca: revisarConArca, leerMesa: leerMesa, guardarMesa: guardarMesa, pendientes: pendientes,
-  marcarMesa: marcarMesa, resumenPdf: resumenPdf, desbloquear: desbloquear, guardarRecargo: guardarRecargo, cargarRecargos: cargarRecargos };
+  marcarMesa: marcarMesa, resumenPdf: resumenPdf, desbloquear: desbloquear, guardarRecargo: guardarRecargo, cargarRecargos: cargarRecargos, archivoRecargos: archivoRecargos };
 
 function doGet(e) {
   if (e && e.parameter && e.parameter.pantalla) {   // la página de La Caleta pide la pantalla y la muestra ella misma (así no sale el cartel de Google)
@@ -1005,6 +1005,80 @@ function marcarMesa(token, id, que, valor) {
     return true;
   }
   throw new Error("No encontré esa mesa.");
+}
+
+/* ---------- recargos 2,5 % → archivo para importar en Resto Soft (todos de una vez) ---------- */
+// Cada recargo va como una factura X a cuenta corriente con el producto ACTUALIZACION (idPlato 1986, $1) y
+// cantidad = monto: igual que como se cargaba a mano. Numeración aparte X-0099-DDDDCCCC (DDDD = días desde el
+// 1/1/2026, CCCC = código del cliente), así nunca pisa la numeración real (X-0001-...) y, si se importa dos veces
+// el mismo día, no se duplica. Usa como molde la última exportación de ventas de Resto Soft de la carpeta RESTOSOFT
+// (Utiles → Sincronizar Datos → Exportar Datos de Ventas, .exp o .zip): de ahí saca la caja abierta y los clientes.
+// Probado el 20/11/2026 con un recargo de $1 importado en Resto Soft (apareció en la cuenta corriente).
+const RS_ID_ACTUALIZACION = "1986";
+const RS_ENC = "<##TABLA>\r\n<##ENC>\r\nNombre=FacEnc\r\n</##ENC>\r\n<?xml version=\"1.0\" standalone=\"yes\"?>  <DATAPACKET Version=\"2.0\"><METADATA><FIELDS><FIELD attrname=\"Fecha\" fieldtype=\"dateTime\"/><FIELD attrname=\"Hora\" fieldtype=\"string\" WIDTH=\"5\"/><FIELD attrname=\"Tipo\" fieldtype=\"string\" WIDTH=\"2\"/><FIELD attrname=\"Nro\" fieldtype=\"string\" WIDTH=\"15\"/><FIELD attrname=\"Mesa\" fieldtype=\"i4\"/><FIELD attrname=\"idMozo\" fieldtype=\"i4\"/><FIELD attrname=\"Neto\" fieldtype=\"r8\"/><FIELD attrname=\"IVAI\" fieldtype=\"r8\"/><FIELD attrname=\"IVANI\" fieldtype=\"r8\"/><FIELD attrname=\"Descuento\" fieldtype=\"r8\"/><FIELD attrname=\"Total\" fieldtype=\"r8\"/><FIELD attrname=\"idCierre\" fieldtype=\"i4\"/><FIELD attrname=\"Anul\" fieldtype=\"string\" SUBTYPE=\"FixedChar\" WIDTH=\"1\"/><FIELD attrname=\"NombreClie\" fieldtype=\"string\" WIDTH=\"30\"/><FIELD attrname=\"idCondIvaClie\" fieldtype=\"string\" SUBTYPE=\"FixedChar\" WIDTH=\"1\"/><FIELD attrname=\"CUITClie\" fieldtype=\"string\" WIDTH=\"13\"/><FIELD attrname=\"idCliente\" fieldtype=\"i4\"/><FIELD attrname=\"Pagos\" fieldtype=\"r8\"/><FIELD attrname=\"FormaDePago\" fieldtype=\"string\" SUBTYPE=\"FixedChar\" WIDTH=\"2\"/><FIELD attrname=\"CantPersonas\" fieldtype=\"i4\"/><FIELD attrname=\"FechaEstad\" fieldtype=\"dateTime\"/><FIELD attrname=\"Puntos\" fieldtype=\"r8\"/><FIELD attrname=\"idUsrAutorizaDesc\" fieldtype=\"i4\"/><FIELD attrname=\"idPedido\" fieldtype=\"i4\"/><FIELD attrname=\"idRepartidor\" fieldtype=\"i4\"/><FIELD attrname=\"PerIB\" fieldtype=\"r8\"/><FIELD attrname=\"NroCompAsoc\" fieldtype=\"string\" WIDTH=\"15\"/><FIELD attrname=\"AperturaMesa\" fieldtype=\"dateTime\"/><FIELD attrname=\"Cobrada\" fieldtype=\"boolean\"/><FIELD attrname=\"idObsDesc\" fieldtype=\"i4\"/><FIELD attrname=\"PagosEnMesa\" fieldtype=\"r8\"/><FIELD attrname=\"ImpInt\" fieldtype=\"r8\"/><FIELD attrname=\"idUsuario\" fieldtype=\"i4\"/><FIELD attrname=\"IdOrigen\" fieldtype=\"i4\"/><FIELD attrname=\"Propina\" fieldtype=\"r8\"/><FIELD attrname=\"Cae_Nro\" fieldtype=\"string\" WIDTH=\"50\"/><FIELD attrname=\"Cae_Vto\" fieldtype=\"dateTime\"/></FIELDS><PARAMS LCID=\"1033\"/></METADATA><ROWDATA>";
+const RS_DET = "<##TABLA>\r\n<##ENC>\r\nNombre=FacDet\r\n</##ENC>\r\n<?xml version=\"1.0\" standalone=\"yes\"?>  <DATAPACKET Version=\"2.0\"><METADATA><FIELDS><FIELD attrname=\"Tipo\" fieldtype=\"string\" WIDTH=\"2\"/><FIELD attrname=\"Nro\" fieldtype=\"string\" WIDTH=\"15\"/><FIELD attrname=\"idDetalle\" fieldtype=\"i4\"/><FIELD attrname=\"idProducto\" fieldtype=\"i4\"/><FIELD attrname=\"Descripcion\" fieldtype=\"string\" WIDTH=\"50\"/><FIELD attrname=\"Cant\" fieldtype=\"r8\"/><FIELD attrname=\"PUnit\" fieldtype=\"r8\"/><FIELD attrname=\"idMozo\" fieldtype=\"i4\"/><FIELD attrname=\"idTamanio\" fieldtype=\"i4\"/><FIELD attrname=\"ImpInt\" fieldtype=\"r8\"/><FIELD attrname=\"idDetalleCombinaDe\" fieldtype=\"i4\"/><FIELD attrname=\"Obs\" fieldtype=\"string\" WIDTH=\"70\"/><FIELD attrname=\"idUsuario\" fieldtype=\"i4\"/><FIELD attrname=\"EsEntrada\" fieldtype=\"boolean\"/><FIELD attrname=\"FechaHora\" fieldtype=\"dateTime\"/></FIELDS><PARAMS LCID=\"1033\"/></METADATA><ROWDATA>";
+
+function rsUltimaVenta() {
+  const it = DriveApp.getFolderById(RESTOSOFT_ID).getFiles(); let mejor = null;
+  while (it.hasNext()) {
+    const f = it.next(), n = f.getName().toLowerCase();
+    if (n.indexOf("venta") < 0 || !/\.(exp|zip)$/.test(n)) continue;
+    if (!mejor || f.getLastUpdated() > mejor.getLastUpdated()) mejor = f;
+  }
+  if (!mejor) throw new Error("Falta la exportación de ventas de Resto Soft en la carpeta RESTOSOFT (Utiles → Sincronizar Datos → Exportar Datos de Ventas, comprimida en .zip).");
+  const horas = (Date.now() - mejor.getLastUpdated().getTime()) / 36e5;
+  if (horas > 12) throw new Error("La última exportación de ventas (" + mejor.getName() + ") es de hace " + Math.round(horas) + " horas. Exportá las ventas de hoy de Resto Soft, comprimilas en .zip y subilas a RESTOSOFT.");
+  let blob = mejor.getBlob();
+  if (/\.zip$/i.test(mejor.getName())) {
+    blob = Utilities.unzip(blob).filter(b => /\.exp$/i.test(b.getName()))[0];
+    if (!blob) throw new Error("El zip " + mejor.getName() + " no tiene un .exp adentro.");
+  }
+  return blob.getDataAsString("ISO-8859-1");
+}
+function rsTabla(texto, nombre) {
+  const i = texto.indexOf("Nombre=" + nombre + "\r");
+  if (i < 0) throw new Error("La exportación no tiene la tabla " + nombre + ". Tiene que ser la de Exportar Datos de Ventas.");
+  return texto.substring(i, texto.indexOf("</##TABLA>", i));
+}
+function rsAttr(row, k) { const m = row.match(new RegExp(" " + k + '="([^"]*)"')); return m ? m[1] : ""; }
+function rsNum(x) { x = Math.round(x * 100) / 100; return x % 1 === 0 ? String(x) : x.toFixed(2); }
+
+/** lista = [{codigo, rec}] (la lista "Recargos 2,5 % para cargar"). Devuelve el .exp para bajar y deja una copia en RESTOSOFT. */
+function archivoRecargos(token, lista) {
+  const yo = quien(token);
+  if (!Array.isArray(lista) || !lista.length) throw new Error("No hay recargos para cargar.");
+  const ventas = rsUltimaVenta();
+  const cierres = (rsTabla(ventas, "FacEnc").match(/ idCierre="\d+"/g) || []).map(s => Number(s.match(/\d+/)[0]));
+  if (!cierres.length) throw new Error("La exportación de ventas no tiene ninguna venta del día: no sé el número de caja. Exportá de nuevo cuando haya alguna venta.");
+  const idCierre = Math.max.apply(null, cierres), clientes = {};
+  (rsTabla(ventas, "CLIENTES").match(/<ROW [^>]*\/>/g) || []).forEach(r => { clientes[rsAttr(r, "idCliente")] = r; });
+  const ahora = new Date(), fecha = Utilities.formatDate(ahora, ZONA, "yyyyMMdd"), hora = Utilities.formatDate(ahora, ZONA, "HH:mm");
+  const fh = Utilities.formatDate(ahora, ZONA, "yyyyMMdd'T'HH:mm:ss") + "000", dias = Math.floor((ahora - new Date(2026, 0, 1)) / 864e5);
+  const enc = [], det = [], salteados = []; let total = 0;
+  lista.forEach(function (x) {
+    const cod = String(Number(x.codigo)), monto = Math.round(Number(x.rec));
+    if (!(monto >= 1)) return;
+    const cli = clientes[cod];
+    if (!cli) return salteados.push(cod + " (no está en Resto Soft)");
+    if (rsAttr(cli, "ACtaCte") !== "TRUE") return salteados.push(rsAttr(cli, "Nombre").trim() + " (sin cuenta corriente en Resto Soft)");
+    const nro = "X-0099-" + ("0000" + dias).slice(-4) + ("0000" + cod).slice(-4), neto = monto / 1.21;
+    total += monto;
+    enc.push('<ROW Fecha="' + fecha + '" Hora="' + hora + '" Tipo="FA" Nro="' + nro + '" Mesa="0" idMozo="0" Neto="' + rsNum(neto) + '" IVAI="' + rsNum(monto - neto) +
+      '" IVANI="0" Descuento="0" Total="' + monto + '" idCierre="' + idCierre + '" Anul="" NombreClie="' + rsAttr(cli, "Nombre").trim().substring(0, 30) +
+      '" idCondIvaClie="' + (rsAttr(cli, "idCondIVA") || "C") + '" CUITClie="' + (rsAttr(cli, "CUIT") || "00-00000000-0") + '" idCliente="' + cod +
+      '" Pagos="0" FormaDePago="CC" CantPersonas="0" FechaEstad="' + fecha + '" Puntos="0" PerIB="0" AperturaMesa="' + fh +
+      '" Cobrada="TRUE" PagosEnMesa="0" ImpInt="0" idUsuario="1" IdOrigen="0" Propina="0" Cae_Nro="" Cae_Vto="' + fecha + '"/>');
+    det.push('<ROW Tipo="FA" Nro="' + nro + '" idDetalle="1" idProducto="' + RS_ID_ACTUALIZACION + '" Descripcion="ACTUALIZACION" Cant="' + monto +
+      '" PUnit="1" idTamanio="0" ImpInt="0" idUsuario="1" EsEntrada="FALSE" FechaHora="' + fh + '"/>');
+  });
+  if (!enc.length) throw new Error("Ningún recargo se pudo armar. " + salteados.join("; "));
+  const fin = "</ROWDATA></DATAPACKET>\r\n</##TABLA>\r\n", texto = RS_ENC + enc.join("") + fin + RS_DET + det.join("") + fin;
+  const bytes = []; for (let i = 0; i < texto.length; i++) { let c = texto.charCodeAt(i); if (c > 255) c = 63; bytes.push(c > 127 ? c - 256 : c); }
+  const nombre = "RECARGOS RESTO SOFT " + Utilities.formatDate(ahora, ZONA, "dd-MM HH.mm") + ".exp";
+  const blob = Utilities.newBlob(bytes, "application/octet-stream", nombre);
+  DriveApp.getFolderById(RESTOSOFT_ID).createFile(blob);
+  registrar(yo.nombre, "Armó el archivo de recargos para Resto Soft", "", nombre + " (" + enc.length + " clientes, $" + fmt(total) + ", caja " + idCierre + ")");
+  return { nombre: nombre, b64: Utilities.base64Encode(bytes), cantidad: enc.length, total: total, caja: idCierre, salteados: salteados };
 }
 
 /* ---------------- lector de Excel viejo (.xls, BIFF2/BIFF5/BIFF8) para el informe de Resto Soft ---------------- */
@@ -4271,6 +4345,24 @@ function botonPdf(cont, r, wa, texto, alAbrirChat) {
  * Baja el PDF. La app de Google corre "encerrada" y no deja bajar archivos desde adentro,
  * así que se abre una pestaña nueva (que sí puede) y el PDF se baja desde ahí.
  */
+/** Igual que bajarPdf, para cualquier archivo (por ejemplo el .exp de recargos para Resto Soft). */
+function bajarArchivo(d, tipo) {
+  var w = null;
+  try { w = window.open("", "_blank"); } catch (e) { w = null; }
+  var donde = w || window, bin = atob(d.b64), arr = new donde.Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  var url = donde.URL.createObjectURL(new donde.Blob([arr], { type: tipo }));
+  var doc = donde.document, a = doc.createElement("a");
+  a.href = url; a.download = d.nombre; a.textContent = "Bajar de nuevo";
+  if (w) {
+    doc.title = d.nombre;
+    doc.body.style.cssText = "font:18px system-ui,sans-serif;padding:40px;text-align:center;color:#1c211e";
+    doc.body.innerHTML = "<p>✅ Listo, el archivo <b></b> se bajó a la compu (está en Descargas).</p><p>Ya podés cerrar esta pestaña.</p><p></p>";
+    doc.body.querySelector("b").textContent = d.nombre;
+    doc.body.lastChild.appendChild(a);
+  } else { a.style.display = "none"; doc.body.appendChild(a); }
+  a.click();
+}
 function bajarPdf(d) {
   var w = null;
   try { w = window.open("", "_blank"); } catch (e) { w = null; }
@@ -4477,11 +4569,25 @@ $("bRecSem").onclick = function () {
   var txt = rs.map(function (r) { return r.codigo + "  " + r.nombre + "  " + pesos(r.rec); }).join(NL) + NL + NL + "TOTAL " + pesos(t);
   $("sheet").hidden = false;
   B.innerHTML = '<div class="top"><div><h3>Recargos ' + pct() + ' para cargar</h3><div class="sub">' + rs.length + (rs.length === 1 ? ' cliente' : ' clientes') + ' · total ' + pesos(t) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
-    '<p class="nota">Cargá cada uno en Resto Soft (código, cliente y monto). Cuando termines, exportá el Excel de nuevo y cargalo en la app: los recargos ya van a venir adentro y esta lista queda vacía.</p>' +
+    '<button class="solo" id="bArchRS">Armar archivo para Resto Soft (todos de una vez)</button>' +
+    '<div id="archRS"></div>' +
+    '<p class="nota">Antes: en Resto Soft hacé el backup y Exportar Datos de Ventas, comprimilo en .zip y subilo a la carpeta RESTOSOFT de Drive. Después de importar el archivo, exportá el Excel de cuentas corrientes de nuevo y cargalo en la app: los recargos ya vienen adentro y esta lista queda vacía.</p>' +
     rs.map(function (r) { return '<div class="resumen"><div><b>' + esc(r.nombre) + '</b><b>' + pesos(r.rec) + '</b></div><div><span class="nota">Código ' + esc(r.codigo) + ' · debe ' + pesos(r.saldo) + '</span></div></div>'; }).join("") +
     '<div class="resumen"><div><b>Total</b><b>' + pesos(t) + '</b></div></div>' +
     '<button class="ghost" id="bCopRec">Copiar la lista</button>';
   $("x").onclick = cerrar;
+  $("bArchRS").onclick = function () {
+    var bt = this; bt.disabled = true; bt.textContent = "Armando el archivo…";
+    run("archivoRecargos", TOKEN, rs.map(function (r) { return { codigo: r.codigo, rec: r.rec }; })).then(function (d) {
+      bt.hidden = true;
+      var c = $("archRS");
+      c.innerHTML = '<div class="resumen" style="gap:10px"><p class="bien" style="margin:0">Archivo listo: ' + d.cantidad + ' clientes, ' + pesos(d.total) + ' (caja ' + esc(d.caja) + ').</p>' +
+        (d.salteados.length ? '<p class="aviso" style="margin:0">No entraron (cargalos a mano): ' + esc(d.salteados.join(", ")) + '</p>' : '') +
+        '<button class="solo" id="bBajRS" type="button">Bajar el archivo a la compu</button>' +
+        '<p class="nota" style="margin:0">También quedó en la carpeta RESTOSOFT de Drive como <b>' + esc(d.nombre) + '</b>. En Resto Soft: Utiles → Sincronizar Datos → Importar Datos → elegí ese archivo.</p></div>';
+      $("bBajRS").onclick = function () { bajarArchivo(d, "application/octet-stream"); };
+    }).catch(function (e) { bt.disabled = false; bt.textContent = "Armar archivo para Resto Soft (todos de una vez)"; alerta(e.message); });
+  };
   $("bCopRec").onclick = function () {
     var b = this;
     if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function () { b.textContent = "Copiada ✓"; }, function () { b.textContent = "No se pudo copiar"; });
