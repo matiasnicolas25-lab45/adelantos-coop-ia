@@ -4,14 +4,17 @@
 // Instalar una sola vez: pegar, guardar y correr RRS_instalar().
 // Uso (el miércoles): 1) en Resto Soft, Utiles → Sincronizar Datos → Exportar Datos de Ventas del día y subirlo
 // a la carpeta RESTOSOFT de Drive (.exp o .zip, con "venta" en el nombre); 2) tildar la casilla de la hoja
-// "RESTO SOFT" de esta planilla; 3) bajar el archivo "RECARGOS RESTO SOFT dd-mm.exp" que aparece en RESTOSOFT e
+// "RESTO SOFT" (lo pasado queda anotado ahí desde la fila 12) de esta planilla; 3) bajar el archivo "RECARGOS RESTO SOFT dd-mm.exp" que aparece en RESTOSOFT e
 // importarlo en Resto Soft (Utiles → Sincronizar Datos → Importar Datos), con backup antes.
-// Por cada fila de RECARGOS con monto y sin "Cargado en Resto Soft el" arma una factura X a cuenta corriente con el
+// Toma el último período de la hoja ESTADO y, por cada socio con "Recargo sumado" (lo que pone el botón
+// "Sumar recargo" de la app) que no se haya pasado ya en los últimos 6 días, arma una factura X a cuenta corriente con el
 // producto ACTUALIZACION (idPlato 1986, $1) y cantidad = monto. Igual que lo que hacen a mano.
 // Numeración aparte X-0099-DDDDCCCC (DDDD = días desde el 1/1/2026, CCCC = código del cliente): nunca pisa
 // la numeración real y, si se importa dos veces el mismo día, el mismo socio no queda con dos recargos.
 var RRS_CARPETA = '1wO-WdCuwm0PtuFtz_MdcFj-uZwXlMsmZ';
-var RRS_HOJA_RECARGOS = 'RECARGOS';
+var RRS_HOJA_ESTADO = 'ESTADO';
+var RRS_FILA_LOG = 12;      // desde acá, en la hoja RESTO SOFT, queda anotado qué se pasó a Resto Soft
+var RRS_DIAS_YA_HECHO = 6;   // un socio que ya se pasó hace menos de 6 días no se vuelve a pasar
 var RRS_HOJA_PANEL = 'RESTO SOFT';
 var RRS_CASILLA = 'B1';
 var RRS_ID_ACTUALIZACION = '1986';
@@ -69,6 +72,10 @@ function RRS_attr(row, k) {
   return m ? m[1] : '';
 }
 
+function RRS_texto(v) {
+  return v instanceof Date ? Utilities.formatDate(v, 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd') : String(v).trim();
+}
+
 function RRS_num(x) {
   x = Math.round(x * 100) / 100;
   return x % 1 === 0 ? String(x) : x.toFixed(2);
@@ -87,27 +94,37 @@ function RRS_generar() {
   var clientes = {};
   (RRS_tabla(ventas, 'CLIENTES').match(/<ROW [^>]*\/>/g) || []).forEach(function (r) { clientes[RRS_attr(r, 'idCliente')] = r; });
 
-  var hoja = SpreadsheetApp.getActive().getSheetByName(RRS_HOJA_RECARGOS);
-  var datos = hoja.getDataRange().getValues(), enc = datos[0].map(String);
-  var cCod = enc.indexOf('Código'), cMonto = enc.indexOf('Monto'), cCarg = enc.indexOf('Cargado en Resto Soft el');
-  if (cCod < 0 || cMonto < 0 || cCarg < 0) throw new Error('No encuentro las columnas Código / Monto / Cargado en Resto Soft el en RECARGOS.');
+  var ss = SpreadsheetApp.getActive();
+  var datos = ss.getSheetByName(RRS_HOJA_ESTADO).getDataRange().getValues(), enc = datos[0].map(String);
+  var cPer = enc.indexOf('Período'), cCod = enc.indexOf('Código'), cRec = enc.indexOf('Recargo sumado');
+  if (cPer < 0 || cCod < 0 || cRec < 0) throw new Error('No encuentro las columnas Período / Código / Recargo sumado en ESTADO.');
+  var periodo = datos.slice(1).reduce(function (m, f) { var p = RRS_texto(f[cPer]); return p > m ? p : m; }, '');
 
   var ahora = new Date(), tz = 'America/Argentina/Buenos_Aires';
-  var fecha = Utilities.formatDate(ahora, tz, 'yyyyMMdd'), hora = Utilities.formatDate(ahora, tz, 'HH:mm');
-  var fechaHora = Utilities.formatDate(ahora, tz, "yyyyMMdd'T'HH:mm:ss") + '000';
-  var dias = Math.floor((ahora - new Date(2026, 0, 1)) / 864e5);
+  var panel = ss.getSheetByName(RRS_HOJA_PANEL);
+  var hechos = {};
+  if (panel.getLastRow() >= RRS_FILA_LOG) {
+    panel.getRange(RRS_FILA_LOG, 1, panel.getLastRow() - RRS_FILA_LOG + 1, 4).getValues().forEach(function (f) {
+      var cuando = f[3] instanceof Date ? f[3] : null;
+      if (f[0] !== '' && cuando && (ahora - cuando) / 864e5 < RRS_DIAS_YA_HECHO) hechos[String(f[0]).trim()] = true;
+    });
+  }
   var porCliente = {}, problemas = [];
   datos.slice(1).forEach(function (f) {
-    var cod = String(f[cCod]).trim(), monto = RRS_monto(f[cMonto]);
-    if (!cod || monto <= 0 || String(f[cCarg]).trim()) return;
+    var cod = String(f[cCod]).trim(), monto = RRS_monto(f[cRec]);
+    if (RRS_texto(f[cPer]) !== periodo || !cod || monto <= 0 || hechos[cod]) return;
     var cli = clientes[cod];
     if (!cli) return problemas.push(cod + ' no está en Resto Soft');
     if (RRS_attr(cli, 'ACtaCte') !== 'TRUE') return problemas.push(RRS_attr(cli, 'Nombre').trim() + ' no tiene cuenta corriente');
-    porCliente[cod] = (porCliente[cod] || 0) + monto;
+    porCliente[cod] = monto;
   });
   if (problemas.length) throw new Error(problemas.join('; '));
   var cods = Object.keys(porCliente);
-  if (!cods.length) return 'No hay recargos pendientes (todos tienen "Cargado en Resto Soft el").';
+  if (!cods.length) return 'No hay recargos nuevos: en ESTADO (período ' + periodo + ') no hay "Recargo sumado" que no se haya pasado ya a Resto Soft en los últimos ' + RRS_DIAS_YA_HECHO + ' días.';
+
+  var fecha = Utilities.formatDate(ahora, tz, 'yyyyMMdd'), hora = Utilities.formatDate(ahora, tz, 'HH:mm');
+  var fechaHora = Utilities.formatDate(ahora, tz, "yyyyMMdd'T'HH:mm:ss") + '000';
+  var dias = Math.floor((ahora - new Date(2026, 0, 1)) / 864e5);
 
   var filasEnc = [], filasDet = [], total = 0;
   cods.forEach(function (cod) {
@@ -133,6 +150,8 @@ function RRS_generar() {
   }
   var nombreArchivo = 'RECARGOS RESTO SOFT ' + Utilities.formatDate(ahora, tz, 'dd-MM HH.mm') + '.exp';
   DriveApp.getFolderById(RRS_CARPETA).createFile(Utilities.newBlob(bytes, 'application/octet-stream', nombreArchivo));
+  var log = cods.map(function (cod) { return [Number(cod), porCliente[cod], nombreArchivo, ahora]; });
+  panel.getRange(Math.max(panel.getLastRow() + 1, RRS_FILA_LOG), 1, log.length, 4).setValues(log);
   return 'Listo: "' + nombreArchivo + '" en RESTOSOFT — ' + cods.length + ' socios, $ ' + RRS_num(total) + ' (caja ' + idCierre + '). ' +
-    'Después de importarlo, marcá "Cargado en Resto Soft" en la app como siempre.';
+    'Importalo en Resto Soft (Utiles → Sincronizar Datos → Importar Datos).';
 }
