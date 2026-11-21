@@ -34,7 +34,7 @@ let H;
 prueba("el programa no tiene errores de escritura", () => { new Function(fs.readFileSync(path.join(raiz, "apps/horarios-google/Codigo.gs"), "utf8")); });
 prueba("se puede cargar", () => {
   const src = fs.readFileSync(path.join(raiz, "apps/horarios-google/Codigo.gs"), "utf8");
-  H = new Function("Utilities", "LockService", src + "\nreturn { horaMal, duracion: typeof duracion === 'function' ? duracion : null };")(Utilities, LockService);
+  H = new Function("Utilities", "LockService", src + "\nreturn { horaMal, minutosAntes, MIN_AFUERA_BLOQUEO, MIN_AFUERA_AVISO, duracion: typeof duracion === 'function' ? duracion : null };")(Utilities, LockService);
 });
 if (H) {
   const ahora = h => new Date(h + ":00-03:00");
@@ -45,6 +45,11 @@ if (H) {
   prueba("turno de noche (entra 17, sale 01): vale", () => igual(H.horaMal(entrada("2026-11-15", "17:00"), "01:00", ahora("2026-11-16T02:00")), ""));
   prueba("salida olvidada del día anterior: vale", () => igual(H.horaMal(entrada("2026-11-14", "09:00"), "16:00", ahora("2026-11-15T10:00")), ""));
   prueba("hora mal escrita: no vale", () => { si(H.horaMal(entrada("2026-11-15", "09:00"), "25:00", ahora("2026-11-15T18:30")) !== ""); si(H.horaMal(entrada("2026-11-15", "09:00"), "1600", ahora("2026-11-15T18:30")) !== ""); });
+  prueba("afuera del club: los márgenes son 15 y 30 minutos", () => { igual(H.MIN_AFUERA_BLOQUEO, 15); igual(H.MIN_AFUERA_AVISO, 30); });
+  prueba("afuera: salida 30 min antes de ahora = 30", () => igual(H.minutosAntes(entrada("2026-11-15", "17:00"), "23:00", ahora("2026-11-15T23:30")), 30));
+  prueba("afuera: salida 10 min antes (se bloquea)", () => si(H.minutosAntes(entrada("2026-11-15", "17:00"), "23:20", ahora("2026-11-15T23:30")) < 15));
+  prueba("afuera: salida 20 min antes (pasa con mail)", () => { const m = H.minutosAntes(entrada("2026-11-15", "17:00"), "23:10", ahora("2026-11-15T23:30")); si(m >= 15 && m < 30); });
+  prueba("afuera: turno de noche, salida 00:30 marcada a la 01:00 = 30", () => igual(H.minutosAntes(entrada("2026-11-15", "17:00"), "00:30", ahora("2026-11-16T01:00")), 30));
 }
 
 console.log("Proporcionales (botón Nueva semana)");

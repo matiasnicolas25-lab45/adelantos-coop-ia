@@ -10,6 +10,8 @@
  */
 
 const ZONA = "America/Argentina/Buenos_Aires";
+const MIN_AFUERA_BLOQUEO = 15;  // salida cargada desde afuera del club: no puede ser de los últimos 15 minutos
+const MIN_AFUERA_AVISO = 30;    // entre 15 y 30 minutos antes de la hora real se guarda, pero le llega un mail a Matías en el momento
 const HORA_CORTE = 6;   // ningún turno termina después de esta hora: una entrada de un día anterior todavía abierta es un olvido
 const PROPORCIONALES_ID = "1zvvw5Nfr1jyOYcvaqT1MgBnWlBmb8r3eaTL865E5ddE";   // planilla "Proporcionales" de la tesorera (pestaña MENSAJES)
 const ADELANTOS_ID = "1p9VNq6C5nrnmRZyosf9MEbMDYUmOQnypyrLVVa31oB8";   // planilla "ADELANTOS DEL …" (una pestaña por socio)
@@ -102,11 +104,14 @@ function marcar(nombre, pin, tipo, pos, horaOlvido, cel) {
     const lugar = donde(pos);
     if (tipo === "in") {
       if (abierta) return { ok: false, texto: p.nombre + ", ya marcaste entrada a las " + abierta.entrada + ". Marcá la salida primero." };
+      // La entrada solo se marca en el club. Sin ubicación (permiso negado) se deja, pero queda en amarillo para revisar.
+      if (lugar.afuera) return { ok: false, texto: "No estás en el club (" + lugar.dist + "). La entrada se marca cuando llegás al club." };
       const fila = hoja.getLastRow() + 1;
       hoja.getRange(fila, 1, 1, 4).setValues([["'" + fecha(ahora), p.nombre, "'" + hora(ahora), ""]]);
       hoja.getRange(fila, 5).setFormulaR1C1('=IF(R[0]C[-1]="","",MOD(TIMEVALUE(R[0]C[-1])-TIMEVALUE(R[0]C[-2]),1)*24)');
       hoja.getRange(fila, 6, 1, 2).setValues([["app", ahora]]);
       hoja.getRange(fila, 8).setValue(lugar.texto);
+      if (lugar.texto === "sin dato") hoja.getRange(fila, 8).setBackground("#fff2cc");
       hoja.getRange(fila, 10).setValue(lugar.coord);
       return { ok: true, texto: "¡Listo " + p.nombre + "! Entraste a las " + hora(ahora) + "." + lugar.aviso + nuevoPin(p) };
     }
@@ -125,10 +130,14 @@ function marcar(nombre, pin, tipo, pos, horaOlvido, cel) {
       if (!horaOlvido) return { ok: false, pideHora: true, texto: (sinDato ? "No pudimos ver tu ubicación" : "No estás en el club (" + lugar.dist + ")") + ". Poné la hora en que saliste." };
       const mal = horaMal(abierta, horaOlvido, ahora);
       if (mal) return { ok: false, pideHora: true, texto: mal };
+      // Desde afuera la salida no puede ser de los últimos 15 minutos; entre 15 y 30 minutos se guarda y le llega un mail a Matías.
+      const min = minutosAntes(abierta, horaOlvido, ahora);
+      if (min < MIN_AFUERA_BLOQUEO) return { ok: false, pideHora: true, texto: "Desde afuera del club no se puede poner una hora después de las " + hora(new Date(ahora.getTime() - MIN_AFUERA_BLOQUEO * 60000)) + ". Poné la hora real en que saliste del club." };
       hoja.getRange(abierta.fila, 4).setValue("'" + horaOlvido).setBackground("#fff2cc");
       hoja.getRange(abierta.fila, 6).setValue((sinDato ? "sin ubicación" : "afuera") + ": salida cargada por el socio el " + Utilities.formatDate(ahora, ZONA, "dd/MM HH:mm")).setBackground("#fff2cc");
       hoja.getRange(abierta.fila, 9).setValue(lugar.texto);
       hoja.getRange(abierta.fila, 11).setValue(lugar.coord);
+      if (min < MIN_AFUERA_AVISO) try { avisoSalidaAfuera(p, abierta, horaOlvido, ahora, lugar, sinDato, min); } catch (e) {}
       return { ok: true, texto: "¡Listo " + p.nombre + "! Quedó tu salida a las " + horaOlvido + ". Como la cargaste " + (sinDato ? "sin ubicación" : "desde afuera del club") + ", Matías la va a revisar." + nuevoPin(p) };
     }
     hoja.getRange(abierta.fila, 4).setValue("'" + hora(ahora));
@@ -154,6 +163,29 @@ function horaMal(abierta, hhmm, ahora) {
   if (salida > ahora.getTime()) return "Esa hora todavía no pasó: ahora son las " + hora(ahora) + ". Poné la hora en que saliste.";
   if (salida - entrada > 20 * 3600000) return "Entre la entrada (" + abierta.entrada + ") y esa salida hay más de 20 horas. Revisá la hora.";
   return "";
+}
+
+/** Cuántos minutos antes de ahora es la salida escrita ("HH:MM"), con el mismo criterio de turno de noche que horaMal. */
+function minutosAntes(abierta, hhmm, ahora) {
+  const entrada = new Date(abierta.fecha + "T" + abierta.entrada + ":00-03:00").getTime();
+  let salida = new Date(abierta.fecha + "T" + hhmm + ":00-03:00").getTime();
+  if (salida < entrada) salida += 86400000;
+  return (ahora.getTime() - salida) / 60000;
+}
+
+/** Mail a Matías en el momento: alguien cargó desde afuera del club una salida de hace menos de 30 minutos. */
+function avisoSalidaAfuera(p, abierta, hhmm, ahora, lugar, sinDato, min) {
+  const cuando = Utilities.formatDate(ahora, ZONA, "dd/MM HH:mm");
+  const dia = abierta.fecha.slice(8) + "/" + abierta.fecha.slice(5, 7);
+  const texto = "Hola " + p.nombre + " 👋 vimos que la salida del " + dia + " la cargaste desde afuera del club: pusiste que saliste a las " + hhmm +
+    ". ¿Nos confirmás que fue a esa hora? Acordate de marcar la salida en la app antes de irte del club 🙏";
+  const boton = p.cel ? ' <a href="https://wa.me/549' + p.cel + '?text=' + encodeURIComponent(texto) + '" style="background:#25d366;color:#fff;padding:4px 10px;border-radius:6px;text-decoration:none">Avisar por WhatsApp</a>' : "";
+  const html = "<div style='font-family:Arial,sans-serif;font-size:15px'><h2 style='font-weight:normal'>La Caleta · Horarios</h2>" +
+    "<p><b>" + p.nombre + "</b> cargó su salida desde " + (sinDato ? "un celular sin ubicación" : "afuera del club (" + lugar.dist + ")") + " a las " + Utilities.formatDate(ahora, ZONA, "HH:mm") +
+    " y puso que salió a las <b>" + hhmm + "</b>, " + Math.round(min) + " minutos antes.</p>" +
+    "<p>Turno: " + dia + " de " + abierta.entrada + " a " + hhmm + ". Quedó guardado en amarillo en MARCAS." + boton + "</p>" +
+    "<p style='color:#888;font-size:13px'>Planilla: " + libro().getUrl() + "</p></div>";
+  MailApp.sendEmail(Session.getEffectiveUser().getEmail(), "La Caleta · " + p.nombre + " cargó la salida desde afuera (" + cuando + ")", "Abrí este mail en un programa que muestre HTML.", { htmlBody: html, name: "La Caleta" });
 }
 
 /** Guarda el celular de la persona (10 números: código de área sin 0 y número sin 15). */
