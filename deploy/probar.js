@@ -180,6 +180,7 @@ prueba("resumen en PDF: el total y el saludo del final no se cortan entre págin
   si(/\.rpdf \.fin\{page-break-inside:avoid/.test(s), "falta el estilo que deja juntos el total y el saludo");
   si(/<div class="fin"><div class="tot">Total|<div class="fin"><div class="tot"><span>Total a pagar/.test(s), "el total no está adentro del bloque que no se corta");
   si(/scale: escala/.test(s) && /9000000/.test(s), "falta el límite de tamaño para celulares (si no, se corta abajo en resúmenes largos)");
+  si(/scrollX: 0, scrollY: 0/.test(s), "falta scrollX/scrollY en 0: si la pantalla está bajada, el PDF sale cortado abajo");
   const g = fs.readFileSync(path.join(raiz, "apps/cuentas/pdf.gs"), "utf8");
   si(/<div style='page-break-inside:avoid'><table class='tot'>/.test(g), "el PDF que arma Google también tiene que dejar juntos total y saludo");
 });
