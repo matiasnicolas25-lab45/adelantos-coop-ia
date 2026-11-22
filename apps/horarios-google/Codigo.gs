@@ -130,9 +130,10 @@ function marcar(nombre, pin, tipo, pos, horaOlvido, cel) {
       if (!horaOlvido) return { ok: false, pideHora: true, texto: (sinDato ? "No pudimos ver tu ubicación" : "No estás en el club (" + lugar.dist + ")") + ". Poné la hora en que saliste." };
       const mal = horaMal(abierta, horaOlvido, ahora);
       if (mal) return { ok: false, pideHora: true, texto: mal };
-      // Desde afuera la salida no puede ser de los últimos 15 minutos; entre 15 y 30 minutos se guarda y le llega un mail a Matías.
+      // Afuera (el GPS lo confirma): la salida no puede ser de los últimos 15 minutos; entre 15 y 30 minutos se guarda y le llega un mail a Matías.
+      // Sin ubicación (puede estar en el club con el GPS fallando): puede poner hasta la hora actual; queda en amarillo y, si es de los últimos 30 minutos, mail.
       const min = minutosAntes(abierta, horaOlvido, ahora);
-      if (min < MIN_AFUERA_BLOQUEO) return { ok: false, pideHora: true, texto: "Desde afuera del club no se puede poner una hora después de las " + hora(new Date(ahora.getTime() - MIN_AFUERA_BLOQUEO * 60000)) + ". Poné la hora real en que saliste del club." };
+      if (!sinDato && min < MIN_AFUERA_BLOQUEO) return { ok: false, pideHora: true, texto: "Desde afuera del club no se puede poner una hora después de las " + hora(new Date(ahora.getTime() - MIN_AFUERA_BLOQUEO * 60000)) + ". Poné la hora real en que saliste del club." };
       hoja.getRange(abierta.fila, 4).setValue("'" + horaOlvido).setBackground("#fff2cc");
       hoja.getRange(abierta.fila, 6).setValue((sinDato ? "sin ubicación" : "afuera") + ": salida cargada por el socio el " + Utilities.formatDate(ahora, ZONA, "dd/MM HH:mm")).setBackground("#fff2cc");
       hoja.getRange(abierta.fila, 9).setValue(lugar.texto);
