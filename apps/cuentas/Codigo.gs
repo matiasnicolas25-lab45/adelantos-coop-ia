@@ -4317,12 +4317,13 @@ function hojaPdf(r) {
     '.rpdf td.q{width:30px;color:#5b625e}.rpdf td.m{text-align:right;white-space:nowrap;padding-left:12px;font-variant-numeric:tabular-nums}' +
     '.rpdf .sub td{font-size:14px;color:#5b625e;border-top:1px dotted #cfc9bb}.rpdf .rec td{padding-top:14px;font-weight:600}' +
     '.rpdf .tot{display:flex;justify-content:space-between;border-top:2px solid #1f2a26;margin-top:6px;padding-top:12px;font:30px Marcellus,Georgia,serif}' +
-    '.rpdf .pie{margin-top:20px;text-align:center;color:#5b625e;font-size:14px;line-height:1.6}.rpdf tr{page-break-inside:avoid}</style>' +
+    '.rpdf .pie{margin-top:20px;text-align:center;color:#5b625e;font-size:14px;line-height:1.6}.rpdf tr{page-break-inside:avoid}' +
+    '.rpdf .fin{page-break-inside:avoid;break-inside:avoid;padding-top:6px}</style>' +
     '<div class="cab">' + (logo ? '<img src="' + logo + '">' : '') + '<div class="marca">LA CALETA<div>Yacht Club Rosario · ' + (r.tipo === "mesa" ? "Detalle de consumo pendiente" : "Resumen de cuenta corriente") + '</div></div></div>' +
     '<div class="para"><span>' + (r.nombre ? 'Para: <b>' + esc(r.nombre) + '</b>' : '') + '</span><span>Al <b>' + esc(r.al) + '</b></span></div>' +
     '<table>' + filas + '</table>' +
-    '<div class="tot"><span>Total a pagar</span><span>' + plata(r.total) + '</span></div>' +
-    '<div class="pie">' + (r.ultimo ? 'Último pago recibido: ' + esc(r.ultimo) + '<br>' : '') + 'Pagá en el salón o por transferencia al alias <b>' + esc(r.alias) + '</b><br>¡Gracias!</div></div>';
+    '<div class="fin"><div class="tot"><span>Total a pagar</span><span>' + plata(r.total) + '</span></div>' +
+    '<div class="pie">' + (r.ultimo ? 'Último pago recibido: ' + esc(r.ultimo) + '<br>' : '') + 'Pagá en el salón o por transferencia al alias <b>' + esc(r.alias) + '</b><br>¡Gracias!</div></div></div>';
 }
 function nombreArchivo(r) { return "Resumen La Caleta - " + String(r.archivo || r.nombre || "cuenta").replace(new RegExp("[/:*?<>|]+", "g"), " ").trim() + " " + String(r.al || "").split("/").join("-") + ".pdf"; }
 function pdfCliente(r) {
