@@ -1283,7 +1283,7 @@ function facturaPdf(x) {
     ".letra div{font-size:8px;font-weight:bold}.factura{font-size:21px;font-weight:bold}.g{font-size:13px}" +
     ".items th{background:#ccc;border:1px solid #000;padding:4px;font-size:9px;text-align:left}.items td{padding:5px 4px}" +
     ".chico{font-size:7.5px;font-style:italic}" +
-    "</style></head><body>" +
+    "tr{page-break-inside:avoid}</style></head><body>" +
     "<div class='tit'>ORIGINAL</div>" +
     "<table class='marco'><tr>" +
     "<td class='p' style='width:46%'><div class='b c' style='font-size:11px;margin:10px 0 18px'>COOPERATIVA DE TRABAJO LA CALETA LIMITADA</div>" +
@@ -1355,9 +1355,9 @@ function resumenPdf(token, r) {
     "<td class='marca'>LA CALETA<div>Yacht Club Rosario · " + (r.tipo === "mesa" ? "Detalle de consumo pendiente" : "Resumen de cuenta corriente") + "</div></td></tr></table>" +
     "<table class='para'><tr><td>" + (r.nombre ? "Para: <b>" + escH(r.nombre) + "</b>" : "") + "</td><td style='text-align:right'>Al <b>" + escH(r.al) + "</b></td></tr></table>" +
     "<table>" + filas + "</table>" +
-    "<table class='tot'><tr><td>Total a pagar</td><td style='text-align:right'>" + ps(r.total) + "</td></tr></table>" +
+    "<div style='page-break-inside:avoid'><table class='tot'><tr><td>Total a pagar</td><td style='text-align:right'>" + ps(r.total) + "</td></tr></table>" +
     "<div class='pie'>" + (r.ultimo ? "Último pago recibido: " + escH(r.ultimo) + "<br>" : "") +
-    "Pagá en el salón o por transferencia al alias <b>" + escH(r.alias || ALIAS_PAGO) + "</b><br>¡Gracias!</div>" +
+    "Pagá en el salón o por transferencia al alias <b>" + escH(r.alias || ALIAS_PAGO) + "</b><br>¡Gracias!</div></div>" +
     "</body></html>";
   const nombre = "Resumen La Caleta - " + String(r.archivo || r.nombre || "cuenta").replace(/[\\/:*?"<>|]+/g, " ").trim() + " " + String(r.al || "").replace(/\//g, "-") + ".pdf";
   const pdf = Utilities.newBlob(html, "text/html", "r.html").getAs("application/pdf").setName(nombre);
@@ -4333,7 +4333,11 @@ function pdfCliente(r) {
     var cont = document.createElement("div"); cont.style.cssText = "position:fixed;left:-10000px;top:0";
     cont.innerHTML = hojaPdf(r); document.body.appendChild(cont);
     var nombre = nombreArchivo(r);
-    return window.html2pdf().set({ margin: [12, 12, 12, 12], image: { type: "jpeg", quality: 0.96 }, html2canvas: { scale: 2, backgroundColor: "#ffffff" },
+    // Los celulares (sobre todo iPhone) no pueden dibujar una imagen muy grande: si el resumen es largo,
+    // la parte de abajo sale cortada o en blanco. Se baja la nitidez lo justo para que entre siempre.
+    var alto = Math.max(1, cont.firstChild.scrollHeight), ancho = Math.max(1, cont.firstChild.scrollWidth);
+    var escala = Math.max(0.75, Math.min(2, Math.sqrt(9000000 / (ancho * alto))));
+    return window.html2pdf().set({ margin: [12, 12, 12, 12], image: { type: "jpeg", quality: 0.96 }, html2canvas: { scale: escala, backgroundColor: "#ffffff" },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }, pagebreak: { mode: ["css", "legacy"] } })
       .from(cont.firstChild).outputPdf("datauristring").then(function (uri) {
         cont.remove(); return { nombre: nombre, b64: uri.slice(uri.indexOf(",") + 1) };

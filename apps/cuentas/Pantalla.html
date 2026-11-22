@@ -665,7 +665,11 @@ function pdfCliente(r) {
     var cont = document.createElement("div"); cont.style.cssText = "position:fixed;left:-10000px;top:0";
     cont.innerHTML = hojaPdf(r); document.body.appendChild(cont);
     var nombre = nombreArchivo(r);
-    return window.html2pdf().set({ margin: [12, 12, 12, 12], image: { type: "jpeg", quality: 0.96 }, html2canvas: { scale: 2, backgroundColor: "#ffffff" },
+    // Los celulares (sobre todo iPhone) no pueden dibujar una imagen muy grande: si el resumen es largo,
+    // la parte de abajo sale cortada o en blanco. Se baja la nitidez lo justo para que entre siempre.
+    var alto = Math.max(1, cont.firstChild.scrollHeight), ancho = Math.max(1, cont.firstChild.scrollWidth);
+    var escala = Math.max(0.75, Math.min(2, Math.sqrt(9000000 / (ancho * alto))));
+    return window.html2pdf().set({ margin: [12, 12, 12, 12], image: { type: "jpeg", quality: 0.96 }, html2canvas: { scale: escala, backgroundColor: "#ffffff" },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }, pagebreak: { mode: ["css", "legacy"] } })
       .from(cont.firstChild).outputPdf("datauristring").then(function (uri) {
         cont.remove(); return { nombre: nombre, b64: uri.slice(uri.indexOf(",") + 1) };

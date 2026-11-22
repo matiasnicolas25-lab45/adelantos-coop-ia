@@ -88,7 +88,7 @@ function facturaPdf(x) {
     ".letra div{font-size:8px;font-weight:bold}.factura{font-size:21px;font-weight:bold}.g{font-size:13px}" +
     ".items th{background:#ccc;border:1px solid #000;padding:4px;font-size:9px;text-align:left}.items td{padding:5px 4px}" +
     ".chico{font-size:7.5px;font-style:italic}" +
-    "</style></head><body>" +
+    "tr{page-break-inside:avoid}</style></head><body>" +
     "<div class='tit'>ORIGINAL</div>" +
     "<table class='marco'><tr>" +
     "<td class='p' style='width:46%'><div class='b c' style='font-size:11px;margin:10px 0 18px'>COOPERATIVA DE TRABAJO LA CALETA LIMITADA</div>" +
@@ -160,9 +160,9 @@ function resumenPdf(token, r) {
     "<td class='marca'>LA CALETA<div>Yacht Club Rosario · " + (r.tipo === "mesa" ? "Detalle de consumo pendiente" : "Resumen de cuenta corriente") + "</div></td></tr></table>" +
     "<table class='para'><tr><td>" + (r.nombre ? "Para: <b>" + escH(r.nombre) + "</b>" : "") + "</td><td style='text-align:right'>Al <b>" + escH(r.al) + "</b></td></tr></table>" +
     "<table>" + filas + "</table>" +
-    "<table class='tot'><tr><td>Total a pagar</td><td style='text-align:right'>" + ps(r.total) + "</td></tr></table>" +
+    "<div style='page-break-inside:avoid'><table class='tot'><tr><td>Total a pagar</td><td style='text-align:right'>" + ps(r.total) + "</td></tr></table>" +
     "<div class='pie'>" + (r.ultimo ? "Último pago recibido: " + escH(r.ultimo) + "<br>" : "") +
-    "Pagá en el salón o por transferencia al alias <b>" + escH(r.alias || ALIAS_PAGO) + "</b><br>¡Gracias!</div>" +
+    "Pagá en el salón o por transferencia al alias <b>" + escH(r.alias || ALIAS_PAGO) + "</b><br>¡Gracias!</div></div>" +
     "</body></html>";
   const nombre = "Resumen La Caleta - " + String(r.archivo || r.nombre || "cuenta").replace(/[\\/:*?"<>|]+/g, " ").trim() + " " + String(r.al || "").replace(/\//g, "-") + ".pdf";
   const pdf = Utilities.newBlob(html, "text/html", "r.html").getAs("application/pdf").setName(nombre);
