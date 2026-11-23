@@ -83,7 +83,7 @@ function armarCuentas(planilla, arca) {
     facturaPdf = function () { return "https://drive.google.com/file/d/prueba/view"; };
     wsfe = function (metodo, cuerpo) { ENVIADOS.push([metodo, cuerpo]); return ARCA(metodo, cuerpo); };
     CacheService = { getScriptCache: () => ({ put() {}, get() { return null; } }) };
-    return { facturar, notaCredito, recuperarFaltantes, revisarConArca, fechaArca, entrar, PLANILLA };`)(Utilities, LockService, planilla, arca, enviados);
+    return { facturar, notaCredito, recuperarFaltantes, revisarConArca, fechaArca, entrar, esSinRecargo, guardarRecargo, datos, PLANILLA };`)(Utilities, LockService, planilla, arca, enviados);
   C.enviados = enviados;
   return C;
 }
@@ -183,6 +183,23 @@ prueba("resumen en PDF: el total y el saludo del final no se cortan entre págin
   si(/scrollX: 0, scrollY: 0/.test(s), "falta scrollX/scrollY en 0: si la pantalla está bajada, el PDF sale cortado abajo");
   const g = fs.readFileSync(path.join(raiz, "apps/cuentas/pdf.gs"), "utf8");
   si(/<div style='page-break-inside:avoid'><table class='tot'>/.test(g), "el PDF que arma Google también tiene que dejar juntos total y saludo");
+});
+
+prueba("sin recargo 2,5 %: Domine, Domine Evento, las Comisión y Cristiá Pedro; el resto sí", () => {
+  const C = armarCuentas({ CONFIG: [["enc"]] }, arcaFalsa({}));
+  ["DOMINE", "DOMINE EVENTO", "COMISION DIRECTIVA", "COMISION YACHTING", "Comisión nueva", "CRISTIA PEDRO", "Cristiá  Pedro"].forEach(n => si(C.esSinRecargo(n), n + " debería ir sin recargo"));
+  ["CRISTIA PADRE", "CRISTIA  MARIA JOSE", "SANTI S. ORDOÑEZ", "PETERSEN", "GALLI AKU"].forEach(n => si(!C.esSinRecargo(n), n + " debería llevar recargo"));
+});
+prueba("sin recargo 2,5 %: la pantalla no lo calcula y no deja sumarlo", () => {
+  const P = { CONFIG: [["enc"], ["La app calcula los recargos desde (un miércoles)", "2026-11-04"]],
+    SALDOS: [["enc"], ["2026-11-20", 132, "DOMINE", "", 100000, 100000, "2026-11-01"], ["2026-11-20", 104, "SANTI S. ORDOÑEZ", "", 100000, 100000, "2026-11-01"]],
+    ESTADO: [["Período", "Código", "Mensaje enviado", "Enviado por", "Pagó", "Marcado por", "Recargo sumado"], ["2026-11-20", 132, "", "", "", "", 2500]] };
+  const C = armarCuentas(P, arcaFalsa({}));
+  const d = C.datos("t"), dom = d.clientes.filter(c => c.codigo === 132)[0], san = d.clientes.filter(c => c.codigo === 104)[0];
+  si(dom.sinRecargo && dom.recargoApp === 0 && dom.recargoSumado === 0, "Domine quedó con recargo");
+  si(!san.sinRecargo && san.recargoApp > 0, "Santi debería tener recargo");
+  let e = ""; try { C.guardarRecargo("t", 132, "DOMINE", 2500); } catch (x) { e = x.message; } si(/no lleva recargo/.test(e), "dejó sumar recargo a Domine");
+  si(P.CONFIG.some(r => /^Sin recargo/.test(r[0]) && /COMISION/.test(r[1])), "no se agregó la fila de CONFIG");
 });
 
 console.log("\n" + ok + " pruebas bien, " + fallas + " mal.");

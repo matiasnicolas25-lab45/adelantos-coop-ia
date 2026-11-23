@@ -502,6 +502,18 @@ function importar(token, base64, nombreArchivo) {
 /* ---------- recargo semanal calculado por la app (2,5 % cada miércoles sobre todo lo que se debe) ---------- */
 
 const DATO_INICIO_RECARGO = "La app calcula los recargos desde (un miércoles)";
+
+/* Cuentas que NO llevan el recargo del 2,5 % (pedido de Mat, 23/11/2026): las que en el nombre dicen alguna de
+   estas palabras. Se cambia en CONFIG sin tocar el programa (separadas por coma, mayúsculas y acentos no importan). */
+const DATO_SIN_RECARGO = "Sin recargo 2,5 % (cuentas cuyo nombre diga, separado por coma)";
+const SIN_RECARGO_INICIAL = "DOMINE, COMISION, CRISTIA PEDRO";
+function normalNombre(t) { return String(t == null ? "" : t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim(); }
+function listaSinRecargo() {
+  const f = filas("CONFIG").filter(r => String(r[0]) === DATO_SIN_RECARGO)[0];
+  if (!f) { try { hoja("CONFIG").appendRow([DATO_SIN_RECARGO, SIN_RECARGO_INICIAL]); } catch (e) {} }
+  return String(f ? f[1] : SIN_RECARGO_INICIAL).split(",").map(normalNombre).filter(String);
+}
+function esSinRecargo(nombre, lista) { const n = normalNombre(nombre); return (lista || listaSinRecargo()).some(p => n.indexOf(p) >= 0); }
 function fechaDato(nombre) {
   const f = filas("CONFIG").filter(r => String(r[0]) === nombre)[0];
   if (!f || f[1] === "" || f[1] == null) return "";
@@ -553,17 +565,19 @@ function datos(token) {
   let desde = "", hasta = periodo;
   const inicioRec = fechaDato(DATO_INICIO_RECARGO), hoy = Utilities.formatDate(new Date(), ZONA, "yyyy-MM-dd");
   const cargados = {}; filas("RECARGOS").forEach(r => { const k = String(r[0]), f = fTxt(r[2]); if (!cargados[k] || f > cargados[k]) cargados[k] = f; });
+  const sinRec = listaSinRecargo();
   const lista = s.filter(r => fTxt(r[0]) === periodo).map(function (r) {
     desde = fTxt(r[6]);
     const k = String(r[1]), c = cli[k] || [], e = est[k] || [], m = mv[k] || [];
     const conDetalle = m.map(x => ({ fecha: fTxt(x[2]), tipo: x[4], importe: x[4] === "Pago" ? Number(x[6]) : Number(x[5]), saldo: Number(x[7]), detalle: String(x[8] || "") }));
-    const rec = recargosApp(inicioRec, cargados[k] || "", Number(r[4]), m.map(x => ({ fecha: fTxt(x[2]), saldo: Number(x[7]) })), hoy);
+    const sinRecargo = esSinRecargo(r[2], sinRec);
+    const rec = sinRecargo ? { total: 0, semanas: [] } : recargosApp(inicioRec, cargados[k] || "", Number(r[4]), m.map(x => ({ fecha: fTxt(x[2]), saldo: Number(x[7]) })), hoy);
     return {
       codigo: Number(k), nombre: String(r[2]), saludo: String(c[2] || ""), wa: String(c[3] || ""), cuit: String(c[4] || ""),
       cond: String(c[5] || ""), revisado: String(c[6] || "") === "SÍ", tel: String(r[3] || ""),
       anterior: Number(r[4]), actual: Number(r[5]), movs: conDetalle, ultimoPago: todos[k] || "",
       enviado: hTxt(e[2] || ""), enviadoPor: String(e[3] || ""), pago: hTxt(e[4] || ""), pagoPor: String(e[5] || ""),
-      facturas: fac[k] || [], recargoApp: rec.total, recargoSemanas: rec.semanas, recargoSumado: Number(e[6]) || 0,
+      facturas: fac[k] || [], recargoApp: rec.total, recargoSemanas: rec.semanas, recargoSumado: sinRecargo ? 0 : Number(e[6]) || 0, sinRecargo: sinRecargo,
     };
   });
   const bloqueados = yo.rol === "admin" ? filas("ACCESO").filter(r => r[0] && String(r[4] || "").trim()).map(r => String(r[0])) : [];
@@ -603,6 +617,7 @@ function marcar(token, codigo, nombre, que, valor) {
 function guardarRecargo(token, codigo, nombre, monto) {
   const yo = quien(token), periodo = filas("SALDOS").map(r => fTxt(r[0])).sort().pop() || "";
   if (!periodo) throw new Error("Primero cargá el Excel de Resto Soft.");
+  if (Number(monto) > 0 && esSinRecargo(nombre)) throw new Error(nombre + " no lleva recargo (ver CONFIG: " + DATO_SIN_RECARGO + ").");
   const sh = hoja("ESTADO"), v = sh.getDataRange().getValues();
   if (!String(v[0][6] || "")) sh.getRange(1, 7).setValue("Recargo sumado").setFontWeight("bold");
   let fila = 0; for (let i = 1; i < v.length; i++) if (fTxt(v[i][0]) === periodo && String(v[i][1]) === String(codigo)) fila = i + 1;
@@ -1064,9 +1079,11 @@ function archivoRecargos(token, lista) {
   const ahora = new Date(), fecha = Utilities.formatDate(ahora, ZONA, "yyyyMMdd"), hora = Utilities.formatDate(ahora, ZONA, "HH:mm");
   const fh = Utilities.formatDate(ahora, ZONA, "yyyyMMdd'T'HH:mm:ss") + "000", dias = Math.floor((ahora - new Date(2026, 0, 1)) / 864e5);
   const enc = [], det = [], salteados = []; let total = 0;
+  const sinRec = listaSinRecargo();
   lista.forEach(function (x) {
     const cod = String(Number(x.codigo)), monto = Math.round(Number(x.rec));
     if (!(monto >= 1)) return;
+    if (esSinRecargo(x.nombre, sinRec)) return salteados.push(String(x.nombre) + " (no lleva recargo)");
     const cli = clientes[cod] || "";   // datos de Resto Soft si hay una exportación; si no, los del Excel de cuentas
     if (cli && rsAttr(cli, "ACtaCte") !== "TRUE") return salteados.push(rsAttr(cli, "Nombre").trim() + " (sin cuenta corriente en Resto Soft)");
     const nombreCli = (cli ? rsAttr(cli, "Nombre") : rsEsc(String(x.nombre || ""))).trim().substring(0, 30);
@@ -3879,7 +3896,7 @@ function cargar() {
     D = d; $("cargando").hidden = true; $("vApp").hidden = false;
     D.clientes.forEach(function (c) {
       // el saldo y los recargos van tal cual vienen del Excel de Resto Soft; el 2,5 % solo se suma si alguien toca el botón
-      c.restoSoft = c.actual; c.recargoExtra = c.restoSoft > 0 ? c.recargoSumado || 0 : 0; c.actual = c.restoSoft + c.recargoExtra;
+      c.restoSoft = c.actual; c.recargoExtra = c.restoSoft > 0 && !c.sinRecargo ? c.recargoSumado || 0 : 0; c.actual = c.restoSoft + c.recargoExtra;
     });
     $("yo").innerHTML = esc(d.yo.nombre) + '<br><button id="bSalir">Salir</button>';
     $("bSalir").onclick = function () { TOKEN = null; entrarPantalla(); };
@@ -4104,7 +4121,8 @@ function abrir(c) {
       : !waOk ? '<button class="solo" id="env">Cargar el WhatsApp para mandar</button>' : '<a class="wa" id="env" href="https://wa.me/' + esc(c.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>') +
     '<div class="two"><button class="ghost' + (c.pago ? " ok" : "") + '" id="bPago">' + (c.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">' + (conPdf ? "Copiar como texto" : "Copiar mensaje") + '</button></div>' +
     '<div class="two"><button class="ghost" id="bFA">Factura A</button><button class="ghost" id="bFB">Factura B</button></div>' +
-    (c.restoSoft > 0 && (c.recargoExtra || !recargoEstaSemana(c)) ? '<button class="ghost' + (c.recargoExtra ? " sel" : "") + '" id="bRec">' + (c.recargoExtra ? "✓ Recargo " + pct() + " sumado (" + pesos(c.recargoExtra) + ") · tocá para sacarlo" : "Sumar recargo " + pct() + " (" + pesos(Math.round(c.restoSoft * D.recargo)) + ")") + '</button>' +
+    (c.sinRecargo ? '<p class="nota">Esta cuenta no lleva el recargo del ' + pct() + '.</p>' : '') +
+    (c.restoSoft > 0 && !c.sinRecargo && (c.recargoExtra || !recargoEstaSemana(c)) ? '<button class="ghost' + (c.recargoExtra ? " sel" : "") + '" id="bRec">' + (c.recargoExtra ? "✓ Recargo " + pct() + " sumado (" + pesos(c.recargoExtra) + ") · tocá para sacarlo" : "Sumar recargo " + pct() + " (" + pesos(Math.round(c.restoSoft * D.recargo)) + ")") + '</button>' +
       (c.recargoExtra ? '<p class="nota">Cuando marques que pagó, el recargo queda anotado en "Recargos cobrados" para cargarlos todos juntos en Resto Soft.</p>' : '') : '') +
     '<button class="ghost" id="bDatos">' + (c.revisado ? "Editar datos del cliente" : "Revisar datos del cliente") + '</button>' +
     (c.enviado ? '<p class="nota">Mensaje enviado el ' + esc(c.enviado) + ' por ' + esc(c.enviadoPor) + '.</p>' : '') +
@@ -4564,7 +4582,7 @@ function recargoEstaSemana(c) {
   return c.movs.some(function (m) { return m.tipo === "Actualización" && m.fecha >= d; });
 }
 function recargosSemana() {
-  return D.clientes.filter(function (c) { return !c.pago && c.restoSoft >= 1 && !recargoEstaSemana(c); })
+  return D.clientes.filter(function (c) { return !c.pago && !c.sinRecargo && c.restoSoft >= 1 && !recargoEstaSemana(c); })
     .map(function (c) { return { codigo: c.codigo, nombre: c.nombre, saldo: c.restoSoft, rec: Math.round(c.restoSoft * D.recargo) }; })
     .filter(function (r) { return r.rec >= 1; })
     .sort(function (a, b) { return a.nombre < b.nombre ? -1 : 1; });

@@ -211,7 +211,7 @@ function cargar() {
     D = d; $("cargando").hidden = true; $("vApp").hidden = false;
     D.clientes.forEach(function (c) {
       // el saldo y los recargos van tal cual vienen del Excel de Resto Soft; el 2,5 % solo se suma si alguien toca el botón
-      c.restoSoft = c.actual; c.recargoExtra = c.restoSoft > 0 ? c.recargoSumado || 0 : 0; c.actual = c.restoSoft + c.recargoExtra;
+      c.restoSoft = c.actual; c.recargoExtra = c.restoSoft > 0 && !c.sinRecargo ? c.recargoSumado || 0 : 0; c.actual = c.restoSoft + c.recargoExtra;
     });
     $("yo").innerHTML = esc(d.yo.nombre) + '<br><button id="bSalir">Salir</button>';
     $("bSalir").onclick = function () { TOKEN = null; entrarPantalla(); };
@@ -436,7 +436,8 @@ function abrir(c) {
       : !waOk ? '<button class="solo" id="env">Cargar el WhatsApp para mandar</button>' : '<a class="wa" id="env" href="https://wa.me/' + esc(c.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>') +
     '<div class="two"><button class="ghost' + (c.pago ? " ok" : "") + '" id="bPago">' + (c.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">' + (conPdf ? "Copiar como texto" : "Copiar mensaje") + '</button></div>' +
     '<div class="two"><button class="ghost" id="bFA">Factura A</button><button class="ghost" id="bFB">Factura B</button></div>' +
-    (c.restoSoft > 0 && (c.recargoExtra || !recargoEstaSemana(c)) ? '<button class="ghost' + (c.recargoExtra ? " sel" : "") + '" id="bRec">' + (c.recargoExtra ? "✓ Recargo " + pct() + " sumado (" + pesos(c.recargoExtra) + ") · tocá para sacarlo" : "Sumar recargo " + pct() + " (" + pesos(Math.round(c.restoSoft * D.recargo)) + ")") + '</button>' +
+    (c.sinRecargo ? '<p class="nota">Esta cuenta no lleva el recargo del ' + pct() + '.</p>' : '') +
+    (c.restoSoft > 0 && !c.sinRecargo && (c.recargoExtra || !recargoEstaSemana(c)) ? '<button class="ghost' + (c.recargoExtra ? " sel" : "") + '" id="bRec">' + (c.recargoExtra ? "✓ Recargo " + pct() + " sumado (" + pesos(c.recargoExtra) + ") · tocá para sacarlo" : "Sumar recargo " + pct() + " (" + pesos(Math.round(c.restoSoft * D.recargo)) + ")") + '</button>' +
       (c.recargoExtra ? '<p class="nota">Cuando marques que pagó, el recargo queda anotado en "Recargos cobrados" para cargarlos todos juntos en Resto Soft.</p>' : '') : '') +
     '<button class="ghost" id="bDatos">' + (c.revisado ? "Editar datos del cliente" : "Revisar datos del cliente") + '</button>' +
     (c.enviado ? '<p class="nota">Mensaje enviado el ' + esc(c.enviado) + ' por ' + esc(c.enviadoPor) + '.</p>' : '') +
@@ -896,7 +897,7 @@ function recargoEstaSemana(c) {
   return c.movs.some(function (m) { return m.tipo === "Actualización" && m.fecha >= d; });
 }
 function recargosSemana() {
-  return D.clientes.filter(function (c) { return !c.pago && c.restoSoft >= 1 && !recargoEstaSemana(c); })
+  return D.clientes.filter(function (c) { return !c.pago && !c.sinRecargo && c.restoSoft >= 1 && !recargoEstaSemana(c); })
     .map(function (c) { return { codigo: c.codigo, nombre: c.nombre, saldo: c.restoSoft, rec: Math.round(c.restoSoft * D.recargo) }; })
     .filter(function (r) { return r.rec >= 1; })
     .sort(function (a, b) { return a.nombre < b.nombre ? -1 : 1; });
