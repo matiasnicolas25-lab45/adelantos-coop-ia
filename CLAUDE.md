@@ -18,5 +18,5 @@ Antes de proponer una automatización o una app, fijate acá y en la bitácora. 
 
 **Apps** (Google Apps Script; ver la bitácora para el detalle):
 - **App La Caleta** (lacaleta.ycr.com.ar/app, planilla "Horarios La Caleta"): los socios marcan entrada y salida con PIN y ven sus horas, sus adelantos (cuando CONFIG B5 = SÍ), los precios y su retiro de la semana (CONFIG B7). Le manda a Mat un mail diario con los olvidos de salida.
-- **App de cuentas** (planilla "Cuentas La Caleta"): cuentas corrientes de Resto Soft, recargo semanal, mensajes de WhatsApp y factura A/B por ARCA. Tiene datos personales: solo la usan Matías, Raquel, Yoana y Belén.
+- **App de cuentas / caja** (página /caja, planilla "Cuentas La Caleta", código en la rama `apps-la-caleta`): cuentas corrientes de Resto Soft, resumen en PDF, recargo de los miércoles con el archivo para Resto Soft, mensajes de WhatsApp y factura A/B por ARCA. Tiene datos personales: solo entran las personas habilitadas en su CONFIG.
 - **Script de Resto Soft** (`scripts/restosoft_txt.gs`): arma el .txt de precios para cargar en Resto Soft.
