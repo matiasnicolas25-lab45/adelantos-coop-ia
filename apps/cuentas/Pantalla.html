@@ -765,8 +765,8 @@ function dibujarMesas() {
   var q = $("busca").value.trim().toLowerCase();
   MESAS.filter(function (m) { return !q || m.nombre.toLowerCase().indexOf(q) >= 0; }).forEach(function (m) {
     var x = document.createElement("button");
-    x.className = "cli" + (m.pago ? " pago" : m.enviado ? " enviado" : "");
-    x.innerHTML = '<span class="av">' + esc(m.nombre.split(" ").filter(Boolean).map(function (w) { return w[0]; }).join("").slice(0, 2).toUpperCase()) + '</span><span><b>' + esc(m.nombre) + '</b><small>' + dia(m.fecha) + (m.mesa ? " · mesa " + esc(m.mesa) : "") + '</small></span><span class="monto">' + pesos(m.total) + '<small>' + (m.pago ? "Pagó" : m.enviado ? "Mensaje enviado" : "Sin pagar") + '</small></span>';
+    x.className = "cli" + (m.enviado ? " enviado" : "");
+    x.innerHTML = '<span class="av">' + esc(m.nombre.split(" ").filter(Boolean).map(function (w) { return w[0]; }).join("").slice(0, 2).toUpperCase()) + '</span><span><b>' + esc(m.nombre) + '</b><small>' + dia(m.fecha) + (m.mesa ? " · mesa " + esc(m.mesa) : "") + '</small></span><span class="monto">' + pesos(m.total) + '<small>' + (m.enviado ? "Mensaje enviado" : "Sin pagar") + '</small></span>';
     x.onclick = function () { abrirMesa(m); };
     L.appendChild(x);
   });
@@ -867,17 +867,12 @@ function abrirMesa(m) {
   B.innerHTML = '<div class="top"><div><h3>' + esc(m.nombre) + '</h3><div class="sub">' + (m.wa ? 'WhatsApp +' + esc(m.wa) : 'Sin WhatsApp') + ' · ' + pesos(m.total) + '</div></div><button class="close" id="x">Cerrar</button></div>' +
     vistaPdf("Resumen La Caleta - " + r.nombre + ".pdf", tc) +
     '<div id="env"></div>' +
-    '<div class="two"><button class="ghost' + (m.pago ? " ok" : "") + '" id="bPago">' + (m.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">Copiar como texto</button></div>' +
+    '<button class="ghost" id="bCopiar">Copiar como texto</button>' +
     (m.enviado ? '<p class="nota">Mensaje enviado el ' + esc(m.enviado) + ' por ' + esc(m.enviadoPor) + '.</p>' : '') +
-    (m.pago ? '<p class="nota">Pago marcado el ' + esc(m.pago) + ' por ' + esc(m.pagoPor) + '.</p>' : '') +
     '<p class="nota">Cargada por ' + esc(m.quien) + ' el ' + esc(m.cargado) + ' · ' + esc(m.comp) + '</p>';
   $("sheet").hidden = false; B.scrollTop = 0;
   $("x").onclick = cerrar;
   botonPdf($("env"), r, m.wa, tc, function () { m.enviado = "ahora"; m.enviadoPor = D.yo.nombre; run("marcarMesa", TOKEN, m.id, "enviado", true).catch(function () {}); setTimeout(dibujar, 300); });
-  $("bPago").onclick = function () {
-    var nuevo = !m.pago; this.disabled = true;
-    run("marcarMesa", TOKEN, m.id, "pago", nuevo).then(function () { m.pago = nuevo ? "recién" : ""; m.pagoPor = D.yo.nombre; cerrar(); dibujar(); }).catch(function (e) { alerta(e.message); });
-  };
   $("bCopiar").onclick = function () { var b = this; if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { b.textContent = "Copiado ✓"; }, function () { b.textContent = "No se pudo copiar"; }); };
 }
 $("bNueva").onclick = function () { $("sheet").hidden = false; formFactura("B", null); };
