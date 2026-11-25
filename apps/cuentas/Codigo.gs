@@ -3783,7 +3783,7 @@ nav button.on{background:var(--ink);color:var(--paper)}
     <div class="acc"><button class="ghost" id="bCargar">Cargar Excel nuevo</button><button class="ghost" id="bNueva">Nueva factura</button></div>
     <button class="ghost" id="bRecSem" hidden></button>
     <input id="busca" type="search" placeholder="Buscar cliente" autocomplete="off">
-    <nav id="filtros"><button class="on" data-f="deben">Deben</button><button data-f="enviados">Enviados</button><button data-f="pagaron">Pagaron</button><button data-f="todos">Todos</button><button data-f="mesas">Mesas</button></nav>
+    <nav id="filtros"><button class="on" data-f="deben">Deben</button><button data-f="enviados">Enviados</button><button data-f="todos">Todos</button><button data-f="mesas">Mesas</button></nav>
     <div class="list" id="lista"></div>
     <button class="ghost" id="bRecCob" hidden></button>
     <button class="ghost" id="bFacturas">Ver últimas facturas</button>
@@ -3908,7 +3908,7 @@ function cargar() {
 }
 function saldo(c) { return c.actual; }
 function consumos(c) { return c.movs.filter(function (m) { return m.tipo === "Consumo"; }); }
-function estado(c) { return c.pago ? "pagaron" : c.enviado ? "enviados" : "deben"; }
+function estado(c) { return c.enviado ? "enviados" : "deben"; }   // si pagó o no lo dice el Excel de Resto Soft
 function diasSinPagar(c) {
   if (!c.ultimoPago || !D.periodo) return null;
   return Math.round((new Date(D.periodo.hasta + "T12:00:00") - new Date(c.ultimoPago + "T12:00:00")) / 86400000);
@@ -3919,7 +3919,7 @@ function dibujar() {
   var L = $("lista"), q = $("busca").value.trim().toLowerCase(), tot = 0, n = 0;
   L.textContent = "";
   if (!D.periodo) { L.innerHTML = '<p class="nota">Todavía no hay datos. Tocá <b>Cargar Excel nuevo</b> y elegí el Excel de cuentas corrientes que exportaste de Resto Soft.</p>'; $("tot").textContent = "$0"; $("totsub").textContent = ""; return; }
-  D.clientes.forEach(function (c) { if (!c.pago && c.actual > 0) { tot += c.actual; n++; } });
+  D.clientes.forEach(function (c) { if (c.actual > 0) { tot += c.actual; n++; } });
   $("tot").textContent = pesos(tot); $("totsub").textContent = n + (n === 1 ? " cliente debe" : " clientes deben");
   var lista = D.clientes.filter(function (c) {
     if (q) return c.nombre.toLowerCase().indexOf(q) >= 0;
@@ -3928,17 +3928,17 @@ function dibujar() {
     return estado(c) === filtro;
   }).sort(function (a, b) { return b.actual - a.actual; });
   lista.forEach(function (c) {
-    var ds = diasSinPagar(c), viejo = !c.pago && c.actual > 0 && (ds === null || ds > 30);
+    var ds = diasSinPagar(c), viejo = c.actual > 0 && (ds === null || ds > 30);
     var b = document.createElement("button");
-    b.className = "cli" + (c.pago ? " pago" : c.enviado ? " enviado" : viejo ? " viejo" : "");
-    var nota = c.pago ? "Pagó" : c.enviado ? "Mensaje enviado" : c.actual <= 0 ? "Al día" : ds === null ? "Sin pagos registrados" : ds > 30 ? "Sin pagar hace " + ds + " días" : "Pagó hace " + ds + " días";
+    b.className = "cli" + (c.enviado ? " enviado" : viejo ? " viejo" : "");
+    var nota = c.enviado ? "Mensaje enviado" : c.actual <= 0 ? "Al día" : ds === null ? "Sin pagos registrados" : ds > 30 ? "Sin pagar hace " + ds + " días" : "Pagó hace " + ds + " días";
     var cs = consumos(c).length;
     b.innerHTML = '<span class="av">' + esc(c.nombre.replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ ]/g, "").split(" ").filter(Boolean).map(function (p) { return p[0]; }).join("").slice(0, 2)) + '</span><span><b>' + esc(c.nombre) + '</b><small>' +
-      (cs ? cs + (cs === 1 ? " consumo" : " consumos") : "Sin consumos") + (!c.revisado ? " · revisar datos" : "") + '</small></span><span class="monto">' + pesos(c.pago ? 0 : c.actual) + '<small>' + nota + '</small></span>';
+      (cs ? cs + (cs === 1 ? " consumo" : " consumos") : "Sin consumos") + (!c.revisado ? " · revisar datos" : "") + '</small></span><span class="monto">' + pesos(c.actual) + '<small>' + nota + '</small></span>';
     b.onclick = function () { abrir(c); };
     L.appendChild(b);
   });
-  if (!lista.length) L.innerHTML = '<p class="nota">' + (q ? "No hay clientes con ese nombre." : filtro === "pagaron" ? "Todavía nadie pagó en este período." : filtro === "enviados" ? "Todavía no se mandaron mensajes. Tocá un cliente para mandarle el suyo." : "Nadie debe en este período.") + '</p>';
+  if (!lista.length) L.innerHTML = '<p class="nota">' + (q ? "No hay clientes con ese nombre." : filtro === "enviados" ? "Todavía no se mandaron mensajes. Tocá un cliente para mandarle el suyo." : "Nadie debe en este período.") + '</p>';
 }
 $("busca").oninput = dibujar;
 Array.prototype.forEach.call($("filtros").children, function (b) {
@@ -4119,14 +4119,13 @@ function abrir(c) {
     (conPdf ? vistaPdf("Resumen La Caleta - " + r.nombre + ".pdf", tc) : '<div class="chat"><div class="bubble">' + burbuja(t) + '</div></div>') +
     (conPdf ? '<div id="env"></div>' + (waOk ? '' : '<p class="nota">No tiene WhatsApp cargado: igual podés bajar el PDF y elegir el contacto en WhatsApp, o cargarlo en "Editar datos del cliente".</p>')
       : !waOk ? '<button class="solo" id="env">Cargar el WhatsApp para mandar</button>' : '<a class="wa" id="env" href="https://wa.me/' + esc(c.wa) + '?text=' + encodeURIComponent(t) + '">Mandar por WhatsApp</a>') +
-    '<div class="two"><button class="ghost' + (c.pago ? " ok" : "") + '" id="bPago">' + (c.pago ? "Pagó ✓" : "Marcar que pagó") + '</button><button class="ghost" id="bCopiar">' + (conPdf ? "Copiar como texto" : "Copiar mensaje") + '</button></div>' +
+    '<button class="ghost" id="bCopiar">' + (conPdf ? "Copiar como texto" : "Copiar mensaje") + '</button>' +
     '<div class="two"><button class="ghost" id="bFA">Factura A</button><button class="ghost" id="bFB">Factura B</button></div>' +
     (c.sinRecargo ? '<p class="nota">Esta cuenta no lleva el recargo del ' + pct() + '.</p>' : '') +
     (c.restoSoft > 0 && !c.sinRecargo && (c.recargoExtra || !recargoEstaSemana(c)) ? '<button class="ghost' + (c.recargoExtra ? " sel" : "") + '" id="bRec">' + (c.recargoExtra ? "✓ Recargo " + pct() + " sumado (" + pesos(c.recargoExtra) + ") · tocá para sacarlo" : "Sumar recargo " + pct() + " (" + pesos(Math.round(c.restoSoft * D.recargo)) + ")") + '</button>' +
-      (c.recargoExtra ? '<p class="nota">Cuando marques que pagó, el recargo queda anotado en "Recargos cobrados" para cargarlos todos juntos en Resto Soft.</p>' : '') : '') +
+      (c.recargoExtra ? '<p class="nota">Cuando el Excel de Resto Soft muestre que pagó con el recargo, queda anotado solo en "Recargos cobrados" para cargarlos todos juntos en Resto Soft.</p>' : '') : '') +
     '<button class="ghost" id="bDatos">' + (c.revisado ? "Editar datos del cliente" : "Revisar datos del cliente") + '</button>' +
     (c.enviado ? '<p class="nota">Mensaje enviado el ' + esc(c.enviado) + ' por ' + esc(c.enviadoPor) + '.</p>' : '') +
-    (c.pago ? '<p class="nota">Pago marcado el ' + esc(c.pago) + ' por ' + esc(c.pagoPor) + '.</p>' : '') +
     (c.facturas.length ? '<p class="nota">Facturas: ' + c.facturas.map(function (f) { return esc(f.tipo + " " + f.numero + " (" + pesos(f.total) + ")"); }).join(", ") + '</p>' : '');
   $("sheet").hidden = false; B.scrollTop = 0;
   $("x").onclick = cerrar;
@@ -4134,11 +4133,6 @@ function abrir(c) {
   if (conPdf) botonPdf($("env"), r, c.wa, tc, enviado);
   else if (!waOk) $("env").onclick = function () { datosCliente(c); };
   else $("env").onclick = enviado;
-  $("bPago").onclick = function () {
-    var nuevo = !c.pago; this.disabled = true;
-    run("marcar", TOKEN, c.codigo, c.nombre, "pago", nuevo).then(function () { c.pago = nuevo ? "recién" : ""; c.pagoPor = D.yo.nombre; cerrar(); dibujar(); refrescarRecargos(); })
-      .catch(function (e) { alerta(e.message); });
-  };
   $("bCopiar").onclick = function () {
     var b = this;
     if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { b.textContent = "Copiado ✓"; }, function () { b.textContent = "No se pudo copiar"; });
@@ -4582,7 +4576,7 @@ function recargoEstaSemana(c) {
   return c.movs.some(function (m) { return m.tipo === "Actualización" && m.fecha >= d; });
 }
 function recargosSemana() {
-  return D.clientes.filter(function (c) { return !c.pago && !c.sinRecargo && c.restoSoft >= 1 && !recargoEstaSemana(c); })
+  return D.clientes.filter(function (c) { return !c.sinRecargo && c.restoSoft >= 1 && !recargoEstaSemana(c); })
     .map(function (c) { return { codigo: c.codigo, nombre: c.nombre, saldo: c.restoSoft, rec: Math.round(c.restoSoft * D.recargo) }; })
     .filter(function (r) { return r.rec >= 1; })
     .sort(function (a, b) { return a.nombre < b.nombre ? -1 : 1; });
@@ -4629,7 +4623,7 @@ $("bRecSem").onclick = function () {
 function botonRecargos() {
   var rs = (D && D.recargosCobrados) || [], b = $("bRecCob"), t = 0;
   rs.forEach(function (r) { t += r.monto; });
-  b.hidden = !D || filtro !== "pagaron";   // siempre se ve en "Pagaron", abajo de la lista
+  b.hidden = !D || !rs.length || filtro === "mesas";   // se ve solo cuando hay recargos cobrados para cargar
   b.innerHTML = "<b>Recargos 2,5 % cobrados: " + pesos(t) + "</b><br><small>" + (rs.length ? rs.length + (rs.length === 1 ? " recargo" : " recargos") + " para cargar en Resto Soft · tocá para ver" : "Todavía no hay recargos cobrados para cargar") + "</small>";
   b.disabled = !rs.length;
 }
