@@ -45,10 +45,12 @@ La referencia completa y vigente es `references/adelantos.md` (viene del chat de
 - Equivalencias fijas (leche = Tregar, chicle = Beldent, Topline, dulce de leche Vacalín, etc.) en la referencia.
 - **Tope de efectivo: $150.000 por socio por ciclo.** Si se pasa, se carga igual y se marca en el mensaje.
 - Cumples: se cargan a todos menos el cumpleañero y Jesús.
-- Correcciones de semanas cerradas: fila `Ajuste …` en la semana actual. No se tocan las semanas cerradas.
-- Montos raros o líneas repetidas: preguntar antes de cargar.
+- Correcciones de semanas cerradas: se corrige el monto de la fila original en su semana, sin filas `Ajuste` y sin avisar en mensajes (Mat, 26/11/2026).
+- Lo del jueves de cierre va en la semana que termina ese jueves; la semana nueva se abre con la devolución del sábado.
+- Dudas: cargar el monto más probable (supuestos de la referencia, ficha por gramo, factura) y avisar en un solo mail corto. Precio raro: mirar la factura antes de preguntar.
+- Montos absurdos o líneas repetidas: preguntar antes de cargar.
 
-**Mensajes**: van al chat de WhatsApp **"La Caleta"**, listos para copiar (nunca en un .txt). Llevan saludo, los movimientos de la semana por fecha, el total de la semana y el link a las listas de precios. **No llevan devolución ni saldo anterior.** El formato exacto está en la referencia. Si un mensaje ya salió con un error, se manda un ajuste aparte.
+**Mensajes**: ya no se arman mensajes de WhatsApp. Los socios ven su semana en la **App La Caleta** (CONFIG B5 = SÍ al terminar). Lo que el socio tiene que ver (por ejemplo, que se pasó del tope de efectivo) va en el concepto de la fila.
 
 ## Precios de proveedores y facturas
 
