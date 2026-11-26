@@ -51,7 +51,8 @@ Nombres exactos de pestaña (varios tienen espacio al final):
 
 ## 3. Flujo semanal
 
-1. Leer el grupo de WhatsApp **"Adelantos Coope"** (WhatsApp Web). Mat indica desde qué mensaje arrancar y dónde cortar. Lo que llega después del corte queda para la semana siguiente.
+1. Leer el grupo de WhatsApp **"Adelantos Coope"** (WhatsApp Web o el chat exportado a Drive). Mat indica desde qué mensaje arrancar y dónde cortar.
+   - **La semana va de jueves a jueves: lo que se llevan el jueves de cierre (aunque llegue después del corte o Mat lo pase aparte) va en la semana que termina ese jueves.** La semana nueva (encabezado + devolución) se abre recién cuando llega la foto DEVUELVEN del sábado. Si se abre antes, la app le muestra al socio solo esa semana vacía (Mat, 26/11/2026: Romi $100.000 del 26/11).
 2. WhatsApp Web carga los mensajes de a partes: hacer scroll y juntar todos (`[data-pre-plain-text]`). Antes de armar mensajes, volver a revisar por si alguien **editó o reenvió** un mensaje.
 3. En cada pestaña, después de la última fila:
    - Fila encabezado: `SEMANA DEL dd/mm AL dd/mm` en **columna A, negrita, letra negra**.
@@ -61,11 +62,12 @@ Nombres exactos de pestaña (varios tienen espacio al final):
    - Saldo: `=N(E{fila-1})+N(C{fila})-N(D{fila})`.
    - Fechas como texto `dd/mm/aaaa` (la API las interpreta como fecha).
 5. **Escribir siempre con rango explícito** (`update_values` / `update_formulas`). **Nunca `append_values`**: inserta filas en el medio de la pestaña.
-6. Dudas: concepto con `(FALTA …)` y sin monto.
-7. Correcciones de semanas anteriores: fila `Ajuste …` en la semana actual (no tocar semanas cerradas).
+6. Dudas: **se carga siempre el monto más probable** (ver 4.1) y se le avisa a Mat en el mail. Dejar una fila sin monto `(FALTA …)` solo si de verdad no hay forma de estimarlo.
+7. Correcciones de semanas anteriores (Mat, 26/11/2026): **se corrige el monto de la fila original en la semana donde está**, sin filas `Ajuste …` y sin mencionarlo en los mensajes. Solo columna C/D; el saldo sigue por fórmula.
 8. Cumpleaños del ciclo (Mat avisa; si no avisa, no hubo).
 9. Revisar topes de efectivo.
-10. Armar los mensajes para cada socio (sección 7).
+10. Poner CONFIG B5 de "Horarios La Caleta" en **SÍ** para que los socios vean la semana en la app (sección 7).
+11. **Un solo mail a Mat con las dudas**, corto: una línea por duda con lo que se cargó, el monto y la alternativa, para que conteste "ok" o corrija. Nunca dos opciones sin una elegida.
 
 ---
 
@@ -81,6 +83,22 @@ Nombres exactos de pestaña (varios tienen espacio al final):
 - **Facturas A son netas:** sumar 21% de IVA.
 - **Desconfiar de montos que no cierran** (ej. una bolsa de masticables a $60.000 era un cero de más: $5.001,29 + IVA = $6.051,56). Si un mensaje viene con una línea repetida o un monto raro, preguntar antes de cargar.
 - Cada precio nuevo que aparezca (boleta, decisión de Mat) se carga en el momento en las dos planillas de precios.
+- **Si un precio cambió raro entre una lista y otra (sube o baja más de ~10%), mirar la factura antes de preguntar** y llevarle a Mat la respuesta, no las dos opciones. Error del 19-26/11/2026: la crema Cremac figuró a $8.061,26 con el IVA sumado dos veces; el precio real salía de la factura de Drovandi. **La crema Cremac se compra a Drovandi** (COSTOS RECETAS, hoja GASTROINSUMOS), no a Unión.
+- **Lo que en la lista está solo por porción y el socio pide por peso** (granola, chantilly, mousse, salsas, panes): buscar en la ficha cuánto pesa la porción o la tanda y cobrar por gramo. No preguntar. Si es plato, con el 25%.
+
+### 4.1 Supuestos por defecto (cargar y avisar, no dejar sin monto)
+
+| Si el socio pone… | Se carga |
+|---|---|
+| un número solo antes del producto ("51 crema", "300 mus choco") | gramos |
+| pack de coca | 6 botellas de 1,25 L |
+| nuggets | igual que las patitas de pollo |
+| discos | discos de empanada |
+| bolsita / bolsitas | bolsitas de Plastipel (mirar la última factura de Plastipel) |
+| cabeza de ajo | precio de Ajo de la lista (es por unidad) |
+| pan de chipá | el pan solo de la ficha del sándwich de chipá |
+| producto con nombre de proveedor ("factura de la tranquera") sin factura en Drive | precio de la lista y avisar |
+| plato sin ficha con ese nombre | la ficha más parecida, cambiando el ingrediente principal, y avisar cómo se armó |
 
 ### Equivalencias fijas
 
@@ -115,7 +133,7 @@ Nombres exactos de pestaña (varios tienen espacio al final):
 
 - Monto en pesos sin descripción ("30 mil", "$50000") = **adelanto efectivo** (DEBE). No preguntar.
 - "Devuelvo …" = HABER.
-- **Tope efectivo: $150.000 por socio por ciclo.** Si se pasa, se carga igual y se marca en el mensaje.
+- **Tope efectivo: $150.000 por socio por ciclo.** Si se pasa, se carga igual y se anota en el concepto de la fila de efectivo que lo hace pasar (ej. "efectivo de la semana $210.000: se pasó del tope de $150.000 por $60.000"), porque eso es lo que ve el socio en la app.
 - "lo retira / se lo lleva Yoa" → se le carga a quien lo pidió, no a Yoa.
 - Uber sin monto: ignorar.
 - **Cumples:** a todos los socios menos el cumpleañero y Jesús (Leticia incluida desde oct. 2026). Concepto `Cumple [Nombre]`.
@@ -138,7 +156,9 @@ Nombres exactos de pestaña (varios tienen espacio al final):
 
 ## 7. Mensajes semanales a los socios
 
-- Se mandan al chat de WhatsApp **"La Caleta"** (no por privado). Mat los copia desde el chat: entregarlos listos para copiar, nunca como .txt.
+- **Desde nov. 2026 no se arman mensajes de WhatsApp** (Mat, 26/11/2026): los socios ven sus movimientos en la **App La Caleta** (app de horarios), que lee directo la última semana ("SEMANA DEL…") de su pestaña cuando CONFIG B5 = SÍ. Por eso todo lo que el socio tiene que ver (tope de efectivo, aclaraciones) va en el concepto de la fila. La app no muestra las filas sin monto.
+- Lo de abajo queda solo por si Mat pide un mensaje a mano:
+- Se mandaban al chat de WhatsApp **"La Caleta"** (no por privado), listos para copiar, nunca como .txt.
 - Movimientos tal cual están en la planilla, ordenados por fecha. **Sin devolución, sin saldo anterior, sin explicar saldos a favor.**
 - Formato:
 
@@ -157,7 +177,7 @@ https://drive.google.com/drive/folders/1quRYus4l1p-_RjsQ2Hebry6i5yeYnWDZ
 - Total de la semana = suma de los movimientos de la semana (sin la devolución inicial).
 - Sin saludo de cierre ("¡Gracias y que tengas…" no va). Sin texto sobre cómo pasar pedidos. Nada de 👋.
 - Si es el cumple del socio, se puede sumar una línea de saludo.
-- Si un mensaje ya salió y hay que corregir, mandar un **ajuste aparte** (no reescribir la línea original).
+- Correcciones: se corrige la fila original en su semana (paso 7 del flujo), sin ajuste aparte.
 
 ---
 
@@ -172,6 +192,9 @@ https://drive.google.com/drive/folders/1quRYus4l1p-_RjsQ2Hebry6i5yeYnWDZ
 - Aceptar montos absurdos sin preguntar.
 - Preguntar precios que ya están en la lista.
 - No volver a leer el grupo antes de cerrar (mensajes editados o reenviados).
+- Llenar el mail de dudas con cosas que se resuelven con la lista, la ficha o la factura (semana 19-26/11/2026: 17 dudas, casi todas evitables).
+- Abrir la semana nueva antes de la devolución del sábado.
+- Preguntar "¿con cuál precio cobro?" sin haber mirado la factura.
 
 ---
 
