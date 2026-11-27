@@ -99,7 +99,7 @@ Ojo: el próximo cambio que se guarde vuelve a publicar lo último.
 - **Repositorio (repo):** la carpeta en GitHub donde está guardado todo el código de las apps, con el historial de cada cambio.
 - **GitHub:** el sitio donde está el repositorio.
 - **Commit:** cada cambio guardado en el repositorio, con una nota de qué se hizo.
-- **Rama (branch):** una línea de trabajo dentro del repositorio. La nuestra se llama `ccr-e008e6de-2fulh4`.
+- **Rama (branch):** una línea de trabajo dentro del repositorio. La de las apps se llama `apps`.
 - **Deploy (implementar o publicar):** poner una versión nueva del programa en funcionamiento para que la gente la use.
 - **Versión:** cada foto del programa publicada. Google guarda todas; el link `/exec` muestra la última.
 - **Token:** llave digital que reemplaza a la contraseña para que un programa actúe en tu nombre.
